@@ -1,0 +1,49 @@
+from datetime import date
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+from django.urls import reverse
+
+from finance.models import Estimate, EstimateItem, Transaction
+from objects.models import Client, ConstructionObject
+from staff.models import Employee, Position, Task
+from warehouse.models import Material, StockMovement
+
+
+class SystemTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = get_user_model().objects.create_user("admin", password="pass12345")
+        cls.client_obj = Client.objects.create(name="ООО Заказчик")
+        pos = Position.objects.create(name="Прораб")
+        cls.emp = Employee.objects.create(full_name="Иванов И.И.", position=pos)
+        cls.obj = ConstructionObject.objects.create(
+            name="ЖК Парамаунт", client=cls.client_obj, manager=cls.emp, status="in_progress")
+        Task.objects.create(title="Залить фундамент", construction_object=cls.obj, assignee=cls.emp)
+        cls.mat = Material.objects.create(name="Цемент", unit="мешок", min_stock=50)
+        StockMovement.objects.create(material=cls.mat, kind="in", quantity=100, date=date.today())
+        StockMovement.objects.create(material=cls.mat, kind="out", quantity=70, date=date.today(), construction_object=cls.obj)
+        est = Estimate.objects.create(construction_object=cls.obj, title="Смета №1")
+        EstimateItem.objects.create(estimate=est, name="Бетон", quantity=10, unit_price=500)
+        Transaction.objects.create(construction_object=cls.obj, kind="income", amount=1000, date=date.today())
+        Transaction.objects.create(construction_object=cls.obj, kind="expense", amount=400, date=date.today())
+
+    def test_stock_and_low(self):
+        self.assertEqual(self.mat.stock, 30)
+        self.assertTrue(self.mat.is_low)
+
+    def test_estimate_total(self):
+        self.assertEqual(Estimate.objects.get().total, 5000)
+
+    def test_login_required(self):
+        r = self.client.get(reverse("dashboard"))
+        self.assertEqual(r.status_code, 302)
+
+    def test_pages_render(self):
+        self.client.login(username="admin", password="pass12345")
+        for name, args in [("dashboard", []), ("object_list", []), ("object_detail", [self.obj.pk]),
+                           ("staff_list", []), ("warehouse_list", []), ("finance_list", [])]:
+            r = self.client.get(reverse(name, args=args))
+            self.assertEqual(r.status_code, 200, name)
+        r = self.client.get(reverse("object_list") + "?status=done")
+        self.assertEqual(r.status_code, 200)

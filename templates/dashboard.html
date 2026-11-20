@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Главная</h1>
+<div class="cards">
+  <div class="card"><div class="label">Объектов в работе</div><div class="value">{{ objects_active }} <small style="font-size:14px;color:var(--muted)">из {{ objects_total }}</small></div></div>
+  <div class="card"><div class="label">Сотрудников</div><div class="value">{{ employees }}</div></div>
+  <div class="card"><div class="label">Открытых задач</div><div class="value">{{ tasks_open }}</div></div>
+  <div class="card"><div class="label">Баланс</div><div class="value {% if balance >= 0 %}ok{% else %}bad{% endif %}">{{ balance }}</div></div>
+</div>
+
+<div class="grid2">
+  <div>
+    <h2>Ближайшие задачи</h2>
+    {% if recent_tasks %}
+    <table><tr><th>Задача</th><th>Исполнитель</th><th>Срок</th></tr>
+    {% for t in recent_tasks %}<tr><td>{{ t.title }}</td><td>{{ t.assignee|default:"—" }}</td><td>{{ t.due_date|default:"—" }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">Нет открытых задач</div>{% endif %}
+  </div>
+  <div>
+    <h2>Материалы на исходе</h2>
+    {% if low_materials %}
+    <table><tr><th>Материал</th><th>Остаток</th><th>Минимум</th></tr>
+    {% for m in low_materials %}<tr><td>{{ m.name }}</td><td class="bad">{{ m.stock }} {{ m.unit }}</td><td>{{ m.min_stock }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="empty">Всё в достатке</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

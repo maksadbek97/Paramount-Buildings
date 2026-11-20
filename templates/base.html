@@ -1,0 +1,29 @@
+{% load static %}<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Paramount Buildings{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'style.css' %}">
+</head>
+<body>
+<header>
+  <div class="brand">Paramount <span>Buildings</span></div>
+  {% if user.is_authenticated %}
+  <nav>
+    <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active"{% endif %}>Главная</a>
+    <a href="{% url 'object_list' %}" {% if 'object' in request.resolver_match.url_name %}class="active"{% endif %}>Объекты</a>
+    <a href="{% url 'staff_list' %}" {% if request.resolver_match.url_name == 'staff_list' %}class="active"{% endif %}>Сотрудники и задачи</a>
+    <a href="{% url 'warehouse_list' %}" {% if request.resolver_match.url_name == 'warehouse_list' %}class="active"{% endif %}>Склад</a>
+    <a href="{% url 'finance_list' %}" {% if request.resolver_match.url_name == 'finance_list' %}class="active"{% endif %}>Финансы</a>
+  </nav>
+  <div class="user">
+    {{ user.get_username }}
+    {% if user.is_staff %}<a href="{% url 'admin:index' %}">Админка</a>{% endif %}
+    <form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}<button style="background:none;border:0;color:#cfd4da;cursor:pointer;text-decoration:underline">Выйти</button></form>
+  </div>
+  {% endif %}
+</header>
+<main>{% block content %}{% endblock %}</main>
+</body>
+</html>

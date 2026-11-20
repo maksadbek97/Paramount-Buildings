@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Финансы и сметы</h1>
+<h2>Сметы</h2>
+{% if estimates %}<table><tr><th>Смета</th><th>Объект</th><th>Итого</th></tr>
+{% for e in estimates %}<tr><td>{{ e.title }}</td><td>{{ e.construction_object }}</td><td>{{ e.total }}</td></tr>{% endfor %}</table>
+{% else %}<div class="empty">Смет нет. Добавьте в <a href="{% url 'admin:finance_estimate_add' %}">админке</a>.</div>{% endif %}
+<h2>Финансовые операции</h2>
+{% if transactions %}<table><tr><th>Дата</th><th>Тип</th><th>Сумма</th><th>Объект</th><th>Категория</th></tr>
+{% for t in transactions %}<tr><td>{{ t.date|date:"d.m.Y" }}</td><td class="{% if t.kind == 'income' %}ok{% else %}bad{% endif %}">{{ t.get_kind_display }}</td><td>{{ t.amount }}</td><td>{{ t.construction_object|default:"—" }}</td><td>{{ t.category|default:"—" }}</td></tr>{% endfor %}</table>
+{% else %}<div class="empty">Операций нет</div>{% endif %}
+{% endblock %}
