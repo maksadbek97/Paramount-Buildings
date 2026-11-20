@@ -21,6 +21,23 @@ python manage.py runserver
 - Система: http://127.0.0.1:8000/ (вход по логину)
 - Админ-панель (ввод и редактирование данных): http://127.0.0.1:8000/admin/
 
+## Демо-версия онлайн
+
+https://maksadbek97.github.io/Paramount-Buildings/app/
+
+Это статическая копия интерфейса с примерными данными, которую GitHub Actions
+собирает при каждом push в `main` (`.github/workflows/pages.yml`).
+В ней работает только просмотр: вход, админка и редактирование данных требуют
+запущенного Django-сервера.
+
+Собрать её локально:
+
+```bash
+python manage.py migrate
+python manage.py seed_demo        # примерные данные
+python manage.py build_static     # HTML в папку _site/app
+```
+
 ## Тесты
 
 ```bash

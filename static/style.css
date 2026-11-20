@@ -32,3 +32,4 @@ a { color:var(--accent); }
 .login form p { margin:0 0 14px; } .login input { width:100%; padding:10px; border:1px solid var(--line); border-radius:6px; }
 .login button { width:100%; padding:11px; background:var(--accent); color:#fff; border:0; border-radius:6px; font-size:15px; cursor:pointer; }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media(max-width:800px){ .grid2{grid-template-columns:1fr;} }
+@media(max-width:800px){ header{flex-wrap:wrap;height:auto;padding:10px 16px;gap:8px 16px;} header nav{flex-wrap:wrap;order:3;flex-basis:100%;} header nav a{padding:6px 10px;} main{padding:0 16px;margin:16px auto;} table{display:block;overflow-x:auto;white-space:nowrap;} }
