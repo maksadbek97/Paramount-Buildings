@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Объекты</h1>
+<div class="filters">
+  <a href="{% url 'object_list' %}" {% if not current %}class="active"{% endif %}>Все</a>
+  {% for value, label in statuses %}<a href="?status={{ value }}" {% if current == value %}class="active"{% endif %}>{{ label }}</a>{% endfor %}
+</div>
+{% if objects %}
+<table>
+<tr><th>Объект</th><th>Заказчик</th><th>Ответственный</th><th>Статус</th><th>Срок</th><th>Задач</th></tr>
+{% for o in objects %}
+<tr>
+  <td><a href="{% url 'object_detail' o.pk %}">{{ o.name }}</a><br><small style="color:var(--muted)">{{ o.address }}</small></td>
+  <td>{{ o.client|default:"—" }}</td><td>{{ o.manager|default:"—" }}</td>
+  <td><span class="badge {{ o.status }}">{{ o.get_status_display }}</span></td>
+  <td>{{ o.end_date|default:"—" }}</td><td>{{ o.task_count }}</td>
+</tr>
+{% endfor %}
+</table>
+{% else %}<div class="empty">Объектов пока нет. Добавьте их в <a href="{% url 'admin:objects_constructionobject_add' %}">админке</a>.</div>{% endif %}
+{% endblock %}

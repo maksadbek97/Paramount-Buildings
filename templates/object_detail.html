@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ obj.name }} <span class="badge {{ obj.status }}">{{ obj.get_status_display }}</span></h1>
+<p style="color:var(--muted)">{{ obj.address }}{% if obj.client %} · Заказчик: {{ obj.client }}{% endif %}{% if obj.manager %} · Ответственный: {{ obj.manager }}{% endif %}</p>
+{% if obj.description %}<p>{{ obj.description }}</p>{% endif %}
+<div class="cards">
+  <div class="card"><div class="label">Доходы</div><div class="value">{{ income }}</div></div>
+  <div class="card"><div class="label">Расходы</div><div class="value">{{ expense }}</div></div>
+  <div class="card"><div class="label">Баланс</div><div class="value {% if balance >= 0 %}ok{% else %}bad{% endif %}">{{ balance }}</div></div>
+</div>
+<h2>Задачи</h2>
+{% if tasks %}<table><tr><th>Задача</th><th>Исполнитель</th><th>Статус</th><th>Срок</th></tr>
+{% for t in tasks %}<tr><td>{{ t.title }}</td><td>{{ t.assignee|default:"—" }}</td><td>{{ t.get_status_display }}</td><td>{{ t.due_date|default:"—" }}</td></tr>{% endfor %}</table>
+{% else %}<div class="empty">Задач нет</div>{% endif %}
+<h2>Сметы</h2>
+{% if estimates %}<table><tr><th>Смета</th><th>Итого</th></tr>
+{% for e in estimates %}<tr><td>{{ e.title }}</td><td>{{ e.total }}</td></tr>{% endfor %}</table>
+{% else %}<div class="empty">Смет нет</div>{% endif %}
+<h2>Документы</h2>
+{% if documents %}<table><tr><th>Документ</th><th>Загружен</th></tr>
+{% for d in documents %}<tr><td><a href="{{ d.file.url }}">{{ d.title }}</a></td><td>{{ d.uploaded_at|date:"d.m.Y" }}</td></tr>{% endfor %}</table>
+{% else %}<div class="empty">Документов нет</div>{% endif %}
+<p><a href="{% url 'object_list' %}">← Ко всем объектам</a></p>
+{% endblock %}
