@@ -36,6 +36,8 @@ class Employee(models.Model):
     hired_at = models.DateField("Дата приёма", null=True, blank=True)
     salary = models.DecimalField("Оклад", max_digits=12, decimal_places=2, default=0)
     is_active = models.BooleanField("Работает", default=True)
+    in_staff = models.BooleanField("В штате компании", default=True,
+                                   help_text="Снимите для рабочих бригад по договорам подряда")
 
     class Meta:
         verbose_name = "Сотрудник"

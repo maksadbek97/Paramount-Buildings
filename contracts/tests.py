@@ -261,7 +261,7 @@ class DemoBuildTests(TestCase):
             self.assertNotIn('href="?', year)
             self.assertNotIn("Объекты</a>", home)  # других разделов в меню нет
             self.assertIn("Моя компания", home)
-            self.assertIn("Балатев Нурбек", home)
+            self.assertIn("Балтаев Нурбек", home)
             for page in ("company", "company/docs/kind/certificate", "company/structure", "company/staff",
                          "company/schedule", "company/docs/new", "profile"):
                 self.assertTrue((Path(tmp) / page / "index.html").exists(), page)

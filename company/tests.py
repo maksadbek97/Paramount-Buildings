@@ -14,7 +14,7 @@ class CompanySectionTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_superuser("boss", password="x", first_name="Нурбек",
-                                                             last_name="Балатев")
+                                                             last_name="Балтаев")
         cls.pos = Position.objects.create(name="Прораб")
         cls.dep = Department.objects.create(name="Участок")
         cls.e = Employee.objects.create(full_name="Иванов Иван", position=cls.pos, department=cls.dep, salary=500000)
@@ -73,6 +73,12 @@ class CompanySectionTests(TestCase):
 
     def test_header_shows_user_name_and_menu(self):
         r = self.client.get(reverse("dashboard"))
-        self.assertContains(r, "Балатев Нурбек")
+        self.assertContains(r, "Балтаев Нурбек")
         self.assertContains(r, ">Профиль</a>")
         self.assertContains(r, "Выйти</button>")
+
+    def test_brigade_workers_not_in_staff(self):
+        Employee.objects.create(full_name="Рабочий Бригады", in_staff=False)
+        r = self.client.get(reverse("company_staff"))
+        self.assertNotContains(r, "Рабочий Бригады")
+        self.assertContains(r, "Иванов Иван")

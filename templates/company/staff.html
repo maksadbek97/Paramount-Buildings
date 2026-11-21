@@ -14,7 +14,7 @@
       <td data-label="Отдел">{{ e.department|default:"—" }}</td>
       <td data-label="Телефон" class="nowrap">{% if e.phone %}<a href="tel:{{ e.phone|cut:' '|cut:'-' }}">{{ e.phone }}</a>{% else %}—{% endif %}</td>
       <td data-label="Принят">{% if e.hired_at %}{{ e.hired_at|date:"d.m.Y" }}<small class="muted block">{{ r.tenure }}</small>{% else %}—{% endif %}</td>
-      {% if can_salary %}<td data-label="Оклад" class="r nowrap">{% if e.salary %}{{ e.salary|money }} ₸{% else %}<span class="muted">сдельно</span>{% endif %}</td>{% endif %}
+      {% if can_salary %}<td data-label="Оклад" class="r nowrap">{% if e.salary %}{{ e.salary|money }} ₸{% else %}<span class="muted">—</span>{% endif %}</td>{% endif %}
       <td class="r"><a class="rowedit" href="{% url 'company_employee_edit' e.pk %}" title="Изменить">{% icon 'edit' 16 %}</a></td>
     </tr>{% endwith %}{% endfor %}</tbody>
   </table>

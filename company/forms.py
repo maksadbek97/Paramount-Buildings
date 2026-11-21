@@ -53,6 +53,6 @@ class StaffUnitForm(StyledMixin, forms.ModelForm):
 class CompanyEmployeeForm(StyledMixin, forms.ModelForm):
     class Meta:
         model = Employee
-        fields = ["full_name", "iin", "position", "department", "phone", "email", "hired_at", "salary", "is_active"]
+        fields = ["full_name", "iin", "position", "department", "phone", "email", "hired_at", "salary", "is_active", "in_staff"]
         widgets = {"iin": forms.TextInput(attrs={"inputmode": "numeric", "maxlength": 12}),
                    "phone": forms.TextInput(attrs={"inputmode": "tel", "placeholder": "+7 7__ ___ __ __"})}

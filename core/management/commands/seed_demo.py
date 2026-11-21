@@ -33,24 +33,26 @@ class Command(BaseCommand):
         self.d = lambda days: today + timedelta(days=days)  # noqa: E731
         d = self.d
 
-        # --- сотрудники ---
+        # --- сотрудники: реальный штат компании (кадровая система enbek.kz + штатное расписание) ---
         pos = {n: Position.objects.create(name=n) for n in [
-            "Директор", "Технический директор", "Руководитель проекта", "Инженер ПТО", "Прораб", "Кладовщик",
-            "Бухгалтер", "Каменщик", "Подсобник", "Штукатур", "Арматурщик", "Электрик"]}
-        emp = {}
-        for i, (full_name, position, phone, salary) in enumerate([
-            ("Жумабеков Ерлан Маратович", "Директор", "+7 701 100-10-10", 1500000),
-            ("Ахметова Динара Сериковна", "Технический директор", "+7 701 200-20-20", 1200000),
-            ("Ким Сергей Викторович", "Руководитель проекта", "+7 702 300-30-30", 900000),
-            ("Нурланова Айгерим Болатовна", "Инженер ПТО", "+7 705 400-40-40", 650000),
-            ("Сейтказиев Бауыржан Ерикович", "Прораб", "+7 707 500-50-50", 700000),
-            ("Оспанов Данияр Канатович", "Прораб", "+7 747 600-60-60", 650000),
-            ("Исаева Мадина Ринатовна", "Бухгалтер", "+7 708 700-70-70", 550000),
-            ("Тулегенов Асхат Нурланович", "Кладовщик", "+7 775 800-80-80", 400000),
-        ]):
-            emp[full_name.split()[0]] = Employee.objects.create(
-                full_name=full_name, position=pos[position], phone=phone, hired_at=d(-600 + i * 30),
-                salary=D(salary), iin=f"8{i}0512{300000 + i * 1111}"[:12])
+            "Директор", "Заместитель директора", "Энергетик", "Инженер ПТО", "Прораб", "Бухгалтер", "Завсклад",
+            "Каменщик", "Подсобник", "Штукатур", "Арматурщик", "Электрик"]}
+        staff = {}
+        for key, full_name, position, hired, salary in [
+            ("Балтаев", "Балтаев Нурбек Шарипжанұлы", "Директор", date(2023, 1, 1), 300000),
+            ("Абдужаббаров", "Абдужаббаров Максадбек Хусанович", "Заместитель директора", None, 300000),
+            ("Ирискулов", "Ирискулов Мухаммадали Махмуджанович", "Энергетик", date(2023, 5, 10), 100000),
+            ("Мадениет", "Мадениет Әділ Нұрдаулетұлы", "Инженер ПТО", date(2026, 11, 17), 200000),
+            ("Равшанов", "Равшанов Огабек Атабекович", "Прораб", date(2026, 11, 17), 100000),
+            ("Истилевов", "Истилевов Хасан Айбекович", "Завсклад", date(2023, 4, 4), 0),
+        ]:
+            staff[key] = Employee.objects.create(full_name=full_name, position=pos[position], hired_at=hired,
+                                                 salary=D(salary))
+        # Роли в демо-процессах (объекты, задачи, замечания) — на реальных людей.
+        emp = {"Жумабеков": staff["Балтаев"], "Ахметова": staff["Абдужаббаров"], "Ким": staff["Абдужаббаров"],
+               "Нурланова": staff["Мадениет"], "Сейтказиев": staff["Равшанов"], "Оспанов": staff["Равшанов"],
+               "Исаева": staff["Балтаев"], "Тулегенов": staff["Истилевов"]}
+        self.staff = staff
         workers = {}
         for i, (full_name, position) in enumerate([
             ("Абдрахманов Нурсултан", "Каменщик"), ("Касымов Ерасыл", "Каменщик"), ("Байжанов Арман", "Подсобник"),
@@ -59,7 +61,7 @@ class Command(BaseCommand):
         ]):
             workers[full_name.split()[0]] = Employee.objects.create(
                 full_name=full_name, position=pos[position], phone=f"+7 70{i} 9{i}{i}-1{i}-2{i}",
-                hired_at=d(-150), iin=f"9{i}0101{400000 + i * 777}"[:12])
+                hired_at=d(-150), iin=f"9{i}0101{400000 + i * 777}"[:12], in_staff=False)
 
         self._company(emp, workers, pos)
 
@@ -329,27 +331,27 @@ class Command(BaseCommand):
         from quality.models import DailyReport, Remark
         from warehouse.models import PurchaseRequest, StockMovement
         users = {name: get_user_model().objects.get_or_create(username=name, defaults={"first_name": name})[0]
-                 for name in ("Нурланова А.", "Сейтказиев Б.", "Ким С.", "Омарова Д.")}
+                 for name in ("Мадениет Ә.", "Равшанов О.", "Абдужаббаров М.", "Истилевов Х.")}
         events = []
         for log in WorkLog.objects.filter(status="accepted").select_related("assignment__contract__construction_object")[:4]:
             c = log.assignment.contract
-            events.append((log.date, 17, "accept", "Выработка по дням", log, c.construction_object, users["Нурланова А."],
+            events.append((log.date, 17, "accept", "Выработка по дням", log, c.construction_object, users["Мадениет Ә."],
                            f"Принято ПТО: {c.work_type}, {log.accepted_volume.normalize():f} {c.unit}"))
         for pay in Payment.objects.select_related("contract__construction_object")[:4]:
             events.append((pay.date, 11, "create", "Платежи по договорам", pay, pay.contract.construction_object,
-                           users["Омарова Д."], f"{pay.get_kind_display()}: {int(pay.amount):,} ₸".replace(",", " ")))
+                           users["Истилевов Х."], f"{pay.get_kind_display()}: {int(pay.amount):,} ₸".replace(",", " ")))
         for pr in PurchaseRequest.objects.select_related("construction_object", "material")[:4]:
             events.append((pr.created_at.date() - timedelta(days=pr.pk % 4), 10, "create", "Заявки и закупки", pr,
-                           pr.construction_object, users["Сейтказиев Б."], f"Заявка {pr.number}: {pr.material}"))
+                           pr.construction_object, users["Равшанов О."], f"Заявка {pr.number}: {pr.material}"))
         for mv in StockMovement.objects.filter(kind="transfer").select_related("material", "to_warehouse")[:2]:
             events.append((mv.date, 9, "create", "Движения материалов", mv, mv.construction_object,
-                           users["Сейтказиев Б."], f"Перемещение: {mv.material} → {mv.to_warehouse}"))
+                           users["Равшанов О."], f"Перемещение: {mv.material} → {mv.to_warehouse}"))
         for r in Remark.objects.select_related("construction_object")[:3]:
             events.append((r.created_at.date() - timedelta(days=r.pk % 5), 15, "create", "Замечания", r,
-                           r.construction_object, users["Ким С."], f"Замечание {r.number}: {r.description[:50]}"))
+                           r.construction_object, users["Абдужаббаров М."], f"Замечание {r.number}: {r.description[:50]}"))
         for rep in DailyReport.objects.select_related("construction_object")[:2]:
             events.append((rep.date, 19, "create", "Ежедневные отчёты", rep, rep.construction_object,
-                           users["Сейтказиев Б."], f"Отчёт прораба за {rep.date:%d.%m}"))
+                           users["Равшанов О."], f"Отчёт прораба за {rep.date:%d.%m}"))
         tz = timezone.get_current_timezone()
         for i, (day, hour, action, module, inst, obj, user, text) in enumerate(events):
             e = AuditLog.objects.create(action=action, module=module, object_id=str(inst.pk), object_repr=text,
@@ -365,7 +367,7 @@ class Command(BaseCommand):
             legal_form="too", name="ТОО «Paramount Buildings»", short_name="Paramount Buildings", bin="210540033211",
             registered_at=date(2021, 5, 14), activity="43.99 — Прочие специализированные строительные работы",
             kbe="17", vat_payer=True, vat_certificate="серия 62001 № 0123456",
-            director=emp["Жумабеков"], accountant=emp["Исаева"],
+            director=self.staff["Балтаев"], accountant=None,
             legal_address="г. Астана, р-н Есиль, пр. Мангилик Ел, 55/20, офис 304",
             actual_address="г. Астана, пр. Мангилик Ел, 55/20, БЦ «Нурсая», 3 этаж",
             phone="+7 717 279-00-00", email="info@paramount-buildings.kz", website="paramount-buildings.kz",
@@ -378,44 +380,22 @@ class Command(BaseCommand):
         BankAccount.objects.create(bank="АО «Банк ЦентрКредит»", bik="KCJBKZKX", iban="KZ31826A1USD00045678",
                                    currency="USD", note="Валютные расчёты с поставщиками")
 
-        for name in ["Специалист по кадрам", "Главный бухгалтер"]:
-            pos[name] = Position.objects.create(name=name)
-        top = Department.objects.create(name="Руководство", head=emp["Жумабеков"], order=0)
-        deps = {
-            "pto": Department.objects.create(name="Производственно-технический отдел", parent=top,
-                                             head=emp["Ахметова"], order=1),
-            "site": Department.objects.create(name="Производственный участок", parent=top,
-                                              head=emp["Сейтказиев"], order=2),
-            "acc": Department.objects.create(name="Бухгалтерия", parent=top, head=emp["Исаева"], order=3),
-            "supply": Department.objects.create(name="Снабжение и склад", parent=top, head=emp["Тулегенов"],
-                                                order=4),
-            "hr": Department.objects.create(name="Отдел кадров", parent=top, order=5),
-        }
-        brig = Department.objects.create(name="Бригады", parent=deps["site"],
-                                         head=workers["Абдрахманов"], order=6)
-        place = {"Жумабеков": top, "Ахметова": deps["pto"], "Ким": deps["pto"], "Нурланова": deps["pto"],
-                 "Сейтказиев": deps["site"], "Оспанов": deps["site"], "Исаева": deps["acc"],
-                 "Тулегенов": deps["supply"]}
-        for key, dep in place.items():
-            Employee.objects.filter(pk=emp[key].pk).update(department=dep)
-        for key, w in workers.items():
-            dep = brig if w.position.name in ("Каменщик", "Подсобник", "Штукатур") else deps["site"]
-            Employee.objects.filter(pk=w.pk).update(department=dep)
-        Employee.objects.filter(pk=emp["Исаева"].pk).update(position=pos["Главный бухгалтер"], email="m.isaeva@paramount-buildings.kz")
-        Employee.objects.filter(pk=emp["Ким"].pk).update(email="s.kim@paramount-buildings.kz")
-
-        for dep, position, count, salary in [
-            (top, "Директор", 1, 1500000),
-            (deps["pto"], "Технический директор", 1, 1200000), (deps["pto"], "Руководитель проекта", 2, 900000),
-            (deps["pto"], "Инженер ПТО", 2, 650000),
-            (deps["site"], "Прораб", 2, 700000), (deps["site"], "Арматурщик", 2, 380000),
-            (deps["site"], "Электрик", 2, 400000),
-            (deps["acc"], "Бухгалтер", 1, 550000), (deps["acc"], "Главный бухгалтер", 1, 750000),
-            (deps["supply"], "Кладовщик", 1, 400000),
-            (deps["hr"], "Специалист по кадрам", 1, 450000),
-            (brig, "Каменщик", 4, 420000), (brig, "Подсобник", 2, 280000), (brig, "Штукатур", 3, 400000),
+        # Структура и штатное расписание — из утверждённого штатного расписания ТОО (6 единиц).
+        st = self.staff
+        top = Department.objects.create(name="Администрация", head=st["Балтаев"], order=0)
+        deps = {name: Department.objects.create(name=name, parent=top, order=i) for i, name in enumerate(
+            ["Техническая служба", "Производственно-технический отдел", "Производственный участок", "Бухгалтерия"], 1)}
+        for key, dep in [("Балтаев", top), ("Абдужаббаров", top), ("Ирискулов", deps["Техническая служба"]),
+                         ("Мадениет", deps["Производственно-технический отдел"]),
+                         ("Равшанов", deps["Производственный участок"])]:
+            Employee.objects.filter(pk=st[key].pk).update(department=dep)
+        for dep, position, salary in [
+            (top, "Директор", 300000), (top, "Заместитель директора", 300000),
+            (deps["Техническая служба"], "Энергетик", 100000),
+            (deps["Производственно-технический отдел"], "Инженер ПТО", 200000),
+            (deps["Производственный участок"], "Прораб", 100000), (deps["Бухгалтерия"], "Бухгалтер", 100000),
         ]:
-            StaffUnit.objects.create(department=dep, position=pos[position], count=D(count), salary=D(salary))
+            StaffUnit.objects.create(department=dep, position=pos[position], count=D(1), salary=D(salary))
 
         K = CompanyDocument.Kind
         for kind, number, date_, title, valid, who, note in [
@@ -431,7 +411,7 @@ class Command(BaseCommand):
             (K.DECISION, "7", d(-95), "Решение об открытии валютного счёта", None, "Исаева", ""),
             (K.ORDER, "12-ОД", d(-320), "Об утверждении штатного расписания", None, "Жумабеков", ""),
             (K.ORDER, "15-ОД", d(-200), "О назначении ответственного за охрану труда и технику безопасности", None,
-             "Ахметова", "Ответственный: Ахметова Д. С."),
+             "Ахметова", "Ответственный: Абдужаббаров М. Х."),
             (K.ORDER, "21-ЛС", d(-150), "О приёме на работу рабочих на объект ЖК «Атлант»", None, "Исаева", "9 человек"),
             (K.ORDER, "24-ОД", d(-30), "О закреплении объектов за руководителями проектов", None, "Жумабеков", ""),
             (K.CERTIFICATE, "", d(-25), "Справка об отсутствии налоговой задолженности", d(5), "Исаева",

@@ -13,6 +13,8 @@
   </div>{% endif %}
 {% endfor %}
 </div>
-{% if no_dept %}<div class="foot-note">Без отдела: {{ no_dept }} сотр. <a href="{% url 'company_staff' %}">Назначить в сотрудниках</a></div>{% endif %}
+{% if no_dept %}<div class="card nodept"><header><h3>Без отдела</h3><span class="muted">должности нет в штатном расписании</span></header>
+  {% for e in no_dept %}<div class="dept-head"><span class="av lt">{{ e.full_name|first }}</span><span><b>{{ e.full_name }}</b><small>{{ e.position|default:"" }}</small></span><a class="rowedit" href="{% url 'company_employee_edit' e.pk %}" title="Назначить отдел">{% icon 'edit' 15 %}</a></div>{% endfor %}
+</div>{% endif %}
 {% else %}<div class="empty-s">Структура пока не создана. <a href="{% url 'company_department_new' %}">Добавить первый отдел</a></div>{% endif %}
 {% endblock %}
