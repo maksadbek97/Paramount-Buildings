@@ -16,68 +16,42 @@
 <body class="{% if user.is_authenticated %}app{% else %}guest{% endif %}">
 {% if user.is_authenticated %}
 <header class="appbar">
-  <button class="burger" type="button" aria-label="Меню" onclick="document.body.classList.toggle('nav-open')">{% icon 'menu' 24 %}</button>
   <a class="brand" href="{% url 'dashboard' %}"><img src="{% static 'img/logo-white.png' %}" alt="Paramount Buildings"></a>
-  <details class="picker objpick">
-    <summary>{% icon 'building' 18 %}<span>{% if cur_obj %}{{ cur_obj.name }}{% else %}Все объекты{% endif %}</span>{% icon 'chevron' 16 %}</summary>
-    <div class="drop">
-      <a href="{% url 'object_list' %}" class="{% if not cur_obj %}on{% endif %}">{% icon 'home' 18 %}Все объекты</a>
-      {% for o in nav_objects %}<a href="{% url 'object_detail' o.pk %}" class="{% if cur_obj.pk == o.pk %}on{% endif %}">{% if o.code %}<small>{{ o.code }}</small>{% endif %}{{ o.name }}</a>{% endfor %}
-      <a href="{% url 'object_create' %}" class="new">{% icon 'plus' 18 %}Новый объект</a>
+  <span class="appname">Smart Building</span>
+  <div class="spacer"></div>
+  <details class="picker bell">
+    <summary class="iconbtn" aria-label="Уведомления">{% icon 'bell' 22 %}{% if notif_items %}<span class="dotn">{{ notif_items|length }}</span>{% endif %}</summary>
+    <div class="drop right notif">
+      <div class="nh">Уведомления{% if notif_items %} <span>{{ notif_items|length }}</span>{% endif %}</div>
+      {% for level, kind, text, url in notif_items|slice:":8" %}<div class="ni {{ level }}"><small>{{ kind }}</small>{{ text }}</div>
+      {% empty %}<div class="ni">Новых уведомлений нет</div>{% endfor %}
     </div>
   </details>
-  <form class="gsearch" method="get" action="{% url 'search' %}" role="search">{% icon 'search' 18 %}<input name="q" placeholder="Поиск: объект, сотрудник, БИН, документ…" aria-label="Поиск"></form>
-  <div class="spacer"></div>
-  <a class="iconbtn" href="{% url 'search' %}" aria-label="Поиск" data-m>{% icon 'search' 22 %}</a>
-  <a class="iconbtn" href="{% url 'notifications' %}" aria-label="Уведомления">{% icon 'bell' 22 %}{% if notif_count %}<span class="dotn">{{ notif_count }}</span>{% endif %}</a>
-  <a class="btn-add" href="{% if cur_obj %}{% url 'object_add' cur_obj.pk %}{% else %}{% url 'add_choose' %}{% endif %}">{% icon 'plus' 18 %}<span>Добавить</span></a>
   <details class="picker usermenu">
     <summary><span class="avatar">{{ user.get_username|first|upper }}</span><span class="who"><b>{{ user.get_full_name|default:user.get_username }}</b><small>{% if user.is_superuser %}Руководитель{% else %}{{ user.groups.all.0.name|default:"Сотрудник" }}{% endif %}</small></span>{% icon 'chevron' 16 %}</summary>
     <div class="drop right">
-      <a href="{% url 'menu' %}">{% icon 'users' 18 %}Профиль и разделы</a>
-      <a href="{% url 'history' %}">{% icon 'history' 18 %}Журнал действий</a>
       {% if user.is_staff and not DEMO %}<a href="{% url 'admin:index' %}">{% icon 'settings' 18 %}Админ-панель</a>{% endif %}
-      {% if not DEMO %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button>{% icon 'logout' 18 %}Выйти</button></form>{% endif %}
+      {% if not DEMO %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button>{% icon 'logout' 18 %}Выйти</button></form>{% else %}<div class="ni">Демо-пользователь</div>{% endif %}
     </div>
   </details>
 </header>
 
 <aside class="sidebar">
   <nav>
-    <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' %}Главная</a>
-    <a href="{% url 'object_list' %}" class="{% if 'object' in n or 'add_' in n %}active{% endif %}">{% icon 'building' %}Мои объекты</a>
-    <a href="{% url 'task_list' %}" class="{% if 'task' in n %}active{% endif %}">{% icon 'task' %}Мои задачи</a>
-    <a href="{% url 'staff_list' %}" class="{% if 'staff' in n or 'employee' in n or 'crew' in n %}active{% endif %}">{% icon 'users' %}Рабочие и бригады</a>
-    <a href="{% url 'warehouse_list' %}" class="{% if 'warehouse' in n or 'material' in n or 'movement' in n or 'inventory' in n or 'transfer' in n %}active{% endif %}">{% icon 'box' %}Склады</a>
-    <a href="{% url 'purchase_list' %}" class="{% if 'purchase' in n or 'supplier' in n %}active{% endif %}">{% icon 'cash' %}Закупки</a>
-    <a href="{% url 'finance_list' %}" class="{% if 'finance' in n or 'transaction' in n %}active{% endif %}">{% icon 'wallet' %}Финансы компании</a>
-    <a href="{% url 'notifications' %}" class="{% if n == 'notifications' %}active{% endif %}">{% icon 'bell' %}Уведомления{% if notif_count %} <span class="navn">{{ notif_count }}</span>{% endif %}</a>
-    <div class="navgroup">По всем объектам</div>
-    <a href="{% url 'contract_list' %}" class="{% if 'contract' in n or 'assignment' in n %}active{% endif %}">{% icon 'contract' %}Объёмы работ</a>
-    <a href="{% url 'pto' %}" class="{% if n == 'pto' or 'review' in n or 'norm' in n %}active{% endif %}">{% icon 'check' %}ПТО и приёмка</a>
-    <a href="{% url 'remark_list' %}" class="{% if 'remark' in n %}active{% endif %}">{% icon 'flag' %}Замечания</a>
-    <a href="{% url 'report_list' %}" class="{% if 'report' in n %}active{% endif %}">{% icon 'clipboard' %}Отчёты прорабов</a>
-    <a href="{% url 'history' %}" class="{% if n == 'history' %}active{% endif %}">{% icon 'history' %}Журнал действий</a>
+    <a href="{% url 'dashboard' %}" class="active">{% icon 'home' %}Главная</a>
   </nav>
+  <div class="side-note">Остальные разделы подключаются по очереди, по мере готовности.</div>
 </aside>
 <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
 {% endif %}
 
 <main>
-  {% if DEMO %}<div class="demo-note">{% icon 'alert' 18 %}<span><b>Демо-версия</b> с примерными данными. Формы можно открыть и заполнить, но сохранение работает только в полной версии системы.</span></div>{% endif %}
+  {% if DEMO %}<div class="demo-bar">Демо-версия · примерные данные · кнопки не сохраняют изменения</div>{% endif %}
   {% for m in messages %}<div class="toast">{{ m }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>
 
-{% if user.is_authenticated %}
-<nav class="tabbar">
-  <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' %}<span>Главная</span></a>
-  <a href="{% url 'object_list' %}" class="{% if 'object' in n %}active{% endif %}">{% icon 'building' %}<span>Объекты</span></a>
-  <a href="{% if cur_obj %}{% url 'object_add' cur_obj.pk %}{% else %}{% url 'add_choose' %}{% endif %}" class="fab" aria-label="Добавить">{% icon 'plus' 28 %}</a>
-  <a href="{% url 'task_list' %}" class="{% if 'task' in n %}active{% endif %}">{% icon 'task' %}<span>Задачи</span></a>
-  <a href="{% url 'menu' %}" class="{% if n == 'menu' %}active{% endif %}">{% icon 'menu' %}<span>Ещё</span></a>
-</nav>
-{% endif %}
+
 <script>
 // Выпадающие меню в верхней панели закрываются по клику мимо.
 document.addEventListener('click', function (e) {

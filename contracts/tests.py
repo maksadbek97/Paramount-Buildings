@@ -249,9 +249,12 @@ class DemoBuildTests(TestCase):
             self.assertIn("static/img/logo-white.png", home)
             self.assertNotIn('href="/', home)
             self.assertNotIn("url('/", home)
-            for page in ("objects/status/done", "period/year", "finance/kind/debtors", "add/purchase",
-                         "notifications", "search"):
+            # в демо пока только раздел «Главная»: периоды, объекты и их сочетания
+            for page in ("period/year", "object/1", "period/year/object/1"):
                 self.assertTrue((Path(tmp) / page / "index.html").exists(), page)
-            for page in ("contracts/status/done", "worklog/new", "pto", "history", "objects/1/money",
-                         "objects/1/new/output", "purchases/status/open", "add"):
-                self.assertTrue((Path(tmp) / page / "index.html").exists(), page)
+            for page in ("objects", "finance", "add", "pto"):
+                self.assertFalse((Path(tmp) / page).exists(), page)
+            year = (Path(tmp) / "period/year/index.html").read_text()
+            self.assertIn('href="../../period/year/object/1/"', year)
+            self.assertNotIn('href="?', year)
+            self.assertNotIn("Объекты</a>", home)  # других разделов в меню нет

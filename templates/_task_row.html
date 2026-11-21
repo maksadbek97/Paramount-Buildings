@@ -1,8 +1,11 @@
-{% load ui %}<div class="trow">
+{% load ui %}<li class="task {% if t.is_overdue %}late{% endif %}">
+  <form method="post" action="{% url 'task_done' t.pk %}" class="tick">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button title="Отметить выполненной" aria-label="Выполнить">{% icon 'check' 16 %}</button></form>
   <div class="tb"><div class="tt">{{ t.title }}</div>
-    <div class="tm">{{ t.construction_object.name|default:"Общая задача" }} · {{ t.assignee|default:"без исполнителя" }}{% if t.due_date %} · <span class="{% if t.is_overdue %}bad{% endif %}">{% if t.is_overdue %}просрочено с {% else %}до {% endif %}{{ t.due_date|date:"d.m" }}</span>{% endif %}</div></div>
-  <div class="ta">
-    <form method="post" action="{% url 'task_done' t.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-primary" title="Отметить выполненной">{% icon 'check' 16 %}<span>Выполнить</span></button></form>
-    <a class="btn btn-ghost" href="{% url 'task_postpone' t.pk %}?next={{ request.path|urlencode }}" title="Перенести срок">Перенести</a>
-  </div>
-</div>
+    <div class="tm">{{ t.construction_object.name|default:"Общая задача" }}{% if t.assignee %} · {{ t.assignee }}{% endif %}</div></div>
+  <div class="td {% if t.is_overdue %}bad{% endif %}">{% if t.due_date %}{% if t.is_overdue %}просрочено<br>{% endif %}{{ t.due_date|date:"d.m" }}{% endif %}</div>
+  <details class="pp"><summary title="Перенести срок">Перенести</summary>
+    <form method="post" action="{% url 'task_postpone' t.pk %}?next={{ request.get_full_path|urlencode }}">{% csrf_token %}
+      <input type="date" name="due_date" required><input name="reason" required maxlength="300" placeholder="Причина переноса">
+      <button class="btn btn-primary">Перенести</button></form>
+  </details>
+</li>

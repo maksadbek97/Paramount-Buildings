@@ -102,7 +102,7 @@ class ObjectHubTests(TestCase):
 
     def test_home_lists_objects_and_all_tabs_open(self):
         r = self.client.get(reverse("dashboard"))
-        self.assertContains(r, "Мои объекты")
+        self.assertContains(r, "Объекты")
         self.assertContains(r, "ЖК Атлант")
         self.assertEqual(self.client.get(reverse("object_detail", args=[self.obj.pk])).status_code, 200)
         from core.object_views import NEW, TABS
