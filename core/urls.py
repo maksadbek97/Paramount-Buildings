@@ -19,6 +19,7 @@ urlpatterns = [
     path("objects/<int:pk>/<slug:tab>/", ov.object_detail, name="object_tab"),
     path("add/", ov.add_choose, name="add_choose"),
     path("add/<slug:what>/", ov.add_choose, name="add_for"),
+    path("profile/", views.profile, name="profile"),
     path("search/", views.search, name="search"),
     path("notifications/", views.notifications, name="notifications"),
     path("tasks/<int:pk>/done/", qv.task_done, name="task_done"),

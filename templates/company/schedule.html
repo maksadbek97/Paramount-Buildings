@@ -1,0 +1,32 @@
+{% extends "company/_base.html" %}{% load ui %}
+{% block head_action %}<a class="btn btn-primary chead-btn" href="{% url 'company_unit_new' %}">{% icon 'plus' 18 %}<span>Добавить должность</span></a>{% endblock %}
+{% block tab %}
+<div class="kgrid k4">
+  <div class="k"><span class="kl">Штатных единиц</span><b class="kv">{{ total.count|num }}</b><span class="kh">по расписанию</span></div>
+  <div class="k"><span class="kl">Занято</span><b class="kv ok">{{ total.filled }}</b><span class="kh">работают на ставках</span></div>
+  <div class="k"><span class="kl">Вакансии</span><b class="kv {% if total.vacant %}warn{% endif %}">{{ total.vacant|num }}</b><span class="kh">свободных ставок</span></div>
+  {% if can_salary %}<div class="k"><span class="kl">Фонд оплаты труда</span><b class="kv">{{ total.fund|short }}</b><span class="kh">в месяц по штату · факт {{ fact_fund|short }}</span></div>{% endif %}
+</div>
+<section class="card flat">
+  <header><h3>Штатное расписание</h3><span class="muted">на {% now "d.m.Y" %}</span></header>
+  {% if groups %}
+  <table class="otable sched">
+    <thead><tr><th>Должность</th><th class="r">Ед.</th><th class="r">Занято</th><th class="r">Вакансии</th>{% if can_salary %}<th class="r">Оклад</th><th class="r">ФОТ в месяц</th>{% endif %}<th></th></tr></thead>
+    {% for g in groups %}
+    <tbody>
+    <tr class="grp"><td colspan="{% if can_salary %}7{% else %}5{% endif %}"><b>{{ g.d.name }}</b><span class="muted"> · {{ g.count|num }} ед.{% if g.vacant %} · <span class="vac">вакансий {{ g.vacant|num }}</span>{% endif %}{% if can_salary %} · {{ g.fund|money }} ₸{% endif %}</span></td></tr>
+    {% for r in g.rows %}
+    <tr>
+      <td data-label="Должность">{{ r.u.position }}</td>
+      <td data-label="Ед." class="r">{{ r.u.count|num }}</td>
+      <td data-label="Занято" class="r">{{ r.filled }}</td>
+      <td data-label="Вакансии" class="r">{% if r.vacant %}<span class="vac">{{ r.vacant|num }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      {% if can_salary %}<td data-label="Оклад" class="r nowrap">{{ r.u.salary|money }} ₸</td><td data-label="ФОТ" class="r nowrap">{{ r.fund|money }} ₸</td>{% endif %}
+      <td class="r"><a class="rowedit" href="{% url 'company_unit_edit' r.u.pk %}" title="Изменить">{% icon 'edit' 16 %}</a></td>
+    </tr>{% endfor %}
+    </tbody>{% endfor %}
+    <tfoot><tr class="tot"><td>Итого</td><td class="r">{{ total.count|num }}</td><td class="r">{{ total.filled }}</td><td class="r">{{ total.vacant|num }}</td>{% if can_salary %}<td></td><td class="r nowrap">{{ total.fund|money }} ₸</td>{% endif %}<td></td></tr></tfoot>
+  </table>
+  {% else %}<div class="empty-s" style="margin:0 18px 14px">Штатное расписание пока пустое. <a href="{% url 'company_unit_new' %}">Добавить должность</a></div>{% endif %}
+</section>
+{% endblock %}

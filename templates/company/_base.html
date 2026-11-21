@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load static ui %}
+{% block title %}Моя компания · Paramount Buildings{% endblock %}
+{% block content %}
+<div class="chead">
+  <div class="chead-logo"><img src="{% static 'img/mark.png' %}" alt=""></div>
+  <div class="chead-t">
+    <div class="crumb">Моя компания</div>
+    <h1>{{ company.name }}</h1>
+    <div class="sub">{% if company.bin %}БИН {{ company.bin }}{% endif %}{% if company.director %} · {{ company.director.position|default:"Директор" }}: {{ company.director.full_name }}{% endif %}</div>
+  </div>
+  {% block head_action %}{% endblock %}
+</div>
+<nav class="utabs ctabs">{% for key, label, url in tabs %}<a href="{% url url %}" class="{% if key == tab %}active{% endif %}">{{ label }}</a>{% endfor %}</nav>
+{% block tab %}{% endblock %}
+<script>
+// Копирование реквизитов и номера счёта в буфер обмена (работает и в демо).
+document.querySelectorAll('[data-copy]').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var text = b.getAttribute('data-copy');
+    var done = function () { var old = b.innerHTML; b.classList.add('copied'); b.lastChild.textContent = ' Скопировано';
+      setTimeout(function () { b.innerHTML = old; b.classList.remove('copied'); }, 1600); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, done); else done();
+  });
+});
+</script>
+{% endblock %}

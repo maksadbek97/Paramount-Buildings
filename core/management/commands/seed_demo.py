@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from company.models import BankAccount, Company, CompanyDocument, Department, StaffUnit
 from contracts.models import Assignment, Crew, MaterialNorm, Payment, WorkContract, WorkLog
 from core.models import AuditLog
 from quality.models import DailyReport, Remark
@@ -57,6 +58,8 @@ class Command(BaseCommand):
             workers[full_name.split()[0]] = Employee.objects.create(
                 full_name=full_name, position=pos[position], phone=f"+7 70{i} 9{i}{i}-1{i}-2{i}",
                 hired_at=d(-150), iin=f"9{i}0101{400000 + i * 777}"[:12])
+
+        self._company(emp, workers, pos)
 
         # --- контрагенты и объекты ---
         c1 = Client.objects.create(name="ТОО «Атлант Девелопмент»", bin="180540012345", phone="+7 717 255-10-10")
@@ -351,3 +354,94 @@ class Command(BaseCommand):
                                         construction_object=obj, user=user)
             AuditLog.objects.filter(pk=e.pk).update(
                 created_at=timezone.make_aware(datetime.combine(day, time(hour, (i * 7) % 60)), tz))
+
+    def _company(self, emp, workers, pos):
+        """Раздел «Моя компания»: профиль, счета, структура, штатное расписание, документы."""
+        d = self.d
+        Company.objects.all().delete()
+        Company.objects.create(
+            legal_form="too", name="ТОО «Paramount Buildings»", short_name="Paramount Buildings", bin="210540033211",
+            registered_at=date(2021, 5, 14), activity="43.99 — Прочие специализированные строительные работы",
+            kbe="17", vat_payer=True, vat_certificate="серия 62001 № 0123456",
+            director=emp["Жумабеков"], accountant=emp["Исаева"],
+            legal_address="г. Астана, р-н Есиль, пр. Мангилик Ел, 55/20, офис 304",
+            actual_address="г. Астана, пр. Мангилик Ел, 55/20, БЦ «Нурсая», 3 этаж",
+            phone="+7 717 279-00-00", email="info@paramount-buildings.kz", website="paramount-buildings.kz",
+            description="Субподрядная строительная компания: каменная кладка, штукатурные и армирующие работы "
+                        "на жилых и коммерческих объектах в Астане, Алматы и Шымкенте.")
+        BankAccount.objects.create(bank="АО «Народный Банк Казахстана»", bik="HSBKKZKX", iban="KZ866010111000123456",
+                                   is_main=True, note="Основной расчётный счёт")
+        BankAccount.objects.create(bank="АО «Kaspi Bank»", bik="CASPKZKA", iban="KZ72722S000012345678",
+                                   note="Зарплатный проект")
+        BankAccount.objects.create(bank="АО «Банк ЦентрКредит»", bik="KCJBKZKX", iban="KZ31826A1USD00045678",
+                                   currency="USD", note="Валютные расчёты с поставщиками")
+
+        for name in ["Специалист по кадрам", "Главный бухгалтер"]:
+            pos[name] = Position.objects.create(name=name)
+        top = Department.objects.create(name="Руководство", head=emp["Жумабеков"], order=0)
+        deps = {
+            "pto": Department.objects.create(name="Производственно-технический отдел", parent=top,
+                                             head=emp["Ахметова"], order=1),
+            "site": Department.objects.create(name="Производственный участок", parent=top,
+                                              head=emp["Сейтказиев"], order=2),
+            "acc": Department.objects.create(name="Бухгалтерия", parent=top, head=emp["Исаева"], order=3),
+            "supply": Department.objects.create(name="Снабжение и склад", parent=top, head=emp["Тулегенов"],
+                                                order=4),
+            "hr": Department.objects.create(name="Отдел кадров", parent=top, order=5),
+        }
+        brig = Department.objects.create(name="Бригады", parent=deps["site"],
+                                         head=workers["Абдрахманов"], order=6)
+        place = {"Жумабеков": top, "Ахметова": deps["pto"], "Ким": deps["pto"], "Нурланова": deps["pto"],
+                 "Сейтказиев": deps["site"], "Оспанов": deps["site"], "Исаева": deps["acc"],
+                 "Тулегенов": deps["supply"]}
+        for key, dep in place.items():
+            Employee.objects.filter(pk=emp[key].pk).update(department=dep)
+        for key, w in workers.items():
+            dep = brig if w.position.name in ("Каменщик", "Подсобник", "Штукатур") else deps["site"]
+            Employee.objects.filter(pk=w.pk).update(department=dep)
+        Employee.objects.filter(pk=emp["Исаева"].pk).update(position=pos["Главный бухгалтер"], email="m.isaeva@paramount-buildings.kz")
+        Employee.objects.filter(pk=emp["Ким"].pk).update(email="s.kim@paramount-buildings.kz")
+
+        for dep, position, count, salary in [
+            (top, "Директор", 1, 1500000),
+            (deps["pto"], "Технический директор", 1, 1200000), (deps["pto"], "Руководитель проекта", 2, 900000),
+            (deps["pto"], "Инженер ПТО", 2, 650000),
+            (deps["site"], "Прораб", 2, 700000), (deps["site"], "Арматурщик", 2, 380000),
+            (deps["site"], "Электрик", 2, 400000),
+            (deps["acc"], "Бухгалтер", 1, 550000), (deps["acc"], "Главный бухгалтер", 1, 750000),
+            (deps["supply"], "Кладовщик", 1, 400000),
+            (deps["hr"], "Специалист по кадрам", 1, 450000),
+            (brig, "Каменщик", 4, 420000), (brig, "Подсобник", 2, 280000), (brig, "Штукатур", 3, 400000),
+        ]:
+            StaffUnit.objects.create(department=dep, position=pos[position], count=D(count), salary=D(salary))
+
+        K = CompanyDocument.Kind
+        for kind, number, date_, title, valid, who, note in [
+            (K.CHARTER, "", date(2021, 5, 10), "Устав ТОО «Paramount Buildings»", None, "Жумабеков",
+             "Редакция с изменениями от 12.03.2024"),
+            (K.CHARTER, "", date(2021, 5, 14), "Справка о государственной регистрации юридического лица", None,
+             "Исаева", "Электронная справка egov.kz"),
+            (K.CHARTER, "", date(2021, 5, 20), "Талон о постановке на учёт по НДС", None, "Исаева", ""),
+            (K.DECISION, "1", date(2021, 5, 10), "Решение единственного участника о создании товарищества", None,
+             "Жумабеков", ""),
+            (K.DECISION, "4", d(-410), "Решение о назначении директора на новый срок", d(685), "Жумабеков",
+             "Полномочия на 3 года"),
+            (K.DECISION, "7", d(-95), "Решение об открытии валютного счёта", None, "Исаева", ""),
+            (K.ORDER, "12-ОД", d(-320), "Об утверждении штатного расписания", None, "Жумабеков", ""),
+            (K.ORDER, "15-ОД", d(-200), "О назначении ответственного за охрану труда и технику безопасности", None,
+             "Ахметова", "Ответственный: Ахметова Д. С."),
+            (K.ORDER, "21-ЛС", d(-150), "О приёме на работу рабочих на объект ЖК «Атлант»", None, "Исаева", "9 человек"),
+            (K.ORDER, "24-ОД", d(-30), "О закреплении объектов за руководителями проектов", None, "Жумабеков", ""),
+            (K.CERTIFICATE, "", d(-25), "Справка об отсутствии налоговой задолженности", d(5), "Исаева",
+             "Нужна для тендеров"),
+            (K.CERTIFICATE, "", d(-40), "Справка банка об отсутствии картотеки", d(-3), "Исаева", ""),
+            (K.CERTIFICATE, "", d(-10), "Справка о среднесписочной численности работников", None, "Исаева", ""),
+            (K.LICENSE, "21015432", date(2021, 7, 2),
+             "Государственная лицензия на строительно-монтажные работы, II категория", None, "Ахметова", ""),
+            (K.LICENSE, "KZ.ISO.1234", d(-300), "Сертификат системы менеджмента качества ISO 9001", d(430),
+             "Ахметова", ""),
+            (K.OTHER, "А-17", d(-345), "Договор аренды офиса в БЦ «Нурсая»", d(20), "Исаева", "Продлить заранее"),
+        ]:
+            CompanyDocument.objects.create(kind=kind, number=number, date=date_, title=title, valid_until=valid,
+                                           responsible=emp[who], note=note)
+

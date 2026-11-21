@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "finance",
     "contracts",
     "quality",
+    "company",
 ]
 
 MIDDLEWARE = [

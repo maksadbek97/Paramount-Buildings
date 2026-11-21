@@ -27,7 +27,12 @@ class Employee(models.Model):
         Position, verbose_name="Должность", null=True, blank=True,
         on_delete=models.SET_NULL,
     )
+    department = models.ForeignKey(
+        "company.Department", verbose_name="Отдел", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="employees",
+    )
     phone = models.CharField("Телефон", max_length=30, blank=True)
+    email = models.EmailField("Эл. почта", blank=True)
     hired_at = models.DateField("Дата приёма", null=True, blank=True)
     salary = models.DecimalField("Оклад", max_digits=12, decimal_places=2, default=0)
     is_active = models.BooleanField("Работает", default=True)

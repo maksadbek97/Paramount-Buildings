@@ -8,5 +8,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("login/", auth_views.LoginView.as_view(template_name="login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("company/", include("company.urls")),
     path("", include("core.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

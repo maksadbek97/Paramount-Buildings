@@ -1,0 +1,23 @@
+{% extends "company/_base.html" %}{% load ui %}
+{% block head_action %}<a class="btn btn-primary chead-btn" href="{% url 'company_employee_new' %}">{% icon 'plus' 18 %}<span>Добавить сотрудника</span></a>{% endblock %}
+{% block tab %}
+<div class="fchips">{% for k, label, n in filters %}<a href="{% if k %}?dept={{ k }}{% else %}{% url 'company_staff' %}{% endif %}" class="{% if dept == k %}on{% endif %}">{{ label }} <span>{{ n }}</span></a>{% endfor %}</div>
+<section class="card flat">
+  <header><h3>{% if selected %}{{ selected.name }}{% elif dept == 'fired' %}Уволенные{% else %}Все сотрудники{% endif %}</h3><span class="muted">{{ rows|length }}</span></header>
+  {% if rows %}
+  <table class="otable">
+    <thead><tr><th>Сотрудник</th><th>Должность</th><th>Отдел</th><th>Телефон</th><th>Принят</th>{% if can_salary %}<th class="r">Оклад</th>{% endif %}<th></th></tr></thead>
+    <tbody>{% for r in rows %}{% with e=r.e %}
+    <tr>
+      <td data-label="Сотрудник"><div class="on"><span class="av">{{ e.full_name|first }}</span><div><b>{{ e.full_name }}</b>{% if e.email %}<small>{{ e.email }}</small>{% endif %}</div></div></td>
+      <td data-label="Должность">{{ e.position|default:"—" }}</td>
+      <td data-label="Отдел">{{ e.department|default:"—" }}</td>
+      <td data-label="Телефон" class="nowrap">{% if e.phone %}<a href="tel:{{ e.phone|cut:' '|cut:'-' }}">{{ e.phone }}</a>{% else %}—{% endif %}</td>
+      <td data-label="Принят">{% if e.hired_at %}{{ e.hired_at|date:"d.m.Y" }}<small class="muted block">{{ r.tenure }}</small>{% else %}—{% endif %}</td>
+      {% if can_salary %}<td data-label="Оклад" class="r nowrap">{% if e.salary %}{{ e.salary|money }} ₸{% else %}<span class="muted">сдельно</span>{% endif %}</td>{% endif %}
+      <td class="r"><a class="rowedit" href="{% url 'company_employee_edit' e.pk %}" title="Изменить">{% icon 'edit' 16 %}</a></td>
+    </tr>{% endwith %}{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty-s" style="margin:0 18px 14px">В этом отделе пока никого нет.</div>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% load ui %}<div class="dept{% if main %} main{% endif %}{% if small %} small{% endif %}">
+  <div class="dept-h"><b>{{ d.name }}</b><a class="rowedit" href="{% url 'company_department_edit' d.pk %}" title="Изменить отдел">{% icon 'edit' 15 %}</a></div>
+  {% if d.head %}<div class="dept-head"><span class="av">{{ d.head.full_name|first }}</span><span><b>{{ d.head.full_name }}</b><small>{{ d.head.position|default:"Руководитель" }}</small></span></div>
+  {% elif not small %}<div class="dept-head muted small">Руководитель не назначен</div>{% endif %}
+  <div class="dept-f"><a href="{% url 'company_staff' %}?dept={{ d.pk }}">{{ d.n }} сотр.</a>{% if d.vacant %}<span class="vac">вакансий: {{ d.vacant|num }}</span>{% endif %}</div>
+</div>

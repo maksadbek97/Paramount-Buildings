@@ -367,3 +367,16 @@ def notifications_for(user):
 @login_required
 def notifications(request):
     return render(request, "notifications.html", {"items": notifications_for(request.user)})
+
+
+@login_required
+def profile(request):
+    """Профиль пользователя: кто вошёл, роль, связанный сотрудник."""
+    u = request.user
+    employee = getattr(u, "employee", None)
+    return render(request, "profile.html", {
+        "u": u, "employee": employee,
+        "full_name": f"{u.last_name} {u.first_name}".strip() or u.get_username(),
+        "role": "Руководитель" if u.is_superuser else (u.groups.first().name if u.groups.exists() else "Сотрудник"),
+    })
+

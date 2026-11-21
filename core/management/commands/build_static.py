@@ -33,6 +33,29 @@ def page_list():
             query = "&".join(x for x in (f"period={key}" if key != DEFAULT_PERIOD else "",
                                          f"object={pk}" if pk else "") if x)
             pages["/" + path] = "/?" + query
+    pages.update(company_pages())
+    pages["/profile/"] = "/profile/"
+    return pages
+
+
+def company_pages():
+    """Раздел «Моя компания»: вкладки, фильтры и формы."""
+    from company.models import BankAccount, CompanyDocument, Department, StaffUnit
+    from staff.models import Employee
+    pages = {u: u for u in ["/company/", "/company/edit/", "/company/accounts/new/", "/company/docs/",
+                            "/company/docs/new/", "/company/structure/", "/company/structure/new/",
+                            "/company/staff/", "/company/staff/new/", "/company/schedule/",
+                            "/company/schedule/new/"]}
+    for k in [*CompanyDocument.Kind.values, "expiring"]:
+        pages[f"/company/docs/kind/{k}/"] = f"/company/docs/?kind={k}"
+    for pk in Department.objects.values_list("pk", flat=True):
+        pages[f"/company/staff/dept/{pk}/"] = f"/company/staff/?dept={pk}"
+    if Employee.objects.filter(is_active=False).exists():
+        pages["/company/staff/dept/fired/"] = "/company/staff/?dept=fired"
+    for prefix, model in [("accounts", BankAccount), ("docs", CompanyDocument), ("structure", Department),
+                          ("staff", Employee), ("schedule", StaffUnit)]:
+        for pk in model.objects.values_list("pk", flat=True):
+            pages[f"/company/{prefix}/{pk}/"] = f"/company/{prefix}/{pk}/"
     return pages
 
 
@@ -58,8 +81,10 @@ class Command(BaseCommand):
         if not ConstructionObject.objects.exists():
             raise CommandError("База пуста. Сначала выполните: python manage.py seed_demo")
 
-        user, _ = get_user_model().objects.get_or_create(username="Демо")
+        user, _ = get_user_model().objects.get_or_create(username="n.balatev")
         user.is_superuser = True  # в демо видны все кнопки (проверка ПТО и т.п.)
+        user.first_name, user.last_name = "Нурбек", "Балатев"  # в шапке: «Балатев Нурбек»
+        user.email = user.email or "n.balatev@paramount-buildings.kz"
         user.save()
         client = Client()
         client.force_login(user)
@@ -86,8 +111,15 @@ class Command(BaseCommand):
 
     @staticmethod
     def make_static(html, target, base):
-        # Фильтры главной: ?period=x&object=y -> отдельная страница.
-        html = re.sub(r'href="/?\?([^"#]*)"', lambda m: f'href="{dashboard_path(m.group(1))}"', html)
+        # Фильтры главной: ?period=x&object=y -> отдельная страница; на других страницах ?kind=x -> base/kind/x/.
+        def local(m):
+            if base == "/" or m.group(1) == "/":
+                return f'href="{dashboard_path(m.group(2))}"'
+            k, _, v = m.group(2).partition("=")
+            return f'href="{base}{k}/{v}/"'
+        html = re.sub(r'href="(/?)\?([^"#]*)"', local, html)
+        # Фильтры разделов: /company/docs/?kind=x или ?kind=x на самой странице -> /company/docs/kind/x/.
+        html = re.sub(r'href="(/[^"?#]*)\?(kind|dept)=([\w-]+)"', r'href="\1\2/\3/"', html)
         # Прочие параметры (?contract=3) в статике не работают: ведём на общую форму.
         html = re.sub(r'href="(/[^"?#]*)\?[^"#]*"', r'href="\1"', html)
         # Абсолютные ссылки -> относительные, чтобы сайт работал в подпапке GitHub Pages.

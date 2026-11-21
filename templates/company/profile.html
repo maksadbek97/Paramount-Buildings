@@ -1,0 +1,75 @@
+{% extends "company/_base.html" %}{% load ui %}
+{% block head_action %}<a class="btn btn-ghost chead-btn" href="{% url 'company_edit' %}">{% icon 'edit' 18 %}<span>Изменить профиль</span></a>{% endblock %}
+{% block tab %}
+<div class="kgrid k4">
+  <a class="k link" href="{% url 'company_staff' %}"><span class="kl">Сотрудники</span><b class="kv">{{ stats.employees }}</b><span class="kh">работают сейчас</span></a>
+  <a class="k link" href="{% url 'company_structure' %}"><span class="kl">Отделы</span><b class="kv">{{ stats.departments }}</b><span class="kh">в структуре компании</span></a>
+  <a class="k link" href="{% url 'company_schedule' %}"><span class="kl">Вакансии</span><b class="kv {% if stats.vacant %}warn{% endif %}">{{ stats.vacant|num }}</b><span class="kh">свободных ставок по штату</span></a>
+  <a class="k link" href="{% url 'company_docs' %}"><span class="kl">Документы</span><b class="kv">{{ stats.docs }}</b><span class="kh">{% if attention %}<em class="down">{{ attention|length }} требуют внимания</em>{% else %}все в порядке{% endif %}</span></a>
+</div>
+
+<div class="row2">
+  <section class="card">
+    <header><h3>Реквизиты</h3><span class="muted">для договоров и счетов</span>
+      <button type="button" class="btn btn-ghost btn-sm copybtn" data-copy="{{ requisites_text }}">{% icon 'copy' 16 %}<span> Скопировать всё</span></button></header>
+    {% if requisites %}<dl class="req">{% for k, v in requisites %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
+    {% else %}<div class="empty-s">Реквизиты не заполнены. <a href="{% url 'company_edit' %}">Заполнить профиль</a></div>{% endif %}
+  </section>
+  <section class="card">
+    <header><h3>Требует внимания</h3>{% if attention %}<span class="pill">{{ attention|length }}</span>{% endif %}</header>
+    {% if attention %}<ul class="att">{% for d in attention %}{% with st=d.state %}
+      <li class="{% if st.0 == 'expired' %}bad{% else %}warn{% endif %}"><span class="mk"></span><span><b>{{ d.title }}</b><br><span class="muted small">{% if st.0 == 'expired' %}срок истёк {{ d.valid_until|date:"d.m.Y" }}{% else %}действует до {{ d.valid_until|date:"d.m.Y" }} · {{ st.1 }}{% endif %}{% if d.responsible %} · отв. {{ d.responsible }}{% endif %}</span></span></li>
+    {% endwith %}{% endfor %}</ul>
+    {% else %}<div class="empty-s">Все справки и лицензии действуют.</div>{% endif %}
+    <div class="sublabel">Руководство</div>
+    <ul class="people">
+      {% if company.director %}<li><span class="av">{{ company.director.full_name|first }}</span><span><b>{{ company.director.full_name }}</b><small>{{ company.director.position|default:"Руководитель" }}{% if company.director.phone %} · {{ company.director.phone }}{% endif %}</small></span></li>{% endif %}
+      {% if company.accountant %}<li><span class="av">{{ company.accountant.full_name|first }}</span><span><b>{{ company.accountant.full_name }}</b><small>Главный бухгалтер{% if company.accountant.phone %} · {{ company.accountant.phone }}{% endif %}</small></span></li>{% endif %}
+      {% if not company.director and not company.accountant %}<li class="muted small">Не указано</li>{% endif %}
+    </ul>
+  </section>
+</div>
+
+<section class="card flat">
+  <header><h3>Банковские счета</h3><span class="muted">{{ accounts|length }}</span><a class="hlink" href="{% url 'company_account_new' %}">{% icon 'plus' 16 %}Добавить счёт</a></header>
+  {% if accounts %}
+  <table class="otable">
+    <thead><tr><th>Банк</th><th>БИК</th><th>Номер счёта (IBAN)</th><th>Валюта</th><th>Назначение</th><th></th></tr></thead>
+    <tbody>{% for a in accounts %}
+    <tr>
+      <td data-label="Банк"><div class="on"><span class="bankic">{% icon 'bank' 18 %}</span><div><b>{{ a.bank }}</b>{% if a.is_main %}<small class="mainacc">основной</small>{% endif %}</div></div></td>
+      <td data-label="БИК">{{ a.bik|default:"—" }}</td>
+      <td data-label="Счёт" class="mono">{{ a.iban_pretty }} <button type="button" class="iconcopy" data-copy="{{ a.iban }}" title="Скопировать номер счёта" aria-label="Скопировать">{% icon 'copy' 15 %}<span></span></button></td>
+      <td data-label="Валюта">{{ a.currency }}</td>
+      <td data-label="Назначение">{{ a.note|default:"—" }}</td>
+      <td class="r"><a class="rowedit" href="{% url 'company_account_edit' a.pk %}" title="Изменить">{% icon 'edit' 16 %}</a></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty-s" style="margin:0 18px 14px">Счетов пока нет. <a href="{% url 'company_account_new' %}">Добавить счёт</a></div>{% endif %}
+</section>
+
+<div class="row2">
+  <section class="card">
+    <header><h3>Общие сведения</h3></header>
+    <dl class="req">
+      <dt>Форма</dt><dd>{{ company.get_legal_form_display }}</dd>
+      {% if company.short_name %}<dt>Краткое название</dt><dd>{{ company.short_name }}</dd>{% endif %}
+      {% if company.registered_at %}<dt>Зарегистрирована</dt><dd>{{ company.registered_at|date:"d.m.Y" }}{% if years %} · {{ years }} {% if years == 1 %}год{% elif years < 5 %}года{% else %}лет{% endif %} на рынке{% endif %}</dd>{% endif %}
+      {% if company.activity %}<dt>Вид деятельности</dt><dd>{{ company.activity }}</dd>{% endif %}
+      <dt>НДС</dt><dd>{% if company.vat_payer %}плательщик НДС{% if company.vat_certificate %} · {{ company.vat_certificate }}{% endif %}{% else %}не плательщик{% endif %}</dd>
+      {% if company.actual_address %}<dt>Фактический адрес</dt><dd>{{ company.actual_address }}</dd>{% endif %}
+      {% if company.phone %}<dt>Телефон</dt><dd>{{ company.phone }}</dd>{% endif %}
+      {% if company.email %}<dt>Эл. почта</dt><dd>{{ company.email }}</dd>{% endif %}
+      {% if company.website %}<dt>Сайт</dt><dd>{{ company.website }}</dd>{% endif %}
+    </dl>
+    {% if company.description %}<p class="about">{{ company.description }}</p>{% endif %}
+  </section>
+  <section class="card">
+    <header><h3>Последние документы</h3><a class="hlink" href="{% url 'company_docs' %}">Все документы</a></header>
+    {% if recent_docs %}<ul class="doclist">{% for d in recent_docs %}
+      <li><span class="dic k-{{ d.kind }}">{% icon 'file' 18 %}</span><span class="dt"><b>{{ d.title }}</b><small>{{ d.get_kind_display }}{% if d.number %} № {{ d.number }}{% endif %} · {{ d.date|date:"d.m.Y" }}</small></span></li>
+    {% endfor %}</ul>
+    {% else %}<div class="empty-s">Документов пока нет.</div>{% endif %}
+  </section>
+</div>
+{% endblock %}
