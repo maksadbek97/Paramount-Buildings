@@ -68,7 +68,7 @@
   /* ---------- Список объектов ---------- */
   var list = $('#obList');
   if (list) {
-    var rows = $$('tbody tr', list), q = $('#obQ'), more = $('#obMore'), toggle = $('#obFToggle');
+    var rows = $$('tbody tr', list), tiles = $$('.ob-tile', list), q = $('#obQ'), more = $('#obMore'), toggle = $('#obFToggle');
     var state = store.get('ob-filters') || {};
     if (!state.status || location.search.indexOf('status=') >= 0) state.status = list.getAttribute('data-status');
     var selects = $$('[data-f]', more);
@@ -87,13 +87,27 @@
         r.hidden = !ok;
         if (ok) n++;
       });
+      tiles.forEach(function (t, i) { t.hidden = rows[i] ? rows[i].hidden : false; });
       $$('.fchip', list).forEach(function (b) { b.classList.toggle('on', b.dataset.status === state.status); });
       $('#obNone').hidden = n > 0 || !rows.length;
       $('#obFCount').textContent = extra ? extra : '';
       $('#obFoot').textContent = rows.length ? 'Показано объектов: ' + n + ' из ' + rows.length : '';
-      state.q = q.value; state.f = f;
+      state.q = q.value; state.f = f; state.view = view;
       store.set('ob-filters', state);
     }
+    // Вид: плитки (по умолчанию) или таблица
+    var view = state.view === 'table' ? 'table' : 'tiles';
+    function setView(v) {
+      view = v;
+      $('#obTiles').hidden = v !== 'tiles';
+      $('#obTable').hidden = v !== 'table';
+      $$('[data-view]', list).forEach(function (b) {
+        b.classList.toggle('on', b.dataset.view === v);
+        b.setAttribute('aria-pressed', String(b.dataset.view === v));
+      });
+    }
+    $$('[data-view]', list).forEach(function (b) { b.addEventListener('click', function () { setView(b.dataset.view); apply(); }); });
+    setView(view);
     $$('.fchip', list).forEach(function (b) {
       b.addEventListener('click', function () { state.status = b.dataset.status; apply(); });
     });
