@@ -18,20 +18,17 @@
   </div>
 </div>
 
-<div class="kgrid">
-  <div class="k"><span class="kl">Объекты в работе</span><b class="kv">{{ kpi.working }}</b><span class="kh">из {{ counts.all }} в системе</span></div>
-  <div class="k"><span class="kl">Плановый бюджет</span><b class="kv" title="{{ kpi.budget|money }} ₸">{{ kpi.budget|short }}</b><span class="kh">объекты в работе</span></div>
-  <div class="k"><span class="kl">Фактические расходы</span><b class="kv">{{ kpi.fact|short }}</b><span class="kh">{% if kpi.over %}<em class="down">превышение бюджета: {{ kpi.over }}</em>{% else %}в пределах бюджетов{% endif %}</span></div>
-  <div class="k"><span class="kl">Просроченные задачи</span><b class="kv {% if kpi.late %}bad{% endif %}">{{ kpi.late }}</b><span class="kh">активных задач: {{ kpi.tasks }}</span></div>
-</div>
-
-<section class="card flat ob-list" id="obList" data-status="{{ status }}">
-  <div class="ob-filters">
+<section class="ob-list" id="obList" data-status="{{ status }}">
+  <div class="card flat ob-filters">
     <div class="fchips" role="tablist" aria-label="Статус">
       {% for key, label, n in statuses %}{% if n or key == 'working' or key == 'all' %}<button type="button" class="fchip{% if key == status %} on{% endif %}" data-status="{{ key }}">{{ label }} <span>{{ n }}</span></button>{% endif %}{% endfor %}
     </div>
     <div class="ob-search">
       <label class="ob-q">{% icon 'search' 18 %}<input type="search" id="obQ" placeholder="Название, код, заказчик, адрес" autocomplete="off" aria-label="Поиск по объектам"></label>
+      <div class="ob-view" role="group" aria-label="Вид списка">
+        <button type="button" data-view="tiles" class="on" title="Плитки" aria-label="Плитки">{% icon 'grid' 18 %}</button>
+        <button type="button" data-view="table" title="Таблица" aria-label="Таблица">{% icon 'table' 18 %}</button>
+      </div>
       <button type="button" class="btn btn-ghost ob-ftoggle" id="obFToggle" aria-expanded="false">{% icon 'filter' 18 %}<span>Фильтры</span><i id="obFCount"></i></button>
     </div>
     <div class="ob-more" id="obMore" hidden>
@@ -45,6 +42,16 @@
     </div>
   </div>
 
+  <div class="ob-tiles" id="obTiles">
+    {% for r in rows %}{% with o=r.o %}
+    <a class="ob-tile{% if o.is_closed %} dim{% endif %}" href="{% url 'object_detail' o.pk %}" data-id="{{ o.pk }}" data-group="{{ r.group }}" data-st="{{ o.status }}" data-manager="{{ o.manager_id|default:'' }}" data-client="{{ o.client_id|default:'' }}" data-city="{{ o.city }}" data-kind="{{ o.kind }}" data-start="{{ o.start_date|date:'Y-m-d' }}" data-end="{{ o.end_date|date:'Y-m-d' }}" data-q="{{ o.name|lower }} {{ o.code|lower }} {{ o.client.name|lower }} {{ o.city|lower }} {{ o.address|lower }} {{ o.general_contractor.name|lower }}">
+      <span class="ob-tile-img"><img src="{{ o.cover }}" alt="" loading="lazy"><span class="badge {{ o.status }}">{{ o.get_status_display }}</span></span>
+      <span class="ob-tile-body"><b class="ob-tile-name">{{ o.name }}</b><small>{% if o.code %}{{ o.code }}{% endif %}{% if o.code and o.city %} · {% endif %}{{ o.city }}</small></span>
+    </a>
+    {% endwith %}{% endfor %}
+  </div>
+
+  <div class="card flat ob-tablecard" id="obTable" hidden>
   <div class="tscroll"><table class="otable obtable">
     <thead><tr><th>Объект</th><th>Ответственные</th><th>Статус и сроки</th><th>Готовность</th><th class="r">Бюджет / факт</th><th>Задачи</th><th></th></tr></thead>
     <tbody>
@@ -72,6 +79,7 @@
     {% endwith %}{% endfor %}
     </tbody>
   </table></div>
+  </div>
   <div class="empty-s ob-none" id="obNone" hidden>Под условия ничего не подходит. <button type="button" class="linkbtn" data-reset>Сбросить фильтры</button></div>
   {% if not rows %}<div class="empty-s" style="margin:0 18px 16px">Объектов пока нет.{% if can_create %} <a href="{% url 'object_create' %}">Создать первый объект</a>{% endif %}</div>{% endif %}
   <div class="ob-foot" id="obFoot"></div>
