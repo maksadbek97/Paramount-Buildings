@@ -57,6 +57,11 @@ def short(value):
 
 
 @register.filter
+def get_item(mapping, key):
+    return mapping.get(key)
+
+
+@register.filter
 def pairs(value):
     """«a:Метка,b:Метка» -> [(a, Метка), ...] для строк фильтров."""
     return [tuple(item.split(":", 1)) for item in value.split(",")]

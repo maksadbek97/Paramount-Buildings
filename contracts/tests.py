@@ -12,7 +12,7 @@ from django.urls import reverse
 from core.models import AuditLog
 from objects.models import Client, ConstructionObject
 from staff.models import Employee
-from warehouse.models import Material, StockMovement
+from warehouse.models import Material, StockMovement, Warehouse
 
 from .models import Assignment, Crew, MaterialNorm, Payment, WorkContract, WorkLog, summary
 
@@ -226,15 +226,14 @@ class StockRulesTests(TestCase):
         user = get_user_model().objects.create_user("k", password="x")
         self.client.force_login(user)
         m = Material.objects.create(name="Цемент", unit="т")
-        StockMovement.objects.create(material=m, kind="in", quantity=D("100"), date=TODAY)
-        r = self.client.post(reverse("movement_create"), {"kind": "out", "material": m.pk, "quantity": "120",
-                                                          "date": "2026-11-20"})
+        w = Warehouse.objects.create(name="Центральный")
+        StockMovement.objects.create(material=m, kind="in", quantity=D("100"), date=TODAY, warehouse=w)
+        base = {"material": m.pk, "date": "2026-11-20", "warehouse": w.pk}
+        r = self.client.post(reverse("movement_create"), {**base, "kind": "out", "quantity": "120"})
         self.assertContains(r, "Нельзя выдать больше")
-        r = self.client.post(reverse("movement_create"), {"kind": "in", "material": m.pk, "quantity": "-5",
-                                                          "date": "2026-11-20"})
+        r = self.client.post(reverse("movement_create"), {**base, "kind": "in", "quantity": "-5"})
         self.assertContains(r, "больше нуля")
-        self.client.post(reverse("movement_create"), {"kind": "out", "material": m.pk, "quantity": "20",
-                                                      "date": "2026-11-20"})
+        self.client.post(reverse("movement_create"), {**base, "kind": "out", "quantity": "20"})
         self.assertEqual(Material.objects.get().stock, D("80"))
 
 

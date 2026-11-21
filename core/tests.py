@@ -7,7 +7,7 @@ from django.urls import reverse
 from finance.models import Estimate, EstimateItem, Transaction
 from objects.models import Client, ConstructionObject
 from staff.models import Employee, Position, Task
-from warehouse.models import Material, StockMovement
+from warehouse.models import Material, StockMovement, Warehouse
 
 
 class SystemTests(TestCase):
@@ -21,8 +21,10 @@ class SystemTests(TestCase):
             name="ЖК Парамаунт", client=cls.client_obj, manager=cls.emp, status="in_progress")
         Task.objects.create(title="Залить фундамент", construction_object=cls.obj, assignee=cls.emp)
         cls.mat = Material.objects.create(name="Цемент", unit="мешок", min_stock=50)
-        StockMovement.objects.create(material=cls.mat, kind="in", quantity=100, date=date.today())
-        StockMovement.objects.create(material=cls.mat, kind="out", quantity=70, date=date.today(), construction_object=cls.obj)
+        cls.wh = Warehouse.objects.create(name="Центральный")
+        StockMovement.objects.create(material=cls.mat, kind="in", quantity=100, date=date.today(), warehouse=cls.wh)
+        StockMovement.objects.create(material=cls.mat, kind="out", quantity=70, date=date.today(),
+                                     construction_object=cls.obj, warehouse=cls.wh)
         est = Estimate.objects.create(construction_object=cls.obj, title="Смета №1")
         EstimateItem.objects.create(estimate=est, name="Бетон", quantity=10, unit_price=500)
         Transaction.objects.create(construction_object=cls.obj, kind="income", amount=1000, date=date.today())
@@ -57,7 +59,8 @@ class SystemTests(TestCase):
     def test_quick_forms_save(self):
         self.client.login(username="admin", password="pass12345")
         r = self.client.post(reverse("movement_create"), {
-            "kind": "out", "material": self.mat.pk, "quantity": "5", "date": "2026-11-20"})
+            "kind": "out", "material": self.mat.pk, "quantity": "5", "date": "2026-11-20",
+            "warehouse": self.wh.pk})
         self.assertRedirects(r, reverse("warehouse_list"))
         self.assertEqual(self.mat.stock, 25)
         self.client.post(reverse("transaction_create"), {"kind": "income", "amount": "50", "date": "2026-11-20"})

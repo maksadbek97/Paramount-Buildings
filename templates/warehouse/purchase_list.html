@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><h1>Заявки и закупки</h1><div class="sub">Заявка → Согласование → Заказ → Приёмка на склад</div></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'purchase_create' %}">{% icon 'plus' 18 %}Заявка</a>
+    <a class="btn btn-ghost" href="{% url 'supplier_create' %}">+ Поставщик</a></div>
+</div>
+<div class="chips">
+  {% for v, label in "open:Открытые,new:Новые,approved:Согласованы,ordered:Заказаны,received:Приняты,rejected:Отклонены,all:Все"|pairs %}
+  <a href="?status={{ v }}" class="{% if current == v %}active{% endif %}">{{ label }}</a>{% endfor %}
+</div>
+{% if requests %}<div class="list">{% for p in requests %}
+  <a class="row" href="{% url 'purchase_detail' p.pk %}"><span class="ico {% if p.is_late %}out{% elif p.status == 'received' %}in{% endif %}">{% icon 'box' 20 %}</span>
+    <div class="body"><div class="title">{{ p.material }} — {{ p.quantity|num }} {{ p.material.unit }}</div>
+      <div class="meta">{{ p.number }} · {{ p.construction_object.name }}{% if p.supplier %} · {{ p.supplier }}{% endif %}{% if p.needed_by %} · <span class="{% if p.is_late %}bad{% endif %}">к {{ p.needed_by|date:"d.m" }}</span>{% endif %}</div></div>
+    <div class="side"><span class="badge {% if p.status == 'received' %}done{% elif p.status == 'rejected' %}{% elif p.status == 'new' %}paused{% else %}active{% endif %}">{{ p.get_status_display }}</span>{% if p.price %}<div class="meta">{{ p.amount|money }} ₸</div>{% endif %}</div></a>
+{% endfor %}</div>
+{% else %}<div class="empty">Заявок нет</div>{% endif %}
+{% endblock %}

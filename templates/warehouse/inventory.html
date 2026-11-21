@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<a class="back" href="{% url 'warehouse_detail' inv.warehouse_id %}">{% icon 'back' 18 %}{{ inv.warehouse }}</a>
+<div class="page-head"><div class="titles"><h1>Акт инвентаризации {{ inv.number }} <span class="badge {% if inv.status == 'approved' %}done{% else %}paused{% endif %}">{{ inv.get_status_display }}</span></h1>
+  <div class="sub">{{ inv.warehouse }} · {{ inv.date|date:"d.m.Y" }}{% if inv.approved_by %} · утвердил {{ inv.approved_by }}{% endif %}</div></div></div>
+<form method="post">{% csrf_token %}
+<table class="ptable">
+  <tr><th>Материал</th><th class="num">По учёту</th><th class="num">Фактически</th><th class="num">Разница</th></tr>
+  {% for l in lines %}
+  <tr><td data-label="Материал">{{ l.material.name }}</td>
+    <td class="num" data-label="По учёту">{{ l.book_qty|num }} {{ l.material.unit }}</td>
+    <td class="num" data-label="Фактически">{% if inv.status == 'draft' %}<input name="actual_{{ l.pk }}" value="{{ l.actual_qty|num }}" inputmode="decimal" style="width:120px;min-height:42px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;font:inherit;text-align:right">{% else %}{{ l.actual_qty|num }}{% endif %}</td>
+    <td class="num {% if l.difference < 0 %}bad{% elif l.difference > 0 %}ok{% endif %}" data-label="Разница">{% if l.difference > 0 %}+{% endif %}{{ l.difference|num }}</td></tr>
+  {% empty %}<tr><td colspan="4">На складе нет материалов</td></tr>{% endfor %}
+</table>
+{% if inv.status == 'draft' %}
+<div class="form-actions" style="max-width:640px">
+  <button class="btn btn-ghost btn-lg" type="submit">Сохранить</button>
+  <button class="btn btn-primary btn-lg" type="submit" name="approve" value="1">{% icon 'check' 18 %}Утвердить и скорректировать</button>
+</div>
+<p class="muted small">После утверждения разница станет корректирующей операцией склада. Удалить её нельзя — только новая корректировка.</p>
+{% endif %}
+</form>
+{% endblock %}

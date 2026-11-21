@@ -30,7 +30,8 @@
     <a href="{% url 'task_list' %}" class="{% if 'task' in n %}active{% endif %}">{% icon 'task' %}Задачи</a>
     <div class="navgroup">Ресурсы</div>
     <a href="{% url 'staff_list' %}" class="{% if 'staff' in n or 'employee' in n or 'crew' in n %}active{% endif %}">{% icon 'users' %}Рабочие и бригады</a>
-    <a href="{% url 'warehouse_list' %}" class="{% if 'warehouse' in n or 'material' in n or 'movement' in n %}active{% endif %}">{% icon 'box' %}Склад</a>
+    <a href="{% url 'warehouse_list' %}" class="{% if 'warehouse' in n or 'material' in n or 'movement' in n or 'inventory' in n or 'transfer' in n %}active{% endif %}">{% icon 'box' %}Склад</a>
+    <a href="{% url 'purchase_list' %}" class="{% if 'purchase' in n or 'supplier' in n %}active{% endif %}">{% icon 'cash' %}Заявки и закупки</a>
     <a href="{% url 'finance_list' %}" class="{% if 'finance' in n or 'transaction' in n %}active{% endif %}">{% icon 'wallet' %}Финансы</a>
     <a href="{% url 'history' %}" class="{% if n == 'history' %}active{% endif %}">{% icon 'history' %}Журнал действий</a>
   </nav>

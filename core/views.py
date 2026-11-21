@@ -150,9 +150,16 @@ def task_create(request):
 
 @login_required
 def warehouse_list(request):
+    from warehouse.models import PurchaseRequest, Warehouse
+    materials = list(Material.objects.all())
     return render(request, "warehouse_list.html", {
-        "materials": Material.objects.all(),
-        "movements": StockMovement.objects.select_related("material", "supplier", "construction_object")[:30],
+        "warehouses": Warehouse.objects.select_related("construction_object", "keeper"),
+        "materials": materials, "total_value": sum((m.stock_value for m in materials), 0),
+        "in_transit": StockMovement.objects.filter(kind="transfer", received=False).select_related(
+            "material", "warehouse", "to_warehouse"),
+        "open_requests": PurchaseRequest.objects.filter(status__in=PurchaseRequest.OPEN).count(),
+        "movements": StockMovement.objects.select_related("material", "supplier", "construction_object",
+                                                          "warehouse", "to_warehouse")[:30],
     })
 
 
@@ -164,7 +171,9 @@ def material_create(request):
 
 @login_required
 def movement_create(request):
-    return form_page(request, forms.StockMovementForm, "Приход / расход материала", reverse("warehouse_list"),
+    return form_page(request, forms.StockMovementForm, "Складская операция", reverse("warehouse_list"),
+                     form_kwargs={"user": request.user},
+                     subtitle="Приход, расход в работу, перемещение, возврат, списание.",
                      back=reverse("warehouse_list"))
 
 

@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<a class="back" href="{% url 'purchase_list' %}">{% icon 'back' 18 %}Заявки</a>
+<div class="page-head"><div class="titles"><h1>{{ p.number }} <span class="badge {% if p.status == 'received' %}done{% elif p.status == 'new' %}paused{% elif p.status != 'rejected' %}active{% endif %}">{{ p.get_status_display }}</span></h1>
+  <div class="sub">{{ p.material }} — {{ p.quantity|num }} {{ p.material.unit }} · {{ p.construction_object }}</div></div>
+  <div class="actions"><a class="btn btn-ghost" href="{% url 'purchase_edit' p.pk %}">{% icon 'edit' 18 %}Изменить</a></div></div>
+
+{% for w in a.warnings %}<div class="demo-note" style="background:var(--warn-bg);border-color:#F5D9A8">{% icon 'alert' 18 %}<span>{{ w }}</span></div>{% endfor %}
+
+<h2>Проверка заявки</h2>
+<div class="stats">
+  <div class="stat"><div class="label">Нужно по нормам (остаток работ)</div><div class="value">{% if a.need %}{{ a.need|num }}{% else %}—{% endif %}</div><div class="hint">{{ p.material.unit }}</div></div>
+  <div class="stat"><div class="label">Есть на объекте</div><div class="value">{{ a.on_object|num }}</div></div>
+  <div class="stat"><div class="label">На других складах</div><div class="value">{{ a.elsewhere|num }}</div></div>
+  <div class="stat"><div class="label">Уже заказано</div><div class="value">{{ a.ordered|num }}</div></div>
+  <div class="stat"><div class="label">Рекомендуем купить</div><div class="value ok">{% if a.to_buy is not None %}{{ a.to_buy|num }}{% else %}—{% endif %}</div><div class="hint">в заявке {{ p.quantity|num }}</div></div>
+</div>
+<div class="kv" style="margin-top:12px">
+  <div><span>Склад</span><b>{{ p.warehouse }}</b></div>
+  <div><span>Нужно к</span><b class="{% if p.is_late %}bad{% endif %}">{{ p.needed_by|date:"d.m.Y"|default:"—" }}</b></div>
+  <div><span>Поставщик</span><b>{{ p.supplier|default:"—" }}</b></div>
+  <div><span>Цена / сумма</span><b>{% if p.price %}{{ p.price|money }} ₸ · {{ p.amount|money }} ₸{% else %}—{% endif %}</b></div>
+  <div><span>Прошлая цена</span><b>{% if a.last_price %}{{ a.last_price|money }} ₸{% else %}—{% endif %}</b></div>
+  <div><span>Условия оплаты</span><b>{{ p.payment_terms|default:"—" }}</b></div>
+  <div><span>Автор</span><b>{{ p.author|default:"—" }}</b></div>
+</div>
+
+<h2>Действия</h2>
+<div class="page-head" style="margin:0">
+  <div class="actions">
+  {% if p.status == 'new' or p.status == 'approved' %}{% with step=p.FLOW|get_item:p.status %}
+    {% if p.status != 'new' or can_approve %}<form method="post" action="{% url 'purchase_act' p.pk %}">{% csrf_token %}<input type="hidden" name="to" value="{{ step.0 }}"><button class="btn btn-primary btn-lg">{{ step.1 }}</button></form>{% endif %}
+  {% endwith %}{% endif %}
+  {% if p.status == 'ordered' %}<form method="post" action="{% url 'purchase_act' p.pk %}">{% csrf_token %}<input type="hidden" name="to" value="received"><button class="btn btn-primary btn-lg">{% icon 'check' 18 %}Принять поставку на склад</button></form>{% endif %}
+  {% if p.status in 'new approved ordered' and can_approve %}<form method="post" action="{% url 'purchase_act' p.pk %}">{% csrf_token %}<input type="hidden" name="to" value="rejected"><button class="btn btn-ghost btn-lg">Отклонить</button></form>{% endif %}
+  </div>
+</div>
+{% if p.status == 'new' and not can_approve %}<p class="muted small">Согласует снабженец или руководитель.</p>{% endif %}
+
+{% if prices %}<h2>История цен на {{ p.material }}</h2><div class="list">{% for mv in prices %}
+  <div class="row"><div class="body"><div class="title">{{ mv.supplier|default:"—" }}</div><div class="meta">{{ mv.date|date:"d.m.Y" }} · {{ mv.quantity|num }} {{ p.material.unit }}</div></div><div class="side">{{ mv.price|money }} ₸</div></div>
+{% endfor %}</div>{% endif %}
+
+<h2>История</h2>
+{% include "_history.html" with entries=history hide_object=1 %}
+{% endblock %}

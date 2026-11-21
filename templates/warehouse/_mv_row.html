@@ -1,0 +1,4 @@
+{% load ui %}<div class="row"><span class="ico {% if mv.is_increase %}in{% else %}out{% endif %}">{% if mv.kind == 'transfer' %}⇄{% elif mv.is_increase %}+{% else %}−{% endif %}</span>
+  <div class="body"><div class="title">{{ mv.material }}</div>
+    <div class="meta">{{ mv.get_kind_display }} · {{ mv.date|date:"d.m.Y" }} · {{ mv.warehouse }}{% if mv.kind == 'transfer' %} → {{ mv.to_warehouse }}{% if not mv.received %} <span class="warn-t">(ждёт приёмки)</span>{% endif %}{% endif %}{% if mv.supplier %} · {{ mv.supplier }}{% endif %}{% if mv.construction_object and mv.kind != 'transfer' %} · {{ mv.construction_object.name }}{% endif %}{% if mv.note %} · {{ mv.note }}{% endif %}</div></div>
+  <div class="side">{% if mv.kind == 'transfer' %}{% elif mv.is_increase %}+{% else %}−{% endif %}{{ mv.quantity|num }} {{ mv.material.unit }}</div></div>

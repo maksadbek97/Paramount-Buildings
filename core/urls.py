@@ -2,6 +2,7 @@ from django.urls import path
 
 from contracts import views as cv
 from quality import views as qv
+from warehouse import views as wv
 
 from . import views
 
@@ -42,6 +43,17 @@ urlpatterns = [
     path("warehouse/", views.warehouse_list, name="warehouse_list"),
     path("warehouse/materials/new/", views.material_create, name="material_create"),
     path("warehouse/movements/new/", views.movement_create, name="movement_create"),
+    path("warehouse/new/", wv.warehouse_create, name="warehouse_create"),
+    path("warehouse/<int:pk>/", wv.warehouse_detail, name="warehouse_detail"),
+    path("warehouse/transfers/<int:pk>/accept/", wv.transfer_accept, name="transfer_accept"),
+    path("warehouse/inventory/new/", wv.inventory_start, name="inventory_start"),
+    path("warehouse/inventory/<int:pk>/", wv.inventory_detail, name="inventory_detail"),
+    path("purchases/", wv.purchase_list, name="purchase_list"),
+    path("purchases/new/", wv.purchase_create, name="purchase_create"),
+    path("purchases/suppliers/new/", wv.supplier_create, name="supplier_create"),
+    path("purchases/<int:pk>/", wv.purchase_detail, name="purchase_detail"),
+    path("purchases/<int:pk>/edit/", wv.purchase_edit, name="purchase_edit"),
+    path("purchases/<int:pk>/act/", wv.purchase_act, name="purchase_act"),
     path("finance/", views.finance_list, name="finance_list"),
     path("finance/new/", views.transaction_create, name="transaction_create"),
 ]

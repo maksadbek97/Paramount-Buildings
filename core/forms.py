@@ -5,7 +5,7 @@ from django import forms
 from finance.models import Transaction
 from objects.models import Client, ConstructionObject
 from staff.models import Employee, Position, Task
-from warehouse.models import Material, StockMovement
+from warehouse.models import Material, StockMovement, Warehouse
 
 
 class StyledMixin:
@@ -96,18 +96,32 @@ class TaskForm(StyledMixin, forms.ModelForm):
 class MaterialForm(StyledMixin, forms.ModelForm):
     class Meta:
         model = Material
-        fields = ["name", "unit", "price", "min_stock"]
+        fields = ["name", "code", "category", "brand", "unit", "price", "min_stock", "max_stock"]
 
 
 class StockMovementForm(StyledMixin, forms.ModelForm):
     class Meta:
         model = StockMovement
-        fields = ["kind", "material", "quantity", "date", "construction_object", "contract", "supplier", "note"]
+        fields = ["kind", "warehouse", "to_warehouse", "material", "quantity", "date", "construction_object",
+                  "contract", "supplier", "price", "note"]
         widgets = {"kind": forms.RadioSelect}
+        help_texts = {"to_warehouse": "Только для перемещения. Получатель подтвердит приёмку.",
+                      "contract": "Для расхода: на какой вид работ — для сравнения с нормой",
+                      "price": "Для прихода"}
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         kwargs.setdefault("initial", {}).setdefault("date", date.today())
         super().__init__(*args, **kwargs)
+        self.user = user
+        self.fields["kind"].choices = StockMovement.Kind.choices
+        self.fields["warehouse"].required = True
+        if not self.initial.get("warehouse") and Warehouse.objects.count():
+            self.initial["warehouse"] = Warehouse.objects.first().pk
+
+    def save(self, commit=True):
+        if self.user and self.user.is_authenticated and not self.instance.pk:
+            self.instance.created_by = self.user
+        return super().save(commit)
 
 
 class TransactionForm(StyledMixin, forms.ModelForm):
