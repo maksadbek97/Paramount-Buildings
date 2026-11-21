@@ -1,0 +1,11 @@
+{% extends "docflow/_base.html" %}{% load ui %}
+{% block ptitle %}{{ title }}{% endblock %}
+{% block tab %}
+<div class="tabhead df-th">
+  <div><h2>{{ title }}</h2><p class="muted">{{ subtitle }}</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% if new_kind == 'letter' %}{% url 'docflow_letter' %}{% else %}{% url 'docflow_new' new_kind %}{% endif %}">{% icon 'plus' 18 %}{{ new_label }}</a></div>
+</div>
+{% if sub %}<div class="seg-tabs">{% for k, label, url, n in sub %}<a href="{% url url %}" class="{% if k == sub_on %}on{% endif %}">{{ label }} <span>{{ n }}</span></a>{% endfor %}</div>{% endif %}
+{% if stats %}<div class="kgrid k4 df-stats">{% for label, v, fmt in stats %}<div class="k"><span class="kl">{{ label }}</span><span class="kv">{% if fmt == 'money' %}{{ v|short }}{% else %}{{ v }}{% endif %}</span></div>{% endfor %}</div>{% endif %}
+{% include "docflow/_table.html" %}
+{% endblock %}

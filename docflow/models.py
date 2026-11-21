@@ -289,6 +289,10 @@ class Document(models.Model):
         return f"{self.number + ' ' if self.number else ''}{self.title}"
 
     @property
+    def keywords_list(self):
+        return [k.strip() for k in self.keywords.split(",") if k.strip()]
+
+    @property
     def uid(self):
         return f"DOC-{self.pk:06d}"
 

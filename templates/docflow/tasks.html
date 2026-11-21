@@ -1,0 +1,30 @@
+{% extends "docflow/_base.html" %}{% load ui %}
+{% block ptitle %}Поручения{% endblock %}
+{% block tab %}
+<div class="tabhead df-th">
+  <div><h2>Поручения</h2><p class="muted">Из пунктов приказов, резолюций по входящим и вручную. Напоминание приходит до срока, в срок и при просрочке; перенос срока — только с причиной.</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% url 'docflow_task_new' %}">{% icon 'plus' 18 %}Новое поручение</a></div>
+</div>
+<div class="kgrid k4 df-stats">{% for label, v, tone in stats %}<div class="k"><span class="kl">{{ label }}</span><span class="kv{% if tone and v %} {{ tone }}{% endif %}">{{ v }}</span></div>{% endfor %}</div>
+<div class="card flat df-filters df-tfil">
+  <div class="ob-search"><label class="ob-q">{% icon 'search' 18 %}<input type="search" id="tQ" placeholder="Поиск по поручениям" autocomplete="off" aria-label="Поиск"></label>
+  <select id="tWho" class="df-sel" aria-label="Исполнитель"><option value="">Все исполнители</option>{% for pk, name in people %}<option value="{{ pk }}">{{ name }}</option>{% endfor %}</select></div>
+</div>
+<div class="df-board">
+  {% for c in board %}<section class="df-col">
+    <header><b>{{ c.label }}</b><span>{{ c.items|length }}</span></header>
+    {% for t in c.items %}<article class="df-task{% if t.overdue %} late{% endif %}" data-who="{{ t.assignee_id }}" data-q="{{ t.title|lower }} {{ t.number|lower }} {{ t.assignee.full_name|lower }} {{ t.document.title|lower }}">
+      <div class="df-task-h"><small>{{ t.number }}</small>{% if t.priority == 'high' or t.priority == 'urgent' %}<span class="dst t-bad">{{ t.get_priority_display }}</span>{% endif %}{% if t.status == 'rework' %}<span class="dst t-bad">на доработке</span>{% elif t.status == 'accepted' %}<span class="dst t-blue">принято</span>{% endif %}</div>
+      <b>{{ t.title }}</b>
+      {% if t.document %}<a class="df-src" href="{% url 'docflow_detail' t.document_id %}">{% icon 'file' 13 %} {% firstof t.document.number t.document.uid %} · {{ t.document.title|truncatechars:48 }}</a>{% endif %}
+      <div class="df-task-f"><span class="av lt" title="{{ t.assignee.full_name }}">{{ t.assignee.full_name|first }}</span><span class="who">{{ t.assignee.full_name }}</span>
+        <span class="df-due {% if t.overdue %}bad{% elif t.days_left is not None and t.days_left <= 3 %}warn-t{% endif %}">{% icon 'clock' 13 %} {{ t.due|date:"d.m" }}</span></div>
+      {% if t.postpone_reason %}<small class="muted">Срок перенесён: {{ t.postpone_reason }}</small>{% endif %}
+      {% if t.open %}<div class="df-task-a">
+        {% with nx=t.NEXT|get_item:t.status %}{% if nx %}<form method="post" action="{% url 'docflow_task_act' t.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-sm">{{ nx.1 }}</button></form>{% endif %}{% endwith %}
+        <details class="df-pp"><summary>Перенести</summary><form method="post" action="{% url 'docflow_task_act' t.pk %}">{% csrf_token %}<input type="hidden" name="act" value="postpone"><input type="date" name="due" required><input name="reason" placeholder="Причина" required><button class="btn btn-primary btn-sm">OK</button></form></details>
+      </div>{% endif %}
+    </article>{% empty %}<div class="df-colempty">Пусто</div>{% endfor %}
+  </section>{% endfor %}
+</div>
+{% endblock %}

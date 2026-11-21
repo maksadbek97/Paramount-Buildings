@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% load ui %}
+{% block title %}{% block ptitle %}Документы{% endblock %} · Paramount Buildings{% endblock %}
+{% block content %}
+<div class="dh df-head">
+  <div class="dh-title">
+    <div class="df-crumb">Документооборот</div>
+    <h1>{% block h1 %}Документы{% endblock %}</h1>
+    <div class="sub">{% block sub %}Единый реестр: документ создаётся один раз и виден в объекте, договоре и архиве{% endblock %}</div>
+  </div>
+  <div class="dh-tools">
+    <details class="dd df-create">
+      <summary>{% icon 'plus' 18 %}<span>Создать</span>{% icon 'chevron' 16 %}</summary>
+      <div class="dd-menu">
+        {% for key, label, hint, ic in create %}<a href="{% if key == 'letter' %}{% url 'docflow_letter' %}{% else %}{% url 'docflow_new' key %}{% endif %}"><span class="df-mi">{% icon ic 18 %}</span><span><b>{{ label }}</b><small>{{ hint }}</small></span></a>{% endfor %}
+        <a href="{% url 'docflow_task_new' %}"><span class="df-mi">{% icon 'task' 18 %}</span><span><b>Поручение</b><small>Исполнитель, срок, контролёр</small></span></a>
+      </div>
+    </details>
+    <a class="btn btn-primary df-letter" href="{% url 'docflow_letter' %}">{% icon 'mail' 18 %}<span>Письмо на бланке</span></a>
+  </div>
+</div>
+<nav class="df-tabs" aria-label="Разделы документооборота">{% for key, label, url in tabs %}<a href="{% url url %}" class="{% if key == tab %}active{% endif %}">{{ label }}</a>{% endfor %}</nav>
+{% block tab %}{% endblock %}
+{% endblock %}

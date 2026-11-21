@@ -1,0 +1,33 @@
+{% extends "docflow/_base.html" %}{% load ui static %}
+{% block ptitle %}Шаблоны{% endblock %}
+{% block tab %}
+<div class="tabhead df-th">
+  <div><h2>Фирменные бланки</h2><p class="muted">По бланку генератор собирает готовое письмо: текст, адресат, номер, дата, подпись и печать. При обновлении бланка уже созданные письма не меняются — у них остаётся своя версия.</p></div>
+  <div class="tabhead-act"><a class="btn btn-ghost" href="{% url 'docflow_template_new' %}">{% icon 'plus' 18 %}Загрузить бланк</a><a class="btn btn-primary" href="{% url 'docflow_letter' %}">{% icon 'mail' 18 %}Создать письмо</a></div>
+</div>
+<div class="df-tgrid">
+  {% for t in letterheads %}<article class="df-tcard">
+    <div class="df-lh df-lh-{{ t.code|lower }}"><div class="lh-top"><img src="{% static 'img/logo.png' %}" alt=""><span><b>{{ company.name }}</b>{{ company.legal_address|truncatechars:42 }}</span></div><i></i><i class="s"></i><i></i><i></i><i class="s"></i><div class="lh-sign"><i></i><span class="lh-seal"></span></div></div>
+    <div class="df-tb"><b>{{ t.name }}</b><small>{{ t.code }} · версия {{ t.version }} · с {{ t.active_from|date:"d.m.Y" }}</small>
+      <div class="tags"><span>{{ t.get_sign_rule_display }}</span><span>{{ t.access }}</span>{% if t.is_active %}<span class="t-ok">активен</span>{% else %}<span>неактивен</span>{% endif %}</div>
+      <small class="muted">писем по бланку: {{ t.n }}</small>
+      <div class="df-ta"><a class="btn btn-primary btn-sm" href="{% url 'docflow_letter' %}">Создать письмо</a><a class="btn btn-ghost btn-sm" href="{% url 'docflow_template_edit' t.pk %}">Настроить</a></div>
+    </div>
+  </article>{% endfor %}
+</div>
+<h2>Шаблоны документов</h2>
+<section class="card flat">
+  <table class="otable">
+    <thead><tr><th>Шаблон</th><th>Категория</th><th>Версия</th><th>Автор</th><th>Переменные</th><th>Использован</th><th></th></tr></thead>
+    <tbody>{% for t in others %}<tr class="{% if not t.is_active %}dim{% endif %}">
+      <td data-label="Шаблон"><div class="on"><span class="dic">{% icon 'layers' 18 %}</span><div><b>{{ t.name }}</b><small>{{ t.code }} · {{ t.access }}</small></div></div></td>
+      <td data-label="Категория">{{ t.get_category_display }}</td>
+      <td data-label="Версия" class="nowrap">v{{ t.version }} · с {{ t.active_from|date:"d.m.Y" }}</td>
+      <td data-label="Автор">{{ t.author.full_name|default:"—" }}</td>
+      <td data-label="Переменные"><div class="tags">{% if "{компания}" in t.body %}<span>компания</span>{% endif %}{% if "{объект}" in t.body %}<span>объект</span>{% endif %}{% if "{договор}" in t.body %}<span>договор</span>{% endif %}{% if "{адресат}" in t.body %}<span>контрагент</span>{% endif %}{% if "{номер}" in t.body %}<span>номер, дата</span>{% endif %}</div></td>
+      <td data-label="Использован">{{ t.n }} раз</td>
+      <td class="r nowrap"><a class="rowedit" href="{% url 'docflow_template_edit' t.pk %}" title="Изменить">{% icon 'edit' 16 %}</a></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "docflow/_base.html" %}{% load ui %}
+{% block ptitle %}Номенклатура дел{% endblock %}
+{% block tab %}
+<div class="tabhead df-th">
+  <div><h2>Номенклатура дел {{ year }}</h2><p class="muted">Каждый зарегистрированный документ подшивается в дело. По окончании года дела закрываются, составляется опись и они передаются в архив. Уничтожение — только по утверждённому акту.</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% url 'docflow_case_new' %}">{% icon 'plus' 18 %}Новое дело</a></div>
+</div>
+<div class="kgrid k4 df-stats">
+  <div class="k"><span class="kl">Дел в номенклатуре</span><span class="kv">{{ total }}</span></div>
+  <div class="k"><span class="kl">Документов подшито</span><span class="kv">{{ docs_in }}</span></div>
+  <div class="k"><span class="kl">Без дела</span><span class="kv{% if no_case %} warn{% endif %}">{{ no_case }}</span><span class="kh">зарегистрированы, но не подшиты</span></div>
+  <div class="k"><span class="kl">Закрытие года</span><span class="kv">31.12</span><span class="kh">опись и передача в архив</span></div>
+</div>
+{% for g in groups %}
+<section class="card flat">
+  <header><h3>{{ g.code }} · {{ g.dep|default:"Общие дела" }}</h3><span class="muted">{{ g.items|length }} дел</span></header>
+  <table class="otable">
+    <thead><tr><th>Индекс и заголовок</th><th>Типы документов</th><th>Срок хранения</th><th>Ответственный</th><th>Документов</th><th>Статус</th><th></th></tr></thead>
+    <tbody>{% for c in g.items %}<tr>
+      <td data-label="Дело"><div class="on"><span class="dic">{% icon 'folder' 18 %}</span><div><b>{{ c.index }} · {{ c.title }}</b><small>{{ c.year }} год{% if c.location %} · {{ c.location }}{% endif %}</small></div></div></td>
+      <td data-label="Типы документов">{{ c.doc_types|default:"—" }}</td>
+      <td data-label="Срок хранения" class="nowrap"><div>{{ c.retention }}{% if c.basis %}<small class="block muted">{{ c.basis }}</small>{% endif %}</div></td>
+      <td data-label="Ответственный">{{ c.responsible.full_name|default:"—" }}</td>
+      <td data-label="Документов"><b>{{ c.n }}</b></td>
+      <td data-label="Статус"><span class="dst t-{% if c.status == 'open' %}blue{% elif c.status == 'closed' %}ok{% else %}gray{% endif %}">{{ c.get_status_display }}</span></td>
+      <td class="r nowrap"><a class="rowedit" href="{% url 'docflow_case_edit' c.pk %}" title="Изменить">{% icon 'edit' 16 %}</a></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+</section>
+{% endfor %}
+{% endblock %}

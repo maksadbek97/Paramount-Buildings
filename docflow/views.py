@@ -75,6 +75,7 @@ def _filters(rows):
         "f_dep": uniq((str(r["d"].department_id or ""), str(r["d"].department or "")) for r in rows),
         "f_case": uniq((str(r["d"].case_id or ""), str(r["d"].case.index if r["d"].case else "")) for r in rows),
         "f_status": [(k, v) for k, v in Document.Status.choices if any(r["d"].status == k for r in rows)],
+        "overdue_n": sum(r["due"] == "overdue" for r in rows),
     }
 
 
@@ -304,7 +305,9 @@ def detail(request, pk):
            ("Рег. номер", d.number or "не зарегистрирован"),
            ("Дата документа", f"{d.doc_date:%d.%m.%Y}"),
            ("Дата регистрации", f"{d.reg_date:%d.%m.%Y}" if d.reg_date else "—"),
-           ("Направление", d.get_direction_display()), ("Организация", Company.get().name)]
+           ("Организация", Company.get().name)]
+    if d.kind in ("incoming", "outgoing", "internal"):
+        req.insert(5, ("Направление", d.get_direction_display()))
     if d.counterparty:
         req.append(({"incoming": "Отправитель", "outgoing": "Адресат"}.get(d.kind, "Контрагент"), d.counterparty))
     if d.sender_number:
@@ -489,7 +492,7 @@ def _generator_ctx(request):
         "Директор", "Заместитель директора"]).select_related("position")]
     last = Document.objects.filter(kind="outgoing", template__isnull=False).exclude(file="").order_by("-id").first()
     return {
-        "company": company, "letterheads": Template.objects.filter(is_letterhead=True, is_active=True),
+        "company": company, "letterheads": Template.objects.filter(is_letterhead=True, is_active=True).order_by("-version", "name"),
         "signers": signers, "director": director,
         "seals": Seal.objects.filter(kind="seal", is_active=True),
         "objects": ConstructionObject.objects.exclude(status="archive").order_by("name"),

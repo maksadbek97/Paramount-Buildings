@@ -1,0 +1,16 @@
+{% extends "docflow/_base.html" %}{% load ui %}
+{% block ptitle %}Журналы регистрации{% endblock %}
+{% block tab %}
+<div class="tabhead df-th">
+  <div><h2>Журналы регистрации</h2><p class="muted">Номер присваивается автоматически и только один раз — дубликатов не бывает. Зарегистрированные записи не удаляются; исправление — с причиной и записью в аудит.</p></div>
+  <div class="tabhead-act"><a class="btn btn-ghost" href="{% url 'docflow_journal_new' %}">{% icon 'plus' 18 %}Новый журнал</a></div>
+</div>
+<div class="df-jgrid">
+  {% for j in journals %}<a class="df-jcard" href="{% url 'docflow_journal' j.pk %}">
+    <div class="df-jh"><span class="dic dk-{{ j.kind }}">{% icon 'table' 18 %}</span><div><b>{{ j.name }}</b><small>{{ j.get_kind_display }}{% if not j.is_active %} · не активен{% endif %}</small></div></div>
+    <div class="df-jn"><span>Следующий номер</span><code>{{ j.example }}</code></div>
+    <div class="df-jf"><span><b>{{ j.this_year }}</b> в этом году</span><span>всего {{ j.n }}</span>{% if j.last %}<span>последний {{ j.last.reg_date|date:"d.m" }}</span>{% endif %}</div>
+    <small class="muted">{% if j.reset_yearly %}нумерация с 1 января{% else %}сквозная нумерация{% endif %}</small>
+  </a>{% endfor %}
+</div>
+{% endblock %}

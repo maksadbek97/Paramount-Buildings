@@ -35,6 +35,7 @@ def page_list():
             pages["/" + path] = "/?" + query
     pages.update(company_pages())
     pages.update(object_pages())
+    pages.update(docflow_pages())
     pages["/profile/"] = "/profile/"
     return pages
 
@@ -88,6 +89,29 @@ def object_pages():
         pages[f"/purchases/{pk}/edit/"] = f"/purchases/{pk}/edit/"
     for pk in WorkLog.objects.filter(status="submitted").values_list("pk", flat=True):
         pages[f"/worklog/{pk}/review/"] = f"/worklog/{pk}/review/"
+    return pages
+
+
+def docflow_pages():
+    """Раздел «Документы»: все вкладки, журналы, карточки документов и формы."""
+    from docflow.models import CaseFile, Document, Journal, Seal, Template
+    from docflow.views import KIND_TITLES
+    base = "/documents/"
+    pages = {base + u: base + u for u in ["", "all/", "orders/", "letters/", "letters/outgoing/",
+                                          "letters/internal/", "contracts/", "tasks/", "tasks/new/", "cases/",
+                                          "cases/new/", "journals/", "journals/new/", "templates/", "templates/new/",
+                                          "seals/", "seals/new/", "archive/", "letter/"]}
+    for kind in KIND_TITLES:
+        pages[f"{base}new/{kind}/"] = f"{base}new/{kind}/"
+    for d in Document.objects.all():
+        pages[f"{base}{d.pk}/"] = f"{base}{d.pk}/"
+        pages[f"{base}{d.pk}/edit/"] = f"{base}{d.pk}/edit/"
+    for pk in Journal.objects.values_list("pk", flat=True):
+        pages[f"{base}journals/{pk}/"] = f"{base}journals/{pk}/"
+        pages[f"{base}journals/{pk}/edit/"] = f"{base}journals/{pk}/edit/"
+    for prefix, model in [("cases", CaseFile), ("templates", Template), ("seals", Seal)]:
+        for pk in model.objects.values_list("pk", flat=True):
+            pages[f"{base}{prefix}/{pk}/"] = f"{base}{prefix}/{pk}/"
     return pages
 
 

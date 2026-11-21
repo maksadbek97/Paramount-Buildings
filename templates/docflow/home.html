@@ -1,0 +1,45 @@
+{% extends "docflow/_base.html" %}{% load ui %}
+{% block tab %}
+<div class="kgrid df-kpis">
+  {% for label, n, hint, url, tone in kpis %}<a class="k link" href="{{ url }}"><span class="kl">{{ label }}</span><span class="kv{% if tone and n %} {{ tone }}{% endif %}">{{ n }}</span><span class="kh">{{ hint }}</span></a>{% endfor %}
+</div>
+
+<div class="quick df-quick">
+  {% for key, label, hint, ic in create %}<a href="{% if key == 'letter' %}{% url 'docflow_letter' %}{% else %}{% url 'docflow_new' key %}{% endif %}" class="{% if forloop.first %}main{% endif %}"><span class="ico">{% icon ic 20 %}</span><span>{{ label }}<small>{{ hint }}</small></span></a>{% endfor %}
+</div>
+
+<div class="row2">
+  <section class="card">
+    <header><h3>Ждут согласования и подписи</h3><span class="muted">{{ waiting|length }}</span></header>
+    {% if waiting %}<ul class="df-wait">{% for w in waiting %}{% with d=w.d %}
+      <li><a href="{% url 'docflow_detail' d.pk %}">{% include "docflow/_kind_icon.html" %}<span class="dt"><b>{{ d.title }}</b><small>{{ d.get_kind_display }}{% if d.construction_object %} · {{ d.construction_object.name }}{% endif %}{% if w.step %} · сейчас у: {{ w.step.employee.full_name }}{% endif %}</small><span class="df-st2 m-st">{% include "docflow/_status.html" %}</span></span><span class="pc-st">{% include "docflow/_status.html" %}</span></a></li>
+    {% endwith %}{% endfor %}</ul>{% else %}<div class="empty-s">Ничего не ждёт решения.</div>{% endif %}
+  </section>
+  <section class="card">
+    <header><h3>Требует внимания</h3>{% if attention %}<span class="pill">{{ attention|length }}</span>{% endif %}</header>
+    {% if attention %}<ul class="att">{% for level, kind, title, d, when in attention|slice:":7" %}
+      <li class="{{ level }}"><span class="mk"></span><span class="df-att"><small>{{ kind }} · {{ when }}</small>{% if d %}<a href="{% url 'docflow_detail' d.pk %}">{{ title }}</a>{% else %}{{ title }}{% endif %}</span></li>
+    {% endfor %}</ul>{% if attention|length > 7 %}<div class="foot-note">и ещё {{ attention|length|add:"-7" }}</div>{% endif %}{% else %}<div class="empty-s">Сроки в порядке.</div>{% endif %}
+  </section>
+</div>
+
+<div class="row3">
+  <section class="card">
+    <header><h3>Последние входящие</h3><a class="hlink" href="{% url 'docflow_letters' %}">Все {% icon 'chevron' 14 %}</a></header>
+    <ul class="doclist">{% for d in incoming %}<li>{% include "docflow/_kind_icon.html" %}<div class="dt"><a class="doclink" href="{% url 'docflow_detail' d.pk %}">{{ d.title }}</a><small>{{ d.counterparty }} · {% if d.number %}№ {{ d.number }} · {% endif %}{{ d.reg_date|default:d.doc_date|date:"d.m" }}</small><div class="df-st2">{% include "docflow/_status.html" %}</div></div></li>{% empty %}<li class="muted">Нет писем</li>{% endfor %}</ul>
+  </section>
+  <section class="card">
+    <header><h3>Последние исходящие</h3><a class="hlink" href="{% url 'docflow_letters_out' %}">Все {% icon 'chevron' 14 %}</a></header>
+    <ul class="doclist">{% for d in outgoing %}<li>{% include "docflow/_kind_icon.html" %}<div class="dt"><a class="doclink" href="{% url 'docflow_detail' d.pk %}">{{ d.title }}</a><small>{{ d.counterparty }} · {% if d.number %}№ {{ d.number }} · {% endif %}{{ d.doc_date|date:"d.m" }}</small><div class="df-st2">{% include "docflow/_status.html" %}</div></div></li>{% empty %}<li class="muted">Нет писем</li>{% endfor %}</ul>
+  </section>
+  <section class="card">
+    <header><h3>Активные поручения</h3><span class="muted">{{ tasks_total }}{% if late_tasks %} · <span class="bad">просрочено {{ late_tasks }}</span>{% endif %}</span><a class="hlink" href="{% url 'docflow_tasks' %}">Все {% icon 'chevron' 14 %}</a></header>
+    <ul class="df-tl">{% for t in tasks %}<li><span class="df-tdot {% if t.overdue %}bad{% elif t.days_left <= 3 %}warn{% endif %}"></span><div class="dt"><b>{{ t.title }}</b><small>{{ t.assignee.full_name }} · {{ t.get_status_display|lower }}</small></div><span class="df-due {% if t.overdue %}bad{% endif %}">{{ t.due|date:"d.m" }}</span></li>{% empty %}<li class="muted">Поручений нет</li>{% endfor %}</ul>
+  </section>
+</div>
+
+<section class="card">
+  <header><h3>Последняя активность</h3></header>
+  <ul class="feed df-feed">{% for e in events %}<li><span class="dot {{ e.kind }}"></span><span><b>{{ e.get_kind_display }}</b> · <a href="{% url 'docflow_detail' e.document_id %}">{{ e.document.title|truncatechars:70 }}</a>{% if e.text %} — {{ e.text|truncatechars:90 }}{% endif %}<small>{{ e.at|date:"d.m.Y H:i" }} · {{ e.who }}</small></span></li>{% endfor %}</ul>
+</section>
+{% endblock %}
