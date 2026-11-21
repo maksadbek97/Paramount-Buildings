@@ -6,7 +6,7 @@
     <a class="btn btn-ghost" href="{% url 'supplier_create' %}">+ Поставщик</a></div>
 </div>
 <div class="chips">
-  {% for v, label in "open:Открытые,new:Новые,approved:Согласованы,ordered:Заказаны,received:Приняты,rejected:Отклонены,all:Все"|pairs %}
+  {% for v, label in "open:Открытые,new:Новые,approved:Согласованы,ordered:Заказаны,overdue:Просрочена поставка,received:Приняты,rejected:Отклонены,all:Все"|pairs %}
   <a href="?status={{ v }}" class="{% if current == v %}active{% endif %}">{{ label }}</a>{% endfor %}
 </div>
 {% if requests %}<div class="list">{% for p in requests %}

@@ -1,11 +1,12 @@
 {% extends "base.html" %}{% load ui %}
 {% block content %}
-<div class="page-head"><div class="titles"><h1>Добавить</h1><div class="sub">Всё ведётся внутри объекта — выберите объект</div></div></div>
-<div class="list">
+<a class="back" href="{% url 'dashboard' %}">{% icon 'back' 18 %}Главная</a>
+<div class="page-head"><div class="titles"><h1>{% if what %}{{ what_title }}{% else %}Добавить{% endif %}</h1><div class="sub">Всё ведётся внутри объекта — выберите объект</div></div></div>
+{% if not what %}<div class="list">
   <a class="row" href="{% url 'object_create' %}"><span class="ico in">{% icon 'plus' 20 %}</span><div class="body"><div class="title">Новый объект</div><div class="meta">Взяли новый объект у генподрядчика</div></div><span class="chev">{% icon 'chevron' 18 %}</span></a>
-</div>
+</div>{% endif %}
 <h2>На каком объекте?</h2>
 <div class="list">{% for o in objects %}
-  <a class="row" href="{% url 'object_add' o.pk %}"><span class="ico">{% icon 'building' 20 %}</span><div class="body"><div class="title">{{ o.name }}</div><div class="meta">{% if o.code %}{{ o.code }} · {% endif %}{{ o.city }}</div></div><span class="chev">{% icon 'chevron' 18 %}</span></a>
+  <a class="row" href="{% if what %}{% url 'object_new' o.pk what %}{% else %}{% url 'object_add' o.pk %}{% endif %}"><span class="ico">{% icon 'building' 20 %}</span><div class="body"><div class="title">{{ o.name }}</div><div class="meta">{% if o.code %}{{ o.code }} · {% endif %}{{ o.city }}</div></div><span class="chev">{% icon 'chevron' 18 %}</span></a>
 {% endfor %}</div>
 {% endblock %}

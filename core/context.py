@@ -11,4 +11,10 @@ def _nav_objects():
 def demo(request):
     """DEMO_MODE включается при сборке статической демо-версии (build_static).
     nav_objects — список объектов для выбора в верхней панели."""
-    return {"DEMO": getattr(settings, "DEMO_MODE", False), "nav_objects": SimpleLazyObject(_nav_objects)}
+    def notif_count():
+        if not request.user.is_authenticated:
+            return 0
+        from .views import notifications_for
+        return len(notifications_for(request.user))
+    return {"DEMO": getattr(settings, "DEMO_MODE", False), "nav_objects": SimpleLazyObject(_nav_objects),
+            "notif_count": SimpleLazyObject(notif_count)}

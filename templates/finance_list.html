@@ -1,24 +1,42 @@
 {% extends "base.html" %}{% load ui %}
 {% block content %}
+<a class="back" href="{% url 'dashboard' %}">{% icon 'back' 18 %}Главная</a>
 <div class="page-head">
-  <div class="titles"><h1>Финансы</h1><div class="sub">Общие доходы и расходы компании. Деньги по объёмам — в разделе «Объёмы работ».</div></div>
-  <div class="actions"><a class="btn btn-primary" href="{% url 'transaction_create' %}">{% icon 'plus' 18 %}Доход / расход</a></div>
+  <div class="titles"><h1>Финансы компании</h1><div class="sub">Все поступления и расходы по объектам · {{ period_label }}</div></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'add_for' 'payment' %}">{% icon 'plus' 18 %}Операция по объекту</a>
+    <a class="btn btn-ghost" href="{% url 'transaction_create' %}">Общий доход / расход</a></div>
 </div>
 <div class="stats">
-  <div class="stat"><div class="label">Доходы</div><div class="value ok" title="{{ income|money }}">{{ income|short }}</div></div>
-  <div class="stat"><div class="label">Расходы</div><div class="value bad" title="{{ expense|money }}">{{ expense|short }}</div></div>
-  <div class="stat"><div class="label">Баланс</div><div class="value {% if balance >= 0 %}ok{% else %}bad{% endif %}" title="{{ balance|money }}">{{ balance|short }}</div></div>
+  <a class="stat" href="?kind=income"><div class="label">Поступления</div><div class="value ok">{{ income|short }}</div></a>
+  <a class="stat" href="?kind=expense"><div class="label">Расходы</div><div class="value">{{ expense|short }}</div></a>
+  <div class="stat"><div class="label">Денежный результат</div><div class="value {% if balance >= 0 %}ok{% else %}bad{% endif %}">{{ balance|short }}</div><div class="hint">поступления − расходы</div></div>
+  <a class="stat" href="?kind=debtors"><div class="label">Дебиторка</div><div class="value">{{ receivable|short }}</div><div class="hint">нам должны</div></a>
+  <a class="stat" href="?kind=creditors"><div class="label">Кредиторка</div><div class="value {% if payable > 0 %}bad{% endif %}">{{ payable|short }}</div><div class="hint">мы должны рабочим</div></a>
 </div>
-<h2>Операции</h2>
-{% if transactions %}<div class="list">{% for t in transactions %}
-  <div class="row"><span class="ico {% if t.kind == 'income' %}in{% else %}out{% endif %}">{% icon 'wallet' 20 %}</span>
-    <div class="body"><div class="title">{{ t.category|default:t.get_kind_display }}</div><div class="meta">{{ t.date|date:"d.m.Y" }} · {{ t.construction_object|default:"Общее" }}</div></div>
-    <div class="side {% if t.kind == 'income' %}ok{% endif %}">{% if t.kind == 'income' %}+{% else %}−{% endif %}{{ t.amount|money }}</div></div>
-{% endfor %}</div>
-{% else %}<div class="empty">Операций нет</div>{% endif %}
-<h2>Сметы</h2>
-{% if estimates %}<div class="list">{% for e in estimates %}
+<nav class="utabs" style="margin-top:18px">{% for k, label in views %}<a href="{% if k == 'all' %}{% url 'finance_list' %}{% else %}?kind={{ k }}{% endif %}" class="{% if kind == k %}active{% endif %}">{{ label }}</a>{% endfor %}</nav>
+
+{% if kind == 'debtors' %}
+  {% if rec_rows %}<div class="list">{% for c in rec_rows %}
+    <a class="row" href="{% url 'object_tab' c.construction_object_id 'money' %}"><span class="ico in">{% icon 'building' 20 %}</span>
+      <div class="body"><div class="title">{{ c.construction_object.general_contractor|default:c.construction_object.name }}</div><div class="meta">{{ c.construction_object.name }} · {{ c.work_type }} · принято {{ c.earned|money }}, получено {{ c.received|money }}</div></div>
+      <div class="side">{{ c.client_due|money }} ₸</div></a>{% endfor %}</div>
+  {% else %}<div class="empty">Дебиторской задолженности нет</div>{% endif %}
+{% elif kind == 'creditors' %}
+  {% if pay_rows %}<div class="list">{% for a in pay_rows %}
+    <a class="row" href="{% url 'object_tab' a.contract.construction_object_id 'people' %}"><span class="ico out">{% icon 'users' 20 %}</span>
+      <div class="body"><div class="title">{{ a.performer }}</div><div class="meta">{{ a.contract.construction_object.name }} · {{ a.contract.work_type }} · заработано {{ a.earned|money }}, выплачено {{ a.paid|money }}</div></div>
+      <div class="side bad">{{ a.due|money }} ₸</div></a>{% endfor %}</div>
+  {% else %}<div class="empty">Мы никому не должны</div>{% endif %}
+{% else %}
+  {% if ops %}<div class="list">{% for o in ops %}
+    <a class="row" href="{{ o.url }}"><span class="ico {% if o.income %}in{% else %}out{% endif %}">{% if o.income %}+{% else %}−{% endif %}</span>
+      <div class="body"><div class="title">{{ o.title }}</div><div class="meta">{{ o.date|date:"d.m.Y" }} · {{ o.object.name|default:"Общее, без объекта" }}{% if o.meta %} · {{ o.meta }}{% endif %}</div></div>
+      <div class="side {% if o.income %}ok{% endif %}">{% if o.income %}+{% else %}−{% endif %}{{ o.amount|money }} ₸</div></a>
+  {% endfor %}</div>
+  {% else %}<div class="empty">Операций нет</div>{% endif %}
+{% endif %}
+
+{% if estimates and kind == 'all' %}<h2>Сметы</h2><div class="list">{% for e in estimates %}
   <div class="row"><span class="ico">{% icon 'contract' 20 %}</span><div class="body"><div class="title">{{ e.title }}</div><div class="meta">{{ e.construction_object }}</div></div><div class="side">{{ e.total|money }}</div></div>
-{% endfor %}</div>
-{% else %}<div class="empty">Смет нет</div>{% endif %}
+{% endfor %}</div>{% endif %}
 {% endblock %}

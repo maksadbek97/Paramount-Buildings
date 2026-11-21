@@ -1,5 +1,6 @@
 from datetime import date
 
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -116,6 +117,12 @@ def task_list(request):
         qs = qs.exclude(status=Task.Status.DONE)
     elif f == "overdue":
         qs = qs.exclude(status=Task.Status.DONE).filter(due_date__lt=date.today())
+    elif f == "today":
+        qs = qs.exclude(status=Task.Status.DONE).filter(due_date=date.today())
+    elif f == "week":
+        from datetime import timedelta
+        qs = qs.exclude(status=Task.Status.DONE).filter(due_date__gt=date.today(),
+                                                        due_date__lte=date.today() + timedelta(days=7))
     elif f == "review":
         qs = qs.filter(status=Task.Status.REVIEW)
     elif f == "done":
@@ -137,10 +144,64 @@ def task_next(request, pk):
         return redirect("remark_detail", t.remark.pk)
     before = audit.snapshot(t)
     t.status = step[0]
-    t.save(update_fields=["status"])
+    if t.status == Task.Status.DONE:
+        t.done_at = timezone.now()
+    t.save(update_fields=["status", "done_at"])
     audit.log(request, t, AuditLog.Action.UPDATE, before=before)
     messages.success(request, f"«{t.title}»: {t.get_status_display()}")
     return redirect(request.POST.get("next") or "task_list")
+
+
+def _can_finish(user, t):
+    return user.has_perm("staff.close_task") or (t.assignee_id and t.assignee.user_id == user.pk)
+
+
+@login_required
+@require_POST
+def task_done(request, pk):
+    """Кнопка «Выполнить» на Главной: проверить права, отметить выполнение, записать кто и когда."""
+    t = get_object_or_404(Task.objects.select_related("assignee"), pk=pk)
+    back = request.POST.get("next") or reverse("task_list")
+    if t.status == Task.Status.DONE:
+        messages.info(request, "Задача уже выполнена.")
+        return redirect(back)
+    if not _can_finish(request.user, t):
+        raise PermissionDenied
+    if hasattr(t, "remark") and not t.remark.is_closed:
+        messages.error(request, "Сначала примите замечание, к которому относится задача.")
+        return redirect("remark_detail", t.remark.pk)
+    before = audit.snapshot(t)
+    comment = request.POST.get("comment", "").strip()[:300]
+    t.status, t.done_at = Task.Status.DONE, timezone.now()
+    if comment:
+        t.comment = (t.comment + "\n" if t.comment else "") + f"Результат: {comment}"
+    t.save(update_fields=["status", "done_at", "comment"])
+    audit.log(request, t, AuditLog.Action.UPDATE, before=before, reason=comment)
+    messages.success(request, f"Выполнено: «{t.title}»")
+    return redirect(back)
+
+
+class PostponeForm(forms.Form):
+    due_date = forms.DateField(label="Новый срок", widget=forms.DateInput(attrs={"type": "date"}))
+    reason = forms.CharField(label="Почему переносим", max_length=300,
+                             widget=forms.TextInput(attrs={"placeholder": "Например: не привезли материал"}))
+
+
+@login_required
+def task_postpone(request, pk):
+    """«Перенести срок»: новая дата и обязательная причина, всё попадает в журнал."""
+    t = get_object_or_404(Task, pk=pk)
+    back = request.GET.get("next") or reverse("task_list")
+    form = PostponeForm(request.POST or None, initial={"due_date": t.due_date})
+    if request.method == "POST" and form.is_valid():
+        before = audit.snapshot(t)
+        t.due_date = form.cleaned_data["due_date"]
+        t.save(update_fields=["due_date"])
+        audit.log(request, t, AuditLog.Action.UPDATE, before=before, reason=form.cleaned_data["reason"])
+        messages.success(request, f"Срок перенесён на {t.due_date:%d.%m.%Y}")
+        return redirect(back)
+    return render(request, "form.html", {"form": form, "title": "Перенести срок", "subtitle": t.title,
+                                         "submit": "Перенести", "back": back})
 
 
 @login_required

@@ -2,7 +2,7 @@
 {% block title %}{{ obj.name }} · Paramount Buildings{% endblock %}
 {% block content %}
 <div class="ohead">
-  <a class="crumb" href="{% url 'dashboard' %}">{% icon 'back' 16 %}Все объекты</a>
+  <a class="crumb" href="{% url 'object_list' %}">{% icon 'back' 16 %}Все объекты</a>
   <div class="line">
     <img class="thumb" src="{{ obj.cover }}" alt="">
     <div style="flex:1;min-width:0">

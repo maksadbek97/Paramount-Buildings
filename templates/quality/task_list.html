@@ -5,7 +5,7 @@
   <div class="actions"><a class="btn btn-primary" href="{% url 'task_create' %}">{% icon 'plus' 18 %}Задача</a></div>
 </div>
 <div class="chips">
-  {% for v, label in "active:В работе,overdue:Просроченные,review:На проверке,done:Выполненные,all:Все"|pairs %}
+  {% for v, label in "active:В работе,today:Сегодня,week:Ближайшие 7 дней,overdue:Просроченные,review:На проверке,done:Выполненные,all:Все"|pairs %}
   <a href="?status={{ v }}" class="{% if current == v %}active{% endif %}">{{ label }}</a>{% endfor %}
 </div>
 {% if tasks %}<div class="list">{% for t in tasks %}
