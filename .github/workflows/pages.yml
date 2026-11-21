@@ -23,7 +23,9 @@ jobs:
         with:
           python-version: "3.13"
       - name: Установить зависимости
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          sudo apt-get install -y -q fonts-dejavu-core || true  # шрифт с кириллицей для примерных PDF
       - name: Проверить тесты
         run: python manage.py test
       - name: Собрать демо-версию

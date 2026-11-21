@@ -6,7 +6,7 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from core.models import AuditLog
@@ -239,8 +239,10 @@ class StockRulesTests(TestCase):
 
 class DemoBuildTests(TestCase):
     def test_seed_and_build_static(self):
-        call_command("seed_demo", stdout=open("/dev/null", "w"))
-        with tempfile.TemporaryDirectory() as tmp:
+        media = tempfile.TemporaryDirectory()
+        self.addCleanup(media.cleanup)
+        with override_settings(MEDIA_ROOT=media.name), tempfile.TemporaryDirectory() as tmp:
+            call_command("seed_demo", stdout=open("/dev/null", "w"))
             call_command("build_static", out=tmp, stdout=open("/dev/null", "w"))
             home = (Path(tmp) / "index.html").read_text()
             self.assertIn("Главная", home)
@@ -265,3 +267,6 @@ class DemoBuildTests(TestCase):
                 self.assertTrue((Path(tmp) / page / "index.html").exists(), page)
             docs = (Path(tmp) / "company/docs/index.html").read_text()
             self.assertIn('href="../../company/docs/kind/order/"', docs)
+            self.assertIn('download="', docs)  # документы можно скачать
+            pdfs = list((Path(tmp) / "media" / "company").rglob("*.pdf"))
+            self.assertTrue(pdfs and pdfs[0].read_bytes().startswith(b"%PDF"))

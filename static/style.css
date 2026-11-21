@@ -862,3 +862,15 @@ a.k.link:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(11,31,
 }
 @media (max-width: 899px) { .appbar .bell { margin-left: auto; } }
 @media (max-width: 899px) { .pgrid { grid-template-columns: 1fr; } }
+.doclink { display: block; font-weight: 700; font-size: 14px; color: var(--navy); text-decoration: none; }
+.doclink:hover { color: var(--accent-ink); text-decoration: underline; }
+.doclist .dt { flex: 1; }
+.btn-dl { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 9px; border: 1px solid var(--line); background: #fff; color: var(--navy); font-weight: 700; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.btn-dl:hover { border-color: var(--accent); color: var(--accent-ink); }
+@media (max-width: 899px) {
+  .otable td.dl { padding-top: 8px; padding-bottom: 10px; }
+  .otable td.dl::before { content: none; }
+  .otable td.dl .btn-dl { width: 100%; justify-content: center; padding: 10px; font-size: 14px; }
+}
+.otable td.dl { width: 1%; }
+@media (max-width: 899px) { .otable td.dl { width: auto; } }
