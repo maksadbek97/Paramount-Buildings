@@ -67,3 +67,8 @@ class SystemTests(TestCase):
         self.assertEqual(money(-2500), "−2\u00a0500")
         self.assertEqual(short(3700000000), "3,7\u00a0млрд")
         self.assertEqual(short(250000000), "250\u00a0млн")
+
+    def test_login_page_has_brand(self):
+        r = self.client.get(reverse("login"))
+        self.assertContains(r, "img/logo-white.png")
+        self.assertContains(r, "Manrope")
