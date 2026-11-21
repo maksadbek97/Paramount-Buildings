@@ -1,13 +1,21 @@
-{% extends "object/_base.html" %}{% load ui %}
+{% extends "object/_base.html" %}{% load ui obj %}
 {% block tab %}
-<div class="tabbar-act">
-  <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'report' %}">{% icon 'plus' 18 %}Отчёт за день</a>
+<div class="tabhead">
+  <div><h2>Ежедневные отчёты</h2><p class="muted">После отправки отчёт получает статус «На проверке». Руководитель подтверждает — данные идут в план-факт.</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'report' %}">{% icon 'plus' 18 %}Отчёт за день</a></div>
 </div>
-{% if reports %}<div class="list">{% for rep in reports %}
-  <a class="row" href="{% url 'report_detail' rep.pk %}"><span class="ico {% if rep.confirmed %}in{% else %}warn{% endif %}">{% icon 'clipboard' 20 %}</span>
-    <div class="body"><div class="title">{{ rep.date|date:"d E, l" }}</div><div class="meta">{{ rep.workers_count }} чел. · {{ rep.get_weather_display }}{% if rep.author %} · {{ rep.author }}{% endif %}{% if rep.problems %} · <span class="bad">есть проблемы</span>{% endif %}</div></div>
-    <div class="side"><span class="badge {% if rep.confirmed %}done{% else %}paused{% endif %}">{% if rep.confirmed %}Подтверждён{% else %}Ждёт подтверждения{% endif %}</span></div>
-    <span class="chev">{% icon 'chevron' 18 %}</span></a>
-{% endfor %}</div>
-{% else %}<div class="empty">Отчётов пока нет. Прораб пишет короткий отчёт в конце дня.<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'report' %}">Написать отчёт</a></div>{% endif %}
+<section class="card flat">
+  {% if reports %}<table class="otable">
+    <thead><tr><th>Дата</th><th>Автор</th><th class="r">Рабочих</th><th>Погода</th><th>Проблемы</th><th>План на завтра</th><th>Статус</th></tr></thead>
+    <tbody>{% for rep in reports %}<tr>
+      <td data-label="Дата" class="nowrap"><a class="doclink" href="{% url 'report_detail' rep.pk %}">{{ rep.date|date:"d.m.Y" }}</a><small class="muted block">{{ rep.date|date:"l" }}</small></td>
+      <td data-label="Автор">{{ rep.author|default:"—" }}</td>
+      <td data-label="Рабочих" class="r">{{ rep.workers_count }}</td>
+      <td data-label="Погода" class="nowrap">{{ rep.get_weather_display }}{% if rep.temperature is not None %}, {{ rep.temperature }}°{% endif %}</td>
+      <td data-label="Проблемы">{% if rep.problems %}<span class="bad">{{ rep.problems|truncatechars:60 }}</span>{% else %}<span class="muted">нет</span>{% endif %}</td>
+      <td data-label="План">{{ rep.plan_next|truncatechars:60|default:"—" }}</td>
+      <td data-label="Статус">{% if rep.confirmed %}<span class="st st-received">Принят</span>{% else %}<a class="st st-new" href="{% url 'report_detail' rep.pk %}">На проверке →</a>{% endif %}</td>
+    </tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">Отчётов пока нет. Прораб пишет короткий отчёт в конце смены: люди, погода, работы, материалы, проблемы.<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'report' %}">{% icon 'plus' 18 %}Написать отчёт</a></div>{% endif %}
+</section>
 {% endblock %}

@@ -1,0 +1,25 @@
+{% extends "object/_base.html" %}{% load ui obj %}
+{% block tab %}
+<div class="tabhead">
+  <div><h2>Согласования</h2><p class="muted">Всё, что ждёт решения по объекту: закупки, объёмы для ПТО, отчёты, устранённые дефекты, заявки на технику. Каждое решение сохраняется с датой, автором и комментарием.</p></div>
+</div>
+<section class="card flat">
+  <header><h3>Ждут решения</h3>{% if approvals %}<span class="pill">{{ approvals|length }}</span>{% endif %}</header>
+  {% if approvals %}<table class="otable">
+    <thead><tr><th>Тип</th><th>Что согласовать</th><th>Инициатор</th><th class="r">Сумма</th><th>Ждёт</th><th></th></tr></thead>
+    <tbody>{% for a in approvals %}<tr>
+      <td data-label="Тип"><span class="st st-approved">{{ a.kind }}</span></td>
+      <td data-label="Что">{{ a.title }}</td>
+      <td data-label="Инициатор">{{ a.who|default:"—" }}</td>
+      <td data-label="Сумма" class="r nowrap">{% if a.amount %}{{ a.amount|money }} ₸{% else %}—{% endif %}</td>
+      <td data-label="Ждёт" class="nowrap {% if a.age > 2 %}bad{% endif %}">{% if a.age %}{{ a.age }} дн.{% else %}сегодня{% endif %}</td>
+      <td class="r dl"><a class="btn-dl" href="{{ a.url }}">{{ a.act }}</a></td>
+    </tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">{% icon 'check' 18 %} Ничего не ждёт согласования.</div>{% endif %}
+</section>
+<section class="card flat">
+  <header><h3>Принятые решения</h3><span class="muted">последние {{ decided|length }}</span></header>
+  {% if decided %}<table class="otable"><tbody>{% for e in decided %}<tr><td data-label="Когда" class="nowrap">{{ e.created_at|date:"d.m.Y H:i" }}</td><td data-label="Решение"><span class="st {% if e.action == 'accept' %}st-received{% else %}st-rejected{% endif %}">{{ e.get_action_display }}</span></td><td data-label="Что">{{ e.object_repr }}{% if e.reason %}<small class="muted block">{{ e.reason }}</small>{% endif %}</td><td data-label="Кто">{{ e.user|default:"система" }}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">Решений пока не было.</div>{% endif %}
+</section>
+{% endblock %}

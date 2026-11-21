@@ -1,33 +1,40 @@
-{% extends "object/_base.html" %}{% load ui %}
+{% extends "object/_base.html" %}{% load ui obj %}
 {% block tab %}
-{% if active_contracts %}
-<div class="tabbar-act">
-  {% for c in active_contracts %}<a class="btn btn-primary" href="{% url 'assignment_create' c.pk %}">{% icon 'plus' 18 %}Бригада на «{{ c.work_type }}»</a>{% endfor %}
+<div class="tabhead">
+  <div><h2>Сотрудники и бригады</h2><p class="muted">Кто работает на объекте, как оплачивается и сколько начислено. Персональные данные — в разделе «Моя компания».</p></div>
+  {% if active_contracts %}<div class="tabhead-act">{% for c in active_contracts|slice:":2" %}<a class="btn btn-ghost" href="{% url 'assignment_create' c.pk %}">{% icon 'plus' 18 %}Бригада на «{{ c.work_type|truncatechars:22 }}»</a>{% endfor %}</div>{% endif %}
 </div>
-{% endif %}
-<div class="stats" style="margin-bottom:14px">
-  <div class="stat"><div class="label">Заработали</div><div class="value">{{ earned|short }}</div><div class="hint">по принятому объёму</div></div>
-  <div class="stat"><div class="label">Выплачено</div><div class="value">{{ paid|short }}</div></div>
-  <div class="stat"><div class="label">Должны рабочим</div><div class="value {% if due > 0 %}bad{% endif %}">{{ due|short }}</div></div>
+<div class="kgrid">
+  <div class="k"><span class="kl">Назначено исполнителей</span><b class="kv">{{ assignments|length }}</b><span class="kh">бригады и рабочие</span></div>
+  <div class="k"><span class="kl">Начислено</span><b class="kv">{{ earned|short }}</b><span class="kh">по принятому объёму и дням</span></div>
+  <div class="k"><span class="kl">Выплачено</span><b class="kv">{{ paid|short }}</b><span class="kh">&nbsp;</span></div>
+  <div class="k"><span class="kl">Должны рабочим</span><b class="kv {% if due > 0 %}bad{% endif %}">{{ due|short }}</b><span class="kh">{% if due > 0 %}к выплате{% else %}долгов нет{% endif %}</span></div>
 </div>
-{% if assignments %}
-<div class="list">
-{% for a in assignments %}
-  <div class="row stack">
-    <span class="ico">{% if a.is_crew %}{% icon 'users' 20 %}{% else %}{{ a.employee.full_name|first }}{% endif %}</span>
-    <div class="body">
-      <div class="title">{{ a.performer }}</div>
-      <div class="meta">{{ a.contract.work_type }} · {% if a.pay_type == 'per_day' %}подённо {{ a.rate|money }} ₸/день · {{ a.days }} чел.-дн.{% else %}за объём {{ a.rate|money }} ₸/{{ a.contract.unit }} · принято {{ a.done_volume|num }} {{ a.contract.unit }}{% endif %}{% if a.is_crew and a.crew.leader %} · бригадир {{ a.crew.leader }}{% endif %}</div>
-    </div>
-    <div class="side">{{ a.earned|money }} ₸
-      <div class="meta">выплачено {{ a.paid|money }}{% if a.due > 0 %} · <span class="bad">долг {{ a.due|money }}</span>{% endif %}</div>
-      {% if a.due > 0 %}<div class="meta"><a href="{% url 'object_new' obj.pk 'payment' %}?kind=worker&contract={{ a.contract_id }}&assignment={{ a.pk }}&amount={{ a.due|floatformat:'0' }}">Выплатить →</a></div>{% endif %}
-    </div>
-  </div>
-{% endfor %}
+<div class="row2">
+  <section class="card">
+    <header><h3>Выходы людей за 2 недели</h3><span class="muted">{{ people_days }} чел.-дн.</span></header>
+    <div class="ob-bars" role="img" aria-label="Количество людей на объекте по дням">{% for x in days %}<div title="{{ x.d|date:'d.m' }}: {{ x.n }} чел."><span style="height:{{ x.h }}%" class="{% if not x.n %}z{% endif %}"></span><b>{% if x.n %}{{ x.n }}{% endif %}</b><small>{{ x.d|date:"d" }}</small></div>{% endfor %}</div>
+    <p class="foot-note">По ежедневным отчётам прораба, а если отчёта нет — по выработке за день.</p>
+  </section>
+  <section class="card">
+    <header><h3>Роли на объекте</h3></header>
+    <ul class="people">{% for role, e in roles %}<li><span class="av">{{ e.full_name|first|default:"?" }}</span><span><b>{{ e.full_name|default:"не назначен" }}</b><small>{{ role }}{% if e.phone %} · {{ e.phone }}{% endif %}</small></span></li>{% endfor %}</ul>
+    {% if can_edit %}<a class="hlink" href="{% url 'object_edit' obj.pk %}">{% icon 'edit' 15 %}Изменить ответственных</a>{% endif %}
+  </section>
 </div>
-{% else %}
-<div class="empty">На объекте пока никто не работает.{% if active_contracts %}<br>Нажмите «Бригада на …» выше и выберите бригаду или рабочего.{% else %}<br>Сначала добавьте объём работ.<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'work' %}">Добавить объём работ</a>{% endif %}</div>
-{% endif %}
-<p class="muted small" style="margin-top:14px">Нового рабочего или бригаду можно добавить в разделе <a href="{% url 'staff_list' %}">Рабочие и бригады</a> — это общий список компании для всех объектов.</p>
+<section class="card flat">
+  <header><h3>Исполнители на работах</h3><span class="muted">{{ assignments|length }}</span></header>
+  {% if assignments %}<table class="otable">
+    <thead><tr><th>Бригада / рабочий</th><th>Работа</th><th>Оплата</th><th class="r">Сделано</th><th class="r">Начислено</th><th class="r">Выплачено</th><th class="r">Долг</th></tr></thead>
+    <tbody>{% for a in assignments %}<tr>
+      <td data-label="Исполнитель"><b>{{ a.performer }}</b>{% if a.is_crew %}<small class="muted block">{% if a.crew.leader %}бригадир {{ a.crew.leader }} · {% endif %}{{ a.crew.members.all|length }} чел.</small>{% endif %}</td>
+      <td data-label="Работа">{{ a.contract.work_type }}</td>
+      <td data-label="Оплата" class="nowrap">{% if a.pay_type == 'day' %}{{ a.rate|money }} ₸/день{% else %}{{ a.rate|money }} ₸/{{ a.contract.unit }}{% endif %}</td>
+      <td data-label="Сделано" class="r nowrap">{% if a.pay_type == 'day' %}{{ a.days }} чел.-дн.{% else %}{{ a.done_volume|num }} {{ a.contract.unit }}{% endif %}</td>
+      <td data-label="Начислено" class="r nowrap">{{ a.earned|money }} ₸</td>
+      <td data-label="Выплачено" class="r nowrap">{{ a.paid|money }} ₸</td>
+      <td data-label="Долг" class="r nowrap">{% if a.due > 0 %}<b class="bad">{{ a.due|money }} ₸</b><a class="block small" href="{% url 'object_new' obj.pk 'payment' %}?kind=worker&contract={{ a.contract_id }}&assignment={{ a.pk }}&amount={{ a.due|floatformat:'0' }}">Выплатить</a>{% else %}<span class="ok">нет</span>{% endif %}</td>
+    </tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">На объекте пока никто не назначен.{% if not active_contracts %} Сначала добавьте вид работ, затем назначьте на него бригаду.{% endif %}</div>{% endif %}
+</section>
 {% endblock %}

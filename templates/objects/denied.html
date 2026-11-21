@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<nav class="crumbs"><a href="{% url 'dashboard' %}">Главная</a><span>/</span><a href="{% url 'object_list' %}">Объекты</a>{% if obj %}<span>/</span><a href="{% url 'object_detail' obj.pk %}">{{ obj.name }}</a>{% endif %}</nav>
+<section class="card" style="max-width:560px">
+  <header><h3>{% icon 'lock' 18 %} Недостаточно прав</h3></header>
+  <p class="muted">Действие «{{ title }}» доступно руководителю объекта или администратору. Обратитесь к руководителю, если нужно изменить данные.</p>
+  <a class="btn btn-ghost" href="{% if obj %}{% url 'object_detail' obj.pk %}{% else %}{% url 'object_list' %}{% endif %}">Вернуться</a>
+</section>
+{% endblock %}

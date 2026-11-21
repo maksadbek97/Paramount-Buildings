@@ -14,6 +14,9 @@ class SystemTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user("admin", password="pass12345")
+        from django.contrib.auth.models import Permission
+        cls.user.user_permissions.add(*Permission.objects.filter(
+            content_type__app_label="objects", codename__in=["add_constructionobject", "change_constructionobject"]))
         cls.client_obj = Client.objects.create(name="ООО Заказчик")
         pos = Position.objects.create(name="Прораб")
         cls.emp = Employee.objects.create(full_name="Иванов И.И.", position=pos)
@@ -106,7 +109,7 @@ class ObjectHubTests(TestCase):
         self.assertContains(r, "ЖК Атлант")
         self.assertEqual(self.client.get(reverse("object_detail", args=[self.obj.pk])).status_code, 200)
         from core.object_views import NEW, TABS
-        for tab, _, _ in TABS[1:]:
+        for tab, *_ in TABS[1:]:
             self.assertEqual(self.client.get(reverse("object_tab", args=[self.obj.pk, tab])).status_code, 200, tab)
         for what in NEW:
             self.assertEqual(self.client.get(reverse("object_new", args=[self.obj.pk, what])).status_code, 200, what)
@@ -118,7 +121,7 @@ class ObjectHubTests(TestCase):
         form = r.context["form"]
         self.assertEqual(list(form.fields["assignment"].queryset), [self.a])  # только исполнители этого объекта
         r = self.client.post(url, {"assignment": self.a.pk, "date": "2026-11-20", "volume": "5", "people": "2"})
-        self.assertRedirects(r, reverse("object_tab", args=[self.obj.pk, "output"]))
+        self.assertRedirects(r, reverse("object_tab", args=[self.obj.pk, "work"]))
 
     def test_contract_created_inside_object_belongs_to_it(self):
         from contracts.models import WorkContract
@@ -128,17 +131,16 @@ class ObjectHubTests(TestCase):
         self.assertRedirects(r, reverse("object_tab", args=[self.obj.pk, "work"]))
         self.assertEqual(WorkContract.objects.get(work_type="Монолит").construction_object, self.obj)
 
-    def test_finished_objects_are_on_separate_tab_with_picture(self):
+    def test_object_list_has_all_objects_with_status_groups(self):
         done = ConstructionObject.objects.create(name="Логистический склад", status="done")
         r = self.client.get(reverse("object_list"))
-        names = [c["o"].name for c in r.context["cards"]]
-        self.assertIn("ЖК Атлант", names)
-        self.assertNotIn(done.name, names)
-        self.assertContains(r, "Завершённые (1)")
+        rows = {x["o"].name: x for x in r.context["rows"]}
+        self.assertEqual(rows["ЖК Атлант"]["group"], "working")
+        self.assertEqual(rows[done.name]["group"], "done")
         self.assertContains(r, "img/objects/1.svg")  # заглушка, пока нет своего фото
-        r = self.client.get(reverse("object_list") + "?status=done")
-        self.assertEqual([c["o"].name for c in r.context["cards"]], [done.name])
         self.assertContains(r, "img/objects/4.svg")
+        r = self.client.get(reverse("object_list") + "?status=done")
+        self.assertEqual(r.context["status"], "done")
 
 
 class DashboardTests(TestCase):

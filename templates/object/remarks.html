@@ -1,15 +1,32 @@
-{% extends "object/_base.html" %}{% load ui %}
+{% extends "object/_base.html" %}{% load ui obj %}
 {% block tab %}
-<div class="tabbar-act">
-  <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'remark' %}">{% icon 'plus' 18 %}Замечание</a>
-  <a class="btn btn-ghost" href="{% url 'object_new' obj.pk 'task' %}">Задача</a>
+<div class="tabhead">
+  <div><h2>Качество и дефекты</h2><p class="muted">Обнаружен → назначен → устранение → проверка → закрыт. Ответственному сразу создаётся задача.</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'remark' %}">{% icon 'plus' 18 %}Дефект</a></div>
 </div>
-<h2 style="margin-top:4px">Открытые замечания <span class="count">{{ open|length }}</span></h2>
-{% if open %}<div class="list">{% for r in open %}{% include "quality/_remark_row.html" %}{% endfor %}</div>{% else %}<div class="empty">Открытых замечаний нет</div>{% endif %}
-<h2>Задачи по объекту <span class="count">{{ tasks|length }}</span></h2>
-{% if tasks %}<div class="list">{% for t in tasks %}
-  <div class="row"><span class="ico {% if t.is_overdue %}out{% endif %}">{% icon 'task' 20 %}</span><div class="body"><div class="title">{{ t.title }}</div><div class="meta">{{ t.assignee|default:"без исполнителя" }}{% if t.due_date %} · до {{ t.due_date|date:"d.m" }}{% endif %}{% if t.is_overdue %} · <span class="bad">просрочено</span>{% endif %}</div></div>
-    <div class="side"><span class="badge {% if t.status == 'in_progress' %}in_progress{% elif t.status == 'review' %}paused{% endif %}">{{ t.get_status_display }}</span></div></div>
-{% endfor %}</div>{% else %}<div class="empty">Открытых задач нет</div>{% endif %}
-{% if closed %}<h2>Закрытые недавно</h2><div class="list">{% for r in closed %}{% include "quality/_remark_row.html" %}{% endfor %}</div>{% endif %}
+<div class="kgrid">
+  <div class="k"><span class="kl">Открытые</span><b class="kv">{{ open|length }}</b><span class="kh">закрыто недавно: {{ closed|length }}</span></div>
+  <div class="k"><span class="kl">Просрочено</span><b class="kv {% if late %}bad{% endif %}">{{ late }}</b><span class="kh">срок устранения прошёл</span></div>
+  <div class="k"><span class="kl">Критичные</span><b class="kv {% if critical %}bad{% endif %}">{{ critical }}</b><span class="kh">высший приоритет</span></div>
+  <div class="k"><span class="kl">На проверке</span><b class="kv {% if review %}warn{% endif %}">{{ review }}</b><span class="kh">ждут приёмки работы</span></div>
+</div>
+<section class="card flat">
+  <header><h3>Открытые дефекты</h3><span class="muted">{{ open|length }}</span></header>
+  {% if open %}<table class="otable">
+    <thead><tr><th>Номер</th><th>Описание</th><th>Место</th><th>Критичность</th><th>Ответственный</th><th>Срок</th><th>Статус</th></tr></thead>
+    <tbody>{% for r in open %}<tr>
+      <td data-label="Номер" class="nowrap"><a class="doclink" href="{% url 'remark_detail' r.pk %}">{{ r.number }}</a></td>
+      <td data-label="Описание">{{ r.description|truncatechars:90 }}</td>
+      <td data-label="Место">{{ r.location|default:"—" }}</td>
+      <td data-label="Критичность"><span class="st {% if r.priority >= 4 %}st-rejected{% elif r.priority == 3 %}st-new{% else %}st-approved{% endif %}">{{ r.get_priority_display }}</span></td>
+      <td data-label="Ответственный">{{ r.responsible }}</td>
+      <td data-label="Срок" class="nowrap {% if r.is_overdue %}bad{% elif r.due_soon %}warn-t{% endif %}">{{ r.deadline|date:"d.m.Y" }}{% if r.is_overdue %}<small class="block">просрочено</small>{% endif %}</td>
+      <td data-label="Статус"><span class="st st-rm-{{ r.status }}">{{ r.get_status_display }}</span></td>
+    </tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">{% icon 'check' 18 %} Открытых дефектов нет.</div>{% endif %}
+</section>
+{% if closed %}<section class="card flat">
+  <header><h3>Закрытые</h3><span class="muted">последние {{ closed|length }}</span></header>
+  <table class="otable"><tbody>{% for r in closed %}<tr class="dim"><td data-label="Номер" class="nowrap"><a class="doclink" href="{% url 'remark_detail' r.pk %}">{{ r.number }}</a></td><td data-label="Описание">{{ r.description|truncatechars:90 }}</td><td data-label="Принято" class="nowrap">{{ r.accepted_at|date:"d.m.Y"|default:"—" }}</td></tr>{% endfor %}</tbody></table>
+</section>{% endif %}
 {% endblock %}

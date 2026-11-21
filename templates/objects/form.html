@@ -1,0 +1,47 @@
+{% extends "base.html" %}{% load ui obj %}
+{% block title %}{{ title }} · Paramount Buildings{% endblock %}
+{% block content %}
+<nav class="crumbs" aria-label="Навигация"><a href="{% url 'dashboard' %}" data-leave>Главная</a><span>/</span><a href="{% url 'object_list' %}" data-leave>Объекты</a>{% if obj %}<span>/</span><a href="{% url 'object_detail' obj.pk %}" data-leave>{{ obj.name }}</a>{% endif %}<span>/</span><b>{% if creating %}Новый объект{% else %}Редактирование{% endif %}</b></nav>
+<div class="page-head"><div class="titles"><h1>{{ title }}</h1>
+  <div class="sub">{% if creating %}Поля со звёздочкой обязательны. Код объекта система присвоит сама. Договоры, работы, закупки и документы потом ведутся внутри карточки объекта.{% else %}{{ obj.code }} · {{ obj.name }}{% endif %}</div></div></div>
+
+<form method="post" class="ob-form" enctype="multipart/form-data" novalidate>{% csrf_token %}
+  {% if form.errors %}<div class="errors">Проверьте поля, отмеченные красным.{% for e in form.non_field_errors %}<br>{{ e }}{% endfor %}</div>{% endif %}
+  {% for f in form.hidden_fields %}{{ f }}{% endfor %}
+  {% for section, names in sections %}
+  <section class="card ob-sec">
+    <header><h3>{{ section }}</h3></header>
+    <div class="ob-grid">
+    {% for name in names %}{% with f=form|get_field:name %}{% if f %}
+      <div class="field{% if f.errors %} has-err{% endif %}{% if name == 'description' or name == 'address' or name == 'name' %} wide{% endif %}">
+        <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %} <span class="rq">*</span>{% endif %}</label>
+        {{ f }}
+        {% if name == 'code' %}<div class="help" id="codeHint"></div>{% endif %}
+        {% if f.help_text %}<div class="help">{{ f.help_text }}</div>{% endif %}
+        {% for e in f.errors %}<div class="err">{{ e }}</div>{% endfor %}
+      </div>
+    {% endif %}{% endwith %}{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  {% if not creating %}<section class="card ob-sec"><div class="field" style="margin:0"><label for="id_change_reason">Причина изменения</label>
+    <input id="id_change_reason" name="change_reason" maxlength="300" placeholder="Например: подписано допсоглашение, перенесли срок">
+    <div class="help">Попадёт в историю объекта вместе со старым и новым значением.</div></div></section>{% endif %}
+  <div class="ob-formbar">
+    <a class="btn btn-ghost" href="{{ back }}" data-leave>Отмена</a>
+    {% if creating %}
+    <button class="btn btn-ghost" type="submit" name="action" value="draft" formnovalidate title="Сохранить с незаполненными полями — понадобится только название">Сохранить черновик</button>
+    <button class="btn btn-ghost" type="submit" name="action" value="create">Создать</button>
+    <button class="btn btn-primary" type="submit" name="action" value="create_open">Создать и открыть</button>
+    {% else %}
+    <button class="btn btn-primary" type="submit" name="action" value="save">Сохранить изменения</button>
+    {% endif %}
+  </div>
+</form>
+<dialog class="ob-dialog" id="obLeave" aria-labelledby="obLeaveT">
+  <h3 id="obLeaveT">Уйти без сохранения?</h3>
+  <p class="muted">Вы изменили поля формы. Если уйти сейчас, изменения пропадут.</p>
+  <div class="ob-dialog-act"><button type="button" class="btn btn-ghost" data-stay>Остаться</button><a class="btn btn-primary" href="#" data-go>Уйти без сохранения</a></div>
+</dialog>
+{{ city_prefix|json_script:"cityPrefix" }}
+{% endblock %}

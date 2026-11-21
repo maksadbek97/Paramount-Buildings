@@ -1,0 +1,17 @@
+{% extends "object/_base.html" %}{% load ui obj %}
+{% block tab %}
+<div class="tabhead">
+  <div><h2>Фото и видео</h2><p class="muted">Ход работ, до/после, дефекты, поставки, безопасность. Сюда же попадают фото из отчётов, замечаний и выработки.</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'photo' %}">{% icon 'camera' 18 %}Добавить фото</a></div>
+</div>
+{% if items %}
+<div class="fchips" data-chips="#gallery"><button type="button" class="fchip on" data-v="">Все <span>{{ items|length }}</span></button>{% for k, label, n in cats %}{% if n %}<button type="button" class="fchip" data-v="{{ k }}">{{ label }} <span>{{ n }}</span></button>{% endif %}{% endfor %}</div>
+<div class="gallery" id="gallery">{% for i in items %}<figure data-cat="{{ i.cat }}">
+  <a href="{{ i.url }}" target="_blank" rel="noopener">{% if i.video %}<video src="{{ i.url }}" preload="metadata" muted></video>{% else %}<img src="{{ i.url }}" alt="{{ i.title }}" loading="lazy">{% endif %}</a>
+  <figcaption><b>{{ i.title|truncatechars:50 }}</b><small>{{ i.cat_label }} · {{ i.date|date:"d.m.Y" }}{% if i.who %} · {{ i.who }}{% endif %}{% if i.src %} · {{ i.src }}{% endif %}</small></figcaption>
+</figure>{% endfor %}</div>
+<div class="empty-s ob-empty" data-none hidden>В этой категории фото нет.</div>
+{% else %}
+<section class="card"><div class="empty-s ob-empty">{% icon 'camera' 28 %}<br>Фото пока нет. Снимите ход работ прямо с телефона — фото привяжется к объекту, этапу и дате.<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'photo' %}">{% icon 'camera' 18 %}Добавить фото</a></div></section>
+{% endif %}
+{% endblock %}

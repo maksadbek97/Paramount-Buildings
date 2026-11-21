@@ -1,0 +1,28 @@
+{% extends "object/_base.html" %}{% load ui obj %}
+{% block tab %}
+<div class="tabhead">
+  <div><h2>Транспорт и техника</h2><p class="muted">Заявки на подачу техники: что, куда, когда и кто отвечает. Новая → согласована → назначена → в работе → завершена.</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'transport' %}">{% icon 'plus' 18 %}Заявка на технику</a></div>
+</div>
+<div class="kgrid">
+  <div class="k"><span class="kl">Открытые заявки</span><b class="kv">{{ open|length }}</b><span class="kh">всего заявок: {{ items|length }}</span></div>
+  <div class="k"><span class="kl">Стоимость</span><b class="kv">{{ cost|short }}</b><span class="kh">аренда и топливо по заявкам</span></div>
+  <div class="k"><span class="kl">Моточасы</span><b class="kv">{{ hours|num }}</b><span class="kh">по завершённым и текущим</span></div>
+  <div class="k"><span class="kl">Ближайшая подача</span><b class="kv">{% if next_t %}{{ next_t.date|date:"d.m" }}{% if next_t.time %} {{ next_t.time|time:"H:i" }}{% endif %}{% else %}—{% endif %}</b><span class="kh">{% if next_t %}{{ next_t.get_kind_display }}{% else %}нет предстоящих подач{% endif %}</span></div>
+</div>
+<section class="card flat">
+  <header><h3>Заявки</h3><span class="muted">{{ items|length }}</span></header>
+  {% if items %}<table class="otable">
+    <thead><tr><th>Номер</th><th>Техника</th><th>Задача и маршрут</th><th>Подача</th><th>Водитель / ответственный</th><th class="r">Стоимость</th><th>Статус</th></tr></thead>
+    <tbody>{% for t in items %}<tr class="{% if t.status == 'cancelled' %}dim{% endif %}">
+      <td data-label="Номер" class="nowrap"><b>{{ t.number }}</b></td>
+      <td data-label="Техника">{{ t.get_kind_display }}</td>
+      <td data-label="Задача">{{ t.task }}{% if t.route %}<small class="muted block">{{ t.route }}</small>{% endif %}</td>
+      <td data-label="Подача" class="nowrap">{{ t.date|date:"d.m.Y" }}{% if t.time %} {{ t.time|time:"H:i" }}{% endif %}</td>
+      <td data-label="Водитель">{{ t.driver|default:"—" }}{% if t.responsible %}<small class="muted block">отв. {{ t.responsible }}</small>{% endif %}</td>
+      <td data-label="Стоимость" class="r nowrap">{% if t.cost %}{{ t.cost|money }} ₸{% else %}—{% endif %}{% if t.hours %}<small class="muted block">{{ t.hours|num }} м/ч</small>{% endif %}</td>
+      <td data-label="Статус"><span class="st st-tr-{{ t.status }}">{{ t.get_status_display }}</span></td>
+    </tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">Заявок на транспорт и технику пока нет. Создайте заявку: тип техники, задача, дата и время подачи.<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'transport' %}">{% icon 'plus' 18 %}Создать заявку</a></div>{% endif %}
+</section>
+{% endblock %}

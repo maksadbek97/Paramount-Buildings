@@ -1,0 +1,26 @@
+{% extends "object/_base.html" %}{% load ui obj %}
+{% block tab %}
+<div class="tabhead">
+  <div><h2>Охрана труда</h2><p class="muted">Инструктажи и журналы, допуски и удостоверения со сроками, происшествия и меры устранения.</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'safety' %}">{% icon 'plus' 18 %}Запись</a></div>
+</div>
+{% if expired or expiring %}<div class="obnote {% if expired %}bad{% else %}warn{% endif %}">{% icon 'alert' 18 %}<span>{% if expired %}<b>Просрочены допуски: {{ expired }}.</b> Работников без действующего допуска нельзя ставить на эти работы.{% endif %}{% if expiring %} Истекают в ближайшие 2 недели: {{ expiring }}.{% endif %}</span></div>{% endif %}
+<section class="card flat">
+  <header><h3>Инструктажи</h3><span class="muted">{{ briefings|length }}</span></header>
+  {% if briefings %}<table class="otable"><thead><tr><th>Дата</th><th>Инструктаж</th><th>Участники</th><th>Инструктирующий</th><th>Подтверждение</th></tr></thead>
+  <tbody>{% for i in briefings %}<tr><td data-label="Дата" class="nowrap">{{ i.date|date:"d.m.Y" }}</td><td data-label="Инструктаж"><b>{{ i.title }}</b></td><td data-label="Участники">{{ i.participants|truncatechars:80|default:"—" }}</td><td data-label="Инструктирующий">{{ i.instructor|default:"—" }}</td><td data-label="Подтверждение">{% if i.confirmed %}<span class="st st-received">Подтверждено</span>{% else %}<span class="st st-new">Ждёт подписи</span>{% endif %}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">Инструктажей не записано. <a href="{% url 'object_new' obj.pk 'safety' %}">Добавить</a></div>{% endif %}
+</section>
+<section class="card flat">
+  <header><h3>Допуски и удостоверения</h3><span class="muted">{{ permits|length }}</span></header>
+  {% if permits %}<table class="otable"><thead><tr><th>Допуск</th><th>Кому</th><th>Выдан</th><th>Действует до</th></tr></thead>
+  <tbody>{% for i in permits %}<tr><td data-label="Допуск"><b>{{ i.title }}</b></td><td data-label="Кому">{{ i.participants|truncatechars:80|default:"—" }}</td><td data-label="Выдан" class="nowrap">{{ i.date|date:"d.m.Y" }}</td><td data-label="Действует до" class="nowrap">{% if i.expired %}<span class="st st-rejected">истёк {{ i.valid_until|date:"d.m.Y" }}</span>{% elif i.expiring %}<span class="st st-new">до {{ i.valid_until|date:"d.m.Y" }}</span>{% else %}{{ i.valid_until|date:"d.m.Y"|default:"—" }}{% endif %}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">Допусков не записано. <a href="{% url 'object_new' obj.pk 'safety' %}">Добавить</a></div>{% endif %}
+</section>
+<section class="card flat">
+  <header><h3>Происшествия</h3><span class="muted">{{ incidents|length }}</span></header>
+  {% if incidents %}<table class="otable"><thead><tr><th>Дата</th><th>Что произошло</th><th>Меры устранения</th><th>Ответственный</th><th>Статус</th></tr></thead>
+  <tbody>{% for i in incidents %}<tr><td data-label="Дата" class="nowrap">{{ i.date|date:"d.m.Y" }}</td><td data-label="Что произошло"><b>{{ i.title }}</b>{% if i.participants %}<small class="muted block">{{ i.participants|truncatechars:60 }}</small>{% endif %}</td><td data-label="Меры">{{ i.measures|truncatechars:90|default:"—" }}</td><td data-label="Ответственный">{{ i.instructor|default:"—" }}</td><td data-label="Статус">{% if i.confirmed %}<span class="st st-received">Закрыто</span>{% else %}<span class="st st-rejected">Открыто</span>{% endif %}</td></tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">{% icon 'check' 18 %} Происшествий не было.</div>{% endif %}
+</section>
+{% endblock %}

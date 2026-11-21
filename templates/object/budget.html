@@ -1,0 +1,39 @@
+{% extends "object/_base.html" %}{% load ui obj %}
+{% block tab %}
+<div class="tabhead">
+  <div><h2>Бюджет объекта</h2><p class="muted">План, обязательства, факт и остаток по статьям. Изменение планового бюджета сохраняется в истории с причиной.</p></div>
+  {% if can_edit %}<div class="tabhead-act"><a class="btn btn-ghost" href="{% url 'object_edit' obj.pk %}">{% icon 'edit' 18 %}Изменить бюджет</a></div>{% endif %}
+</div>
+{% if not obj.budget %}<div class="obnote info">{% icon 'wallet' 18 %}<span><b>Плановый бюджет не задан.</b> Без него система не сможет предупредить о превышении лимита при заявках и платежах.</span>{% if can_edit %}<a href="{% url 'object_edit' obj.pk %}">Задать бюджет</a>{% endif %}</div>{% endif %}
+<div class="kgrid">
+  <div class="k"><span class="kl">Плановый бюджет</span><b class="kv">{% if obj.budget %}{{ obj.budget|short }}{% else %}—{% endif %}</b><span class="kh">{% if estimates_total %}по сметам {{ estimates_total|short }}{% else %}смет нет{% endif %}</span></div>
+  <div class="k"><span class="kl">Обязательства</span><b class="kv">{{ m.commitments|short }}</b><span class="kh">согласовано, ещё не получено</span></div>
+  <div class="k"><span class="kl">Фактические расходы</span><b class="kv">{{ m.fact|short }}</b><span class="kh">из них оплачено {{ m.paid|short }}</span></div>
+  <div class="k"><span class="kl">Остаток / отклонение</span><b class="kv {% if m.left is not None and m.left < 0 %}bad{% elif m.left %}ok{% endif %}">{% if m.left is not None %}{{ m.left|short }}{% else %}—{% endif %}</b><span class="kh">{% if m.over %}<em class="down">превышение бюджета</em>{% elif obj.budget %}использовано {{ m.used }}%{% else %}нужен плановый бюджет{% endif %}</span></div>
+</div>
+{% if obj.budget %}<div class="ob-usage"><div class="bar {% if m.over %}over{% endif %}"><span style="width:{% if m.used > 100 %}100{% else %}{{ m.used }}{% endif %}%"></span></div><span>Использовано <b>{{ m.used }}%</b> бюджета (факт + обязательства)</span></div>{% endif %}
+
+<section class="card flat">
+  <header><h3>Статьи расходов</h3></header>
+  {% if rows %}
+  <table class="otable">
+    <thead><tr><th>Статья</th><th class="r">Обязательства</th><th class="r">Факт (начислено)</th><th class="r">Оплачено</th><th>Доля бюджета</th></tr></thead>
+    <tbody>{% for r in rows %}<tr><td data-label="Статья"><b>{{ r.name }}</b></td><td data-label="Обязательства" class="r nowrap">{{ r.commit|money }} ₸</td><td data-label="Факт" class="r nowrap">{{ r.fact|money }} ₸</td><td data-label="Оплачено" class="r nowrap">{{ r.paid|money }} ₸</td><td data-label="Доля">{% if r.share is not None %}<div class="pb"><div class="bar"><span style="width:{% if r.share > 100 %}100{% else %}{{ r.share }}{% endif %}%"></span></div><b>{{ r.share }}%</b></div>{% else %}—{% endif %}</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><td><b>Итого</b></td><td data-label="Обязательства" class="r nowrap"><b>{{ total.commit|money }} ₸</b></td><td data-label="Факт" class="r nowrap"><b>{{ total.fact|money }} ₸</b></td><td data-label="Оплачено" class="r nowrap"><b>{{ total.paid|money }} ₸</b></td><td></td></tr></tfoot>
+  </table>
+  {% else %}<div class="empty-s ob-empty">Расходов по объекту пока нет.</div>{% endif %}
+</section>
+
+<div class="row2">
+  <section class="card">
+    <header><h3>Сметы</h3><span class="muted">{{ estimates|length }}</span></header>
+    {% if estimates %}<ul class="kvlist">{% for e in estimates %}<li><span><b>{{ e.title }}</b><small class="muted block">позиций: {{ e.items.all|length }} · {{ e.created_at|date:"d.m.Y" }}</small></span><b>{{ e.total|money }} ₸</b></li>{% endfor %}</ul>
+    {% else %}<div class="empty-s">Смет нет. Бюджет можно задать вручную в карточке объекта.</div>{% endif %}
+  </section>
+  <section class="card">
+    <header><h3>История изменений бюджета</h3></header>
+    {% if budget_history %}<ul class="feed">{% for e in budget_history %}<li><span class="dot"></span><span>{% for k, old, new in e.change_list %}{% if k == "Бюджет (план расходов), ₸" %}{% if old %}<s class="muted">{{ old }}</s> → {% endif %}<b>{{ new }} ₸</b>{% endif %}{% endfor %}<small>{{ e.created_at|date:"d.m.Y H:i" }} · {{ e.user|default:"система" }}{% if e.reason %} · {{ e.reason }}{% endif %}</small></span></li>{% endfor %}</ul>
+    {% else %}<div class="empty-s">Бюджет не менялся с момента создания объекта.</div>{% endif %}
+  </section>
+</div>
+{% endblock %}

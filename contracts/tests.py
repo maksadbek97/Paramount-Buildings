@@ -214,9 +214,14 @@ class SubcontractFormTests(TestCase):
         self.assertContains(r, "12 цифр")
         self.client.post(reverse("crew_create"), {"name": "Бригада А", "members": [self.emp.pk]})
         self.assertEqual(Crew.objects.get().members.count(), 1)
+        from django.contrib.auth.models import Permission
+        self.user.user_permissions.add(Permission.objects.get(codename="add_constructionobject"))
         self.client.post(reverse("object_create"), {"name": "Школа", "status": "planned", "new_client": "ТОО Ген",
-                                                    "city": "Астана", "contract_amount": "0", "budget": "0"})
-        self.assertEqual(ConstructionObject.objects.get(name="Школа").client.name, "ТОО Ген")
+                                                    "city": "Астана", "contract_amount": "0", "budget": "0",
+                                                    "action": "draft"})
+        school = ConstructionObject.objects.get(name="Школа")
+        self.assertEqual(school.client.name, "ТОО Ген")
+        self.assertEqual((school.status, school.code), ("planned", "AST-01"))
 
 
 class StockRulesTests(TestCase):
@@ -254,12 +259,17 @@ class DemoBuildTests(TestCase):
             # в демо пока только раздел «Главная»: периоды, объекты и их сочетания
             for page in ("period/year", "object/1", "period/year/object/1"):
                 self.assertTrue((Path(tmp) / page / "index.html").exists(), page)
-            for page in ("objects", "finance", "add", "pto"):
+            for page in ("finance", "add", "pto"):
                 self.assertFalse((Path(tmp) / page).exists(), page)
+            # раздел «Объекты»: список, создание, карточка со всеми вкладками и формы внутри объекта
+            for page in ("objects", "objects/new", "objects/1", "objects/1/budget", "objects/1/closing",
+                         "objects/1/history", "objects/1/new/purchase", "objects/1/edit"):
+                self.assertTrue((Path(tmp) / page / "index.html").exists(), page)
             year = (Path(tmp) / "period/year/index.html").read_text()
             self.assertIn('href="../../period/year/object/1/"', year)
             self.assertNotIn('href="?', year)
-            self.assertNotIn("Объекты</a>", home)  # других разделов в меню нет
+            self.assertIn("Объекты</a>", home)
+            self.assertNotIn("Финансы</a>", home)  # остальных разделов в меню пока нет
             self.assertIn("Моя компания", home)
             self.assertIn("Балтаев Нурбек", home)
             for page in ("company", "company/docs/kind/certificate", "company/structure", "company/staff",
