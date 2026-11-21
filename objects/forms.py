@@ -17,6 +17,15 @@ CITY_PREFIX = {
 CODE_RE = re.compile(r"^[A-Za-zА-Яа-яЁё0-9][A-Za-zА-Яа-яЁё0-9\-/._]{1,29}$")
 
 
+def ru_blank(form):
+    """Пустой пункт в выпадающих списках по-русски вместо «- Select an option -»."""
+    for f in form.fields.values():
+        choices = getattr(f, "choices", None)
+        if isinstance(f, forms.TypedChoiceField) and not isinstance(f.widget, forms.RadioSelect) and choices \
+                and list(choices)[0][0] == "":
+            f.choices = [("", "— выберите —")] + [c for c in choices if c[0] != ""]
+
+
 def next_code(city):
     """Следующий свободный код объекта: AST-01, AST-02… (префикс по городу, OBJ — если город не указан)."""
     prefix = CITY_PREFIX.get(city or "", "OBJ")
@@ -149,6 +158,7 @@ class TransportForm(StyledMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["date"].initial = date.today()
+        ru_blank(self)
 
 
 class SafetyForm(StyledMixin, forms.ModelForm):
@@ -161,6 +171,7 @@ class SafetyForm(StyledMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["date"].initial = date.today()
+        ru_blank(self)
 
     def clean(self):
         data = super().clean()
@@ -182,6 +193,7 @@ class MediaForm(StyledMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["date"].initial = date.today()
+        ru_blank(self)
 
     def clean_file(self):
         f = self.cleaned_data.get("file")

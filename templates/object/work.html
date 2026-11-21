@@ -17,7 +17,7 @@
 
 <section class="card flat">
   <header><h3>Основной договор</h3>{% if obj.contract_number %}<span class="muted">№ {{ obj.contract_number }}</span>{% endif %}</header>
-  <dl class="req ob-contract">
+  <dl class="reqs ob-contract">
     <dt>Заказчик</dt><dd>{{ obj.client|default:"—" }}</dd>
     {% if obj.general_contractor %}<dt>Генподрядчик</dt><dd>{{ obj.general_contractor }}</dd>{% endif %}
     <dt>Сумма договора</dt><dd>{% if obj.contract_amount %}{{ obj.contract_amount|money }} ₸{% else %}<span class="muted">не указана</span>{% endif %}</dd>

@@ -25,7 +25,7 @@
 <div class="row2">
   <section class="card">
     <header><h3>Объект и заказчик</h3>{% if can_edit %}<a class="hlink" href="{% url 'object_edit' obj.pk %}">{% icon 'edit' 15 %}Изменить</a>{% endif %}</header>
-    <dl class="req">
+    <dl class="reqs">
       <dt>Заказчик</dt><dd>{{ obj.client|default:"—" }}{% if obj.client.bin %}<small class="muted block">БИН {{ obj.client.bin }}</small>{% endif %}</dd>
       {% if obj.general_contractor %}<dt>Генподрядчик</dt><dd>{{ obj.general_contractor }}</dd>{% endif %}
       <dt>Основной договор</dt><dd>{% if obj.contract_number %}№ {{ obj.contract_number }}{% if obj.contract_amount %} · {{ obj.contract_amount|money }} ₸{% endif %}{% else %}<span class="muted">не добавлен</span>{% endif %}</dd>
