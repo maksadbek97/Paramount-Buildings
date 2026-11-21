@@ -28,20 +28,27 @@
     </div>
   </details>
   <details class="picker usermenu">
-    <summary><span class="avatar">{{ user.get_username|first|upper }}</span><span class="who"><b>{{ user.get_full_name|default:user.get_username }}</b><small>{% if user.is_superuser %}Руководитель{% else %}{{ user.groups.all.0.name|default:"Сотрудник" }}{% endif %}</small></span>{% icon 'chevron' 16 %}</summary>
-    <div class="drop right">
+    <summary aria-label="Меню пользователя"><span class="avatar">{% if user.last_name %}{{ user.last_name|first|upper }}{% else %}{{ user.get_username|first|upper }}{% endif %}</span><span class="who"><b>{% if user.last_name %}{{ user.last_name }} {{ user.first_name }}{% else %}{{ user.get_username }}{% endif %}</b><small>{% if user.is_superuser %}Руководитель{% else %}{{ user.groups.all.0.name|default:"Сотрудник" }}{% endif %}</small></span>{% icon 'chevron' 16 %}</summary>
+    <div class="drop right umenu">
+      <div class="uhead"><b>{% if user.last_name %}{{ user.last_name }} {{ user.first_name }}{% else %}{{ user.get_username }}{% endif %}</b><small>{% if user.is_superuser %}Руководитель{% else %}{{ user.groups.all.0.name|default:"Сотрудник" }}{% endif %}</small></div>
+      <a href="{% url 'profile' %}">{% icon 'users' 18 %}Профиль</a>
       {% if user.is_staff and not DEMO %}<a href="{% url 'admin:index' %}">{% icon 'settings' 18 %}Админ-панель</a>{% endif %}
-      {% if not DEMO %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button>{% icon 'logout' 18 %}Выйти</button></form>{% else %}<div class="ni">Демо-пользователь</div>{% endif %}
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button>{% icon 'logout' 18 %}Выйти</button></form>
     </div>
   </details>
 </header>
 
 <aside class="sidebar">
   <nav>
-    <a href="{% url 'dashboard' %}" class="active">{% icon 'home' %}Главная</a>
+    <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' %}Главная</a>
+    <a href="{% url 'company_profile' %}" class="{% if n|slice:':7' == 'company' %}active{% endif %}">{% icon 'company' %}Моя компания</a>
   </nav>
   <div class="side-note">Остальные разделы подключаются по очереди, по мере готовности.</div>
 </aside>
+<nav class="mnav" aria-label="Разделы">
+  <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' 22 %}<span>Главная</span></a>
+  <a href="{% url 'company_profile' %}" class="{% if n|slice:':7' == 'company' %}active{% endif %}">{% icon 'company' 22 %}<span>Моя компания</span></a>
+</nav>
 <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
 {% endif %}
 
@@ -63,7 +70,7 @@ document.querySelectorAll('form[method=post]').forEach(function (f) {
   f.addEventListener('submit', function (e) {
     e.preventDefault();
     var t = document.createElement('div'); t.className = 'toast';
-    t.textContent = 'Это демо: данные не сохраняются. В полной версии запись появится сразу.';
+    t.textContent = /logout/.test(f.getAttribute('action')) ? 'Это демо: выход отключён. В рабочей версии здесь вы выйдете из системы.' : 'Это демо: данные не сохраняются. В полной версии запись появится сразу.';
     document.querySelector('main').prepend(t); window.scrollTo({top: 0, behavior: 'smooth'});
   });
 });

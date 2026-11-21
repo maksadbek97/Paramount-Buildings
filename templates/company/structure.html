@@ -1,0 +1,18 @@
+{% extends "company/_base.html" %}{% load ui %}
+{% block head_action %}<a class="btn btn-primary chead-btn" href="{% url 'company_department_new' %}">{% icon 'plus' 18 %}<span>Добавить отдел</span></a>{% endblock %}
+{% block tab %}
+{% if top %}
+<div class="org">
+{% for t in top %}
+  <div class="org-top">{% include "company/_dept.html" with d=t main=True %}</div>
+  {% if t.kids %}<div class="org-line"></div>
+  <div class="org-grid">{% for c in t.kids %}
+    <div class="org-col">{% include "company/_dept.html" with d=c %}
+      {% if c.kids %}<div class="org-sub">{% for s in c.kids %}{% include "company/_dept.html" with d=s small=True %}{% endfor %}</div>{% endif %}
+    </div>{% endfor %}
+  </div>{% endif %}
+{% endfor %}
+</div>
+{% if no_dept %}<div class="foot-note">Без отдела: {{ no_dept }} сотр. <a href="{% url 'company_staff' %}">Назначить в сотрудниках</a></div>{% endif %}
+{% else %}<div class="empty-s">Структура пока не создана. <a href="{% url 'company_department_new' %}">Добавить первый отдел</a></div>{% endif %}
+{% endblock %}
