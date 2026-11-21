@@ -8,7 +8,7 @@
 <div class="row2 pgrid">
   <section class="card">
     <header><h3>Личные данные</h3></header>
-    <dl class="req">
+    <dl class="reqs">
       <dt>ФИО</dt><dd>{{ full_name }}</dd>
       <dt>Роль в системе</dt><dd>{{ role }}</dd>
       {% if employee %}<dt>Должность</dt><dd>{{ employee.position|default:"—" }}</dd>
@@ -20,7 +20,7 @@
   </section>
   <section class="card">
     <header><h3>Вход в систему</h3></header>
-    <dl class="req">
+    <dl class="reqs">
       <dt>Последний вход</dt><dd>{{ u.last_login|date:"d.m.Y, H:i"|default:"—" }}</dd>
       <dt>В системе с</dt><dd>{{ u.date_joined|date:"d.m.Y" }}</dd>
       <dt>Доступ</dt><dd>{% if u.is_superuser %}полный: все разделы и деньги{% else %}по роли{% endif %}</dd>

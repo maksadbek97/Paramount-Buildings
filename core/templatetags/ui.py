@@ -112,3 +112,11 @@ ICONS = {
     "copy": '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>',
     "refresh": '<path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/>',
 }
+
+
+@register.filter
+def groups(form):
+    """Поля формы группами (см. core.views.form_groups)."""
+    from core.views import form_groups
+    return form_groups(form)
+

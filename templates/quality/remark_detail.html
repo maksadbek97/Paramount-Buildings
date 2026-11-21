@@ -31,7 +31,7 @@
     {% if to == 'in_work' %}<div class="field"><label>Исполнитель</label><select name="executor"><option value="">— прораб сам —</option>{% for w in workers %}<option value="{{ w.pk }}" {% if r.executor_id == w.pk %}selected{% endif %}>{{ w }}</option>{% endfor %}</select></div>{% endif %}
     {% if to == 'review' %}<div class="field"><label>Фото выполнения</label><input type="file" name="fix_photo" accept="image/*" capture="environment"></div>
       <div class="field"><label>Что сделано</label><input name="comment" maxlength="300" placeholder="Например: откосы переделаны"></div>{% endif %}
-    {% if to == 'returned' %}<div class="field"><label>Что переделать <span class="req">*</span></label><input name="comment" maxlength="300" required></div>{% endif %}
+    {% if to == 'returned' %}<div class="field"><label>Что переделать <span class="reqs">*</span></label><input name="comment" maxlength="300" required></div>{% endif %}
     <button class="btn {% if to == 'returned' %}btn-ghost{% else %}btn-primary{% endif %} btn-lg btn-block" type="submit">{{ label }}</button>
   </form>
 {% endfor %}
