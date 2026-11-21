@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Разделы</h1></div></div>
+<div class="tiles">
+  <a href="{% url 'object_list' %}"><span class="ico">{% icon 'building' %}</span>Объекты<small>Площадки и заказчики</small></a>
+  <a href="{% url 'contract_list' %}"><span class="ico">{% icon 'contract' %}</span>Объёмы работ<small>Договоры субподряда</small></a>
+  <a href="{% url 'staff_list' %}"><span class="ico">{% icon 'users' %}</span>Рабочие<small>Бригады и задачи</small></a>
+  <a href="{% url 'warehouse_list' %}"><span class="ico">{% icon 'box' %}</span>Склад<small>Материалы, приход, расход</small></a>
+  <a href="{% url 'finance_list' %}"><span class="ico">{% icon 'wallet' %}</span>Финансы<small>Доходы, расходы, сметы</small></a>
+  <a href="{% url 'payment_create' %}"><span class="ico">{% icon 'cash' %}</span>Платёж<small>Оплата или выплата</small></a>
+</div>
+<h2>Учётная запись</h2>
+<div class="list">
+  <div class="row"><span class="ico">{{ user.get_username|first|upper }}</span><div class="body"><div class="title">{{ user.get_username }}</div></div></div>
+  {% if user.is_staff and not DEMO %}<a class="row" href="{% url 'admin:index' %}"><span class="ico">{% icon 'settings' 20 %}</span><div class="body"><div class="title">Админ-панель</div><div class="meta">Для редких настроек</div></div></a>{% endif %}
+  {% if not DEMO %}<form method="post" action="{% url 'logout' %}" style="margin:0">{% csrf_token %}<button class="row" style="width:100%;background:none;border:0;font:inherit;cursor:pointer;text-align:left"><span class="ico out">{% icon 'logout' 20 %}</span><div class="body"><div class="title">Выйти</div></div></button></form>{% endif %}
+</div>
+{% endblock %}

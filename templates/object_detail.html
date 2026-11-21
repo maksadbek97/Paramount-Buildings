@@ -1,24 +1,50 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load ui %}
+{% block title %}{{ obj.name }} · Paramount Buildings{% endblock %}
 {% block content %}
-<h1>{{ obj.name }} <span class="badge {{ obj.status }}">{{ obj.get_status_display }}</span></h1>
-<p style="color:var(--muted)">{{ obj.address }}{% if obj.client %} · Заказчик: {{ obj.client }}{% endif %}{% if obj.manager %} · Ответственный: {{ obj.manager }}{% endif %}</p>
-{% if obj.description %}<p>{{ obj.description }}</p>{% endif %}
-<div class="cards">
-  <div class="card"><div class="label">Доходы</div><div class="value">{{ income }}</div></div>
-  <div class="card"><div class="label">Расходы</div><div class="value">{{ expense }}</div></div>
-  <div class="card"><div class="label">Баланс</div><div class="value {% if balance >= 0 %}ok{% else %}bad{% endif %}">{{ balance }}</div></div>
+<a class="back" href="{% url 'object_list' %}">{% icon 'back' 18 %}Все объекты</a>
+<div class="page-head">
+  <div class="titles"><h1>{{ obj.name }} <span class="badge {{ obj.status }}">{{ obj.get_status_display }}</span></h1>
+    {% if obj.address %}<div class="sub">{{ obj.address }}</div>{% endif %}</div>
+  <div class="actions">
+    <a class="btn btn-primary" href="{% url 'contract_create' %}?construction_object={{ obj.pk }}">{% icon 'plus' 18 %}Объём работ</a>
+    <a class="btn btn-ghost" href="{% url 'object_edit' obj.pk %}" aria-label="Изменить">{% icon 'edit' 18 %}</a>
+  </div>
 </div>
-<h2>Задачи</h2>
-{% if tasks %}<table><tr><th>Задача</th><th>Исполнитель</th><th>Статус</th><th>Срок</th></tr>
-{% for t in tasks %}<tr><td>{{ t.title }}</td><td>{{ t.assignee|default:"—" }}</td><td>{{ t.get_status_display }}</td><td>{{ t.due_date|default:"—" }}</td></tr>{% endfor %}</table>
-{% else %}<div class="empty">Задач нет</div>{% endif %}
-<h2>Сметы</h2>
-{% if estimates %}<table><tr><th>Смета</th><th>Итого</th></tr>
-{% for e in estimates %}<tr><td>{{ e.title }}</td><td>{{ e.total }}</td></tr>{% endfor %}</table>
-{% else %}<div class="empty">Смет нет</div>{% endif %}
-<h2>Документы</h2>
-{% if documents %}<table><tr><th>Документ</th><th>Загружен</th></tr>
-{% for d in documents %}<tr><td><a href="{{ d.file.url }}">{{ d.title }}</a></td><td>{{ d.uploaded_at|date:"d.m.Y" }}</td></tr>{% endfor %}</table>
-{% else %}<div class="empty">Документов нет</div>{% endif %}
-<p><a href="{% url 'object_list' %}">← Ко всем объектам</a></p>
+<div class="kv">
+  <div><span>Заказчик / генподрядчик</span><b>{{ obj.client|default:"—" }}</b></div>
+  <div><span>Ответственный</span><b>{{ obj.manager|default:"—" }}</b></div>
+  <div><span>Начало</span><b>{{ obj.start_date|date:"d.m.Y"|default:"—" }}</b></div>
+  <div><span>Завершение</span><b>{{ obj.end_date|date:"d.m.Y"|default:"—" }}</b></div>
+</div>
+{% if obj.description %}<p class="muted">{{ obj.description }}</p>{% endif %}
+
+<h2>Объёмы работ <span class="count">{{ contracts|length }}</span></h2>
+{% if contracts %}
+<div class="stats" style="margin-bottom:12px">
+  <div class="stat"><div class="label">Взяли на сумму</div><div class="value">{{ s.total|short }}</div><div class="hint">сделано {{ s.progress }}%</div></div>
+  <div class="stat"><div class="label">Получено</div><div class="value ok">{{ s.received|short }}</div></div>
+  <div class="stat"><div class="label">Выплачено рабочим</div><div class="value">{{ s.paid_workers|short }}</div></div>
+  <div class="stat"><div class="label">Прибыль</div><div class="value {% if s.profit >= 0 %}ok{% else %}bad{% endif %}">{{ s.profit|short }}</div></div>
+</div>
+<div class="cgrid">{% for c in contracts %}{% include "contracts/_card.html" %}{% endfor %}</div>
+{% else %}<div class="empty">На этом объекте ещё нет взятых объёмов.<br><a class="btn btn-primary" href="{% url 'contract_create' %}?construction_object={{ obj.pk }}">Добавить объём работ</a></div>{% endif %}
+
+<div class="grid2">
+  <div>
+    <h2>Задачи</h2>
+    {% if tasks %}<div class="list">{% for t in tasks %}
+      <div class="row"><span class="ico">{% icon 'task' 20 %}</span><div class="body"><div class="title">{{ t.title }}</div><div class="meta">{{ t.assignee|default:"без исполнителя" }}{% if t.due_date %} · до {{ t.due_date|date:"d.m" }}{% endif %}</div></div><div class="side"><span class="badge {% if t.status == 'done' %}done{% elif t.status == 'in_progress' %}in_progress{% endif %}">{{ t.get_status_display }}</span></div></div>
+    {% endfor %}</div>{% else %}<div class="empty">Задач нет</div>{% endif %}
+  </div>
+  <div>
+    <h2>Деньги по объекту (общие)</h2>
+    <div class="list">
+      <div class="row"><div class="body"><div class="title">Доходы</div></div><div class="side ok">{{ income|money }}</div></div>
+      <div class="row"><div class="body"><div class="title">Расходы</div></div><div class="side bad">{{ expense|money }}</div></div>
+      <div class="row"><div class="body"><div class="title">Баланс</div></div><div class="side {% if balance >= 0 %}ok{% else %}bad{% endif %}">{{ balance|money }}</div></div>
+    </div>
+    {% if estimates %}<h2>Сметы</h2><div class="list">{% for e in estimates %}<div class="row"><div class="body"><div class="title">{{ e.title }}</div></div><div class="side">{{ e.total|money }}</div></div>{% endfor %}</div>{% endif %}
+    {% if documents %}<h2>Документы</h2><div class="list">{% for d in documents %}<a class="row" href="{{ d.file.url }}"><div class="body"><div class="title">{{ d.title }}</div><div class="meta">{{ d.uploaded_at|date:"d.m.Y" }}</div></div></a>{% endfor %}</div>{% endif %}
+  </div>
+</div>
 {% endblock %}

@@ -1,12 +1,32 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load ui %}
 {% block content %}
-<h1>Сотрудники и задачи</h1>
-<h2>Сотрудники</h2>
-{% if employees %}<table><tr><th>ФИО</th><th>Должность</th><th>Телефон</th><th>Работает</th></tr>
-{% for e in employees %}<tr><td>{{ e.full_name }}</td><td>{{ e.position|default:"—" }}</td><td>{{ e.phone|default:"—" }}</td><td>{{ e.is_active|yesno:"Да,Нет" }}</td></tr>{% endfor %}</table>
-{% else %}<div class="empty">Сотрудников нет. Добавьте в <a href="{% url 'admin:staff_employee_add' %}">админке</a>.</div>{% endif %}
-<h2>Задачи</h2>
-{% if tasks %}<table><tr><th>Задача</th><th>Объект</th><th>Исполнитель</th><th>Приоритет</th><th>Статус</th><th>Срок</th></tr>
-{% for t in tasks %}<tr><td>{{ t.title }}</td><td>{{ t.construction_object|default:"—" }}</td><td>{{ t.assignee|default:"—" }}</td><td>{{ t.get_priority_display }}</td><td>{{ t.get_status_display }}</td><td>{{ t.due_date|default:"—" }}</td></tr>{% endfor %}</table>
-{% else %}<div class="empty">Задач нет</div>{% endif %}
+<div class="page-head">
+  <div class="titles"><h1>Рабочие и бригады</h1><div class="sub">Кого нанимаем на объёмы</div></div>
+  <div class="actions">
+    <a class="btn btn-primary" href="{% url 'employee_create' %}">{% icon 'plus' 18 %}Рабочий</a>
+    <a class="btn btn-ghost" href="{% url 'crew_create' %}">{% icon 'plus' 18 %}Бригада</a>
+  </div>
+</div>
+<h2>Бригады <span class="count">{{ crews|length }}</span></h2>
+{% if crews %}<div class="list">{% for c in crews %}
+  <a class="row" href="{% url 'crew_edit' c.pk %}"><span class="ico">{% icon 'users' 20 %}</span>
+    <div class="body"><div class="title">{{ c.name }}</div><div class="meta">Бригадир: {{ c.leader|default:"—" }}{% if c.phone %} · {{ c.phone }}{% endif %}</div></div>
+    <div class="side">{{ c.members.all|length }} чел.</div><span class="chev">{% icon 'chevron' 18 %}</span></a>
+{% endfor %}</div>
+{% else %}<div class="empty">Бригад нет. <a href="{% url 'crew_create' %}">Создать бригаду</a></div>{% endif %}
+
+<h2>Рабочие и сотрудники <span class="count">{{ employees|length }}</span></h2>
+{% if employees %}<div class="list">{% for e in employees %}
+  <a class="row" href="{% url 'employee_edit' e.pk %}"><span class="ico {% if not e.is_active %}out{% endif %}">{{ e.full_name|first }}</span>
+    <div class="body"><div class="title">{{ e.full_name }}</div><div class="meta">{{ e.position|default:"—" }}{% for c in e.crews.all %} · {{ c.name }}{% endfor %}{% if not e.is_active %} · не работает{% endif %}</div></div>
+    <div class="side small muted">{{ e.phone }}</div><span class="chev">{% icon 'chevron' 18 %}</span></a>
+{% endfor %}</div>
+{% else %}<div class="empty">Рабочих нет. <a href="{% url 'employee_create' %}">Добавить</a></div>{% endif %}
+
+<h2 id="tasks">Открытые задачи <span class="count">{{ tasks|length }}</span><a class="more" href="{% url 'task_create' %}">+ Задача</a></h2>
+{% if tasks %}<div class="list">{% for t in tasks %}
+  <div class="row"><span class="ico">{% icon 'task' 20 %}</span><div class="body"><div class="title">{{ t.title }}</div><div class="meta">{{ t.construction_object|default:"—" }} · {{ t.assignee|default:"без исполнителя" }}</div></div>
+  <div class="side"><span class="badge {% if t.status == 'in_progress' %}in_progress{% endif %}">{{ t.get_status_display }}</span><div class="meta">{% if t.due_date %}до {{ t.due_date|date:"d.m" }}{% endif %}</div></div></div>
+{% endfor %}</div>
+{% else %}<div class="empty">Открытых задач нет</div>{% endif %}
 {% endblock %}

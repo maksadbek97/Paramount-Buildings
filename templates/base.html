@@ -1,29 +1,69 @@
-{% load static %}<!doctype html>
+{% load static ui %}<!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Paramount Buildings{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0B1F4D">
+  <title>{% block title %}{% if title %}{{ title }} · {% endif %}Paramount Buildings{% endblock %}</title>
+  <link rel="icon" href="{% static 'img/mark.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/mark.png' %}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'style.css' %}">
 </head>
-<body>
-<header>
-  <div class="brand">Paramount <span>Buildings</span></div>
-  {% if user.is_authenticated %}
+{% with n=request.resolver_match.url_name|default:"" %}
+<body class="{% if user.is_authenticated %}app{% else %}guest{% endif %}">
+{% if user.is_authenticated %}
+<aside class="sidebar">
+  <a class="logo" href="{% url 'dashboard' %}"><img src="{% static 'img/logo-white.png' %}" alt="Paramount Buildings"></a>
   <nav>
-    <a href="{% url 'dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}class="active"{% endif %}>Главная</a>
-    <a href="{% url 'object_list' %}" {% if 'object' in request.resolver_match.url_name %}class="active"{% endif %}>Объекты</a>
-    <a href="{% url 'staff_list' %}" {% if request.resolver_match.url_name == 'staff_list' %}class="active"{% endif %}>Сотрудники и задачи</a>
-    <a href="{% url 'warehouse_list' %}" {% if request.resolver_match.url_name == 'warehouse_list' %}class="active"{% endif %}>Склад</a>
-    <a href="{% url 'finance_list' %}" {% if request.resolver_match.url_name == 'finance_list' %}class="active"{% endif %}>Финансы</a>
+    <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' %}Главная</a>
+    <a href="{% url 'contract_list' %}" class="{% if 'contract' in n or 'assignment' in n %}active{% endif %}">{% icon 'contract' %}Объёмы работ</a>
+    <a href="{% url 'object_list' %}" class="{% if 'object' in n %}active{% endif %}">{% icon 'building' %}Объекты</a>
+    <a href="{% url 'staff_list' %}" class="{% if 'staff' in n or 'employee' in n or 'crew' in n or 'task' in n %}active{% endif %}">{% icon 'users' %}Рабочие и бригады</a>
+    <a href="{% url 'warehouse_list' %}" class="{% if 'warehouse' in n or 'material' in n or 'movement' in n %}active{% endif %}">{% icon 'box' %}Склад</a>
+    <a href="{% url 'finance_list' %}" class="{% if 'finance' in n or 'transaction' in n %}active{% endif %}">{% icon 'wallet' %}Финансы</a>
   </nav>
-  <div class="user">
-    {{ user.get_username }}
-    {% if user.is_staff %}<a href="{% url 'admin:index' %}">Админка</a>{% endif %}
-    <form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}<button style="background:none;border:0;color:#cfd4da;cursor:pointer;text-decoration:underline">Выйти</button></form>
+  <a class="btn btn-accent btn-block" href="{% url 'worklog_create' %}">{% icon 'plus' %}Записать выработку</a>
+  <div class="me">
+    <span class="avatar">{{ user.get_username|first|upper }}</span>
+    <span class="who">{{ user.get_username }}</span>
+    {% if user.is_staff and not DEMO %}<a href="{% url 'admin:index' %}" title="Админ-панель">{% icon 'settings' 18 %}</a>{% endif %}
+    {% if not DEMO %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button title="Выйти">{% icon 'logout' 18 %}</button></form>{% endif %}
   </div>
-  {% endif %}
+</aside>
+
+<header class="topbar">
+  <a href="{% url 'dashboard' %}"><img src="{% static 'img/logo.png' %}" alt="Paramount Buildings"></a>
 </header>
-<main>{% block content %}{% endblock %}</main>
+{% endif %}
+
+<main>
+  {% if DEMO %}<div class="demo-note">{% icon 'alert' 18 %}<span><b>Демо-версия</b> с примерными данными. Формы можно открыть и заполнить, но сохранение работает только в полной версии системы.</span></div>{% endif %}
+  {% for m in messages %}<div class="toast">{{ m }}</div>{% endfor %}
+  {% block content %}{% endblock %}
+</main>
+
+{% if user.is_authenticated %}
+<nav class="tabbar">
+  <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' %}<span>Главная</span></a>
+  <a href="{% url 'contract_list' %}" class="{% if 'contract' in n or 'assignment' in n %}active{% endif %}">{% icon 'contract' %}<span>Объёмы</span></a>
+  <a href="{% url 'worklog_create' %}" class="fab {% if n == 'worklog_create' %}active{% endif %}" aria-label="Записать выработку">{% icon 'plus' 28 %}</a>
+  <a href="{% url 'staff_list' %}" class="{% if 'staff' in n or 'employee' in n or 'crew' in n %}active{% endif %}">{% icon 'users' %}<span>Рабочие</span></a>
+  <a href="{% url 'menu' %}" class="{% if n == 'menu' or 'object' in n or 'warehouse' in n or 'finance' in n %}active{% endif %}">{% icon 'menu' %}<span>Ещё</span></a>
+</nav>
+{% endif %}
+{% if DEMO %}<script>
+document.querySelectorAll('form[method=post]').forEach(function (f) {
+  f.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var t = document.createElement('div'); t.className = 'toast';
+    t.textContent = 'Это демо: данные не сохраняются. В полной версии запись появится сразу.';
+    document.querySelector('main').prepend(t); window.scrollTo({top: 0, behavior: 'smooth'});
+  });
+});
+</script>{% endif %}
 </body>
+{% endwith %}
 </html>

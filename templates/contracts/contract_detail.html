@@ -1,0 +1,67 @@
+{% extends "base.html" %}{% load ui %}
+{% block title %}{{ c.work_type }} · Paramount Buildings{% endblock %}
+{% block content %}
+<a class="back" href="{% url 'object_detail' c.construction_object_id %}">{% icon 'back' 18 %}{{ c.construction_object }}</a>
+<div class="page-head">
+  <div class="titles"><h1>{{ c.work_type }} <span class="badge {{ c.status }}">{{ c.get_status_display }}</span></h1>
+    <div class="sub">{{ c.volume|num }} {{ c.unit }} × {{ c.price|money }} сум{% if c.construction_object.client %} · {{ c.construction_object.client }}{% endif %}</div></div>
+  <div class="actions">
+    <a class="btn btn-accent" href="{% url 'worklog_create' %}?contract={{ c.pk }}">{% icon 'brick' 18 %}Выработка</a>
+    <a class="btn btn-ghost" href="{% url 'payment_create' %}?contract={{ c.pk }}">{% icon 'cash' 18 %}Платёж</a>
+    <a class="btn btn-ghost" href="{% url 'contract_edit' c.pk %}" aria-label="Изменить">{% icon 'edit' 18 %}</a>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat hero">
+    <div class="label">Выполнено</div>
+    <div class="value">{{ c.done_volume|num }} <small style="font-size:16px;opacity:.7">из {{ c.volume|num }} {{ c.unit }}</small></div>
+    <div class="bar"><span style="width:{{ c.progress }}%"></span></div>
+    <div class="hint" style="margin-top:8px">{{ c.progress }}% · осталось {{ c.remaining_volume|num }} {{ c.unit }}{% if c.end_date %} · срок {{ c.end_date|date:"d.m.Y" }}{% endif %}</div>
+  </div>
+  <div class="stat"><div class="label">Сумма договора</div><div class="value" title="{{ c.total|money }}">{{ c.total|short }}</div><div class="hint">заработано {{ c.earned|short }}</div></div>
+  <div class="stat"><div class="label">Получено</div><div class="value ok" title="{{ c.received|money }}">{{ c.received|short }}</div><div class="hint">должны нам {{ c.client_due|short }}</div></div>
+  <div class="stat"><div class="label">Начислено рабочим</div><div class="value" title="{{ c.labor_accrued|money }}">{{ c.labor_accrued|short }}</div><div class="hint">выплачено {{ c.paid_workers|short }}</div></div>
+  <div class="stat"><div class="label">Материалы и прочее</div><div class="value">{{ c.materials|add:c.other_expenses|short }}</div></div>
+  <div class="stat"><div class="label">Прибыль</div><div class="value {% if c.profit >= 0 %}ok{% else %}bad{% endif %}" title="{{ c.profit|money }}">{{ c.profit|short }}</div><div class="hint">на руках {{ c.cash|short }}</div></div>
+</div>
+
+<h2>Кто работает <span class="count">{{ assignments|length }}</span><a class="more" href="{% url 'assignment_create' c.pk %}">+ Назначить</a></h2>
+{% if assignments %}<div class="list">
+{% for a in assignments %}
+  <div class="row stack">
+    <span class="ico">{% if a.is_crew %}{% icon 'users' 20 %}{% else %}{{ a.performer.full_name|first }}{% endif %}</span>
+    <div class="body">
+      <div class="title">{{ a.performer }}</div>
+      <div class="meta">{% if a.pay_type == 'day' %}{{ a.rate|money }} сум за чел.-день · {{ a.days }} чел.-дн.{% else %}{{ a.rate|money }} сум за {{ c.unit }}{% endif %} · сделал {{ a.done_volume|num }} {{ c.unit }}{% if a.planned_volume %} из {{ a.planned_volume|num }}{% endif %}</div>
+    </div>
+    <div class="side">
+      {% if a.due > 0 %}<span class="bad">к выплате {{ a.due|money }}</span>{% else %}<span class="ok">рассчитан</span>{% endif %}
+      <div class="meta">начислено {{ a.earned|short }} · выплачено {{ a.paid|short }}</div>
+    </div>
+  </div>
+{% endfor %}</div>
+{% else %}<div class="empty">Никого не назначили.<br><a class="btn btn-primary" href="{% url 'assignment_create' c.pk %}">Назначить рабочего или бригаду</a></div>{% endif %}
+
+<div class="grid2">
+  <div>
+    <h2>Выработка по дням</h2>
+    {% if logs %}<div class="list">{% for l in logs %}
+      <div class="row"><span class="ico">{% icon 'brick' 20 %}</span>
+        <div class="body"><div class="title">{{ l.date|date:"d E, D" }}</div><div class="meta">{{ l.assignment.performer }} · {{ l.people }} чел.{% if l.note %} · {{ l.note }}{% endif %}</div></div>
+        <div class="side">+{{ l.volume|num }} {{ c.unit }}<div class="meta">{{ l.pay|money }} сум</div></div></div>
+    {% endfor %}</div>
+    {% else %}<div class="empty">Записей нет</div>{% endif %}
+  </div>
+  <div>
+    <h2>Платежи</h2>
+    {% if payments %}<div class="list">{% for p in payments %}
+      <div class="row"><span class="ico {% if p.is_income %}in{% else %}out{% endif %}">{% icon 'cash' 20 %}</span>
+        <div class="body"><div class="title">{{ p.get_kind_display }}</div><div class="meta">{{ p.date|date:"d.m.Y" }}{% if p.assignment %} · {{ p.assignment.performer }}{% endif %}{% if p.note %} · {{ p.note }}{% endif %}</div></div>
+        <div class="side {% if p.is_income %}ok{% endif %}">{% if p.is_income %}+{% else %}−{% endif %}{{ p.amount|money }}</div></div>
+    {% endfor %}</div>
+    {% else %}<div class="empty">Платежей нет</div>{% endif %}
+  </div>
+</div>
+{% if c.note %}<h2>Примечание</h2><div class="kv" style="display:block">{{ c.note|linebreaksbr }}</div>{% endif %}
+{% endblock %}

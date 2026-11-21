@@ -1,12 +1,24 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load ui %}
 {% block content %}
-<h1>Склад</h1>
-<h2>Остатки материалов</h2>
-{% if materials %}<table><tr><th>Материал</th><th>Остаток</th><th>Минимум</th><th>Цена</th></tr>
-{% for m in materials %}<tr><td>{{ m.name }}</td><td class="{% if m.is_low %}bad{% endif %}">{{ m.stock }} {{ m.unit }}</td><td>{{ m.min_stock }}</td><td>{{ m.price }}</td></tr>{% endfor %}</table>
-{% else %}<div class="empty">Материалов нет. Добавьте в <a href="{% url 'admin:warehouse_material_add' %}">админке</a>.</div>{% endif %}
+<div class="page-head">
+  <div class="titles"><h1>Склад</h1><div class="sub">Остатки и движение материалов</div></div>
+  <div class="actions">
+    <a class="btn btn-primary" href="{% url 'movement_create' %}">{% icon 'plus' 18 %}Приход / расход</a>
+    <a class="btn btn-ghost" href="{% url 'material_create' %}">{% icon 'plus' 18 %}Материал</a>
+  </div>
+</div>
+<h2>Остатки</h2>
+{% if materials %}<div class="list">{% for m in materials %}
+  <div class="row"><span class="ico {% if m.is_low %}out{% endif %}">{% icon 'box' 20 %}</span>
+    <div class="body"><div class="title">{{ m.name }}</div><div class="meta">{{ m.price|money }} сум/{{ m.unit }} · минимум {{ m.min_stock|num }}</div></div>
+    <div class="side {% if m.is_low %}bad{% endif %}">{{ m.stock|num }} {{ m.unit }}{% if m.is_low %}<div class="meta bad">мало</div>{% endif %}</div></div>
+{% endfor %}</div>
+{% else %}<div class="empty">Материалов нет. <a href="{% url 'material_create' %}">Добавить</a></div>{% endif %}
 <h2>Последние движения</h2>
-{% if movements %}<table><tr><th>Дата</th><th>Тип</th><th>Материал</th><th>Кол-во</th><th>Поставщик / Объект</th></tr>
-{% for mv in movements %}<tr><td>{{ mv.date|date:"d.m.Y" }}</td><td>{{ mv.get_kind_display }}</td><td>{{ mv.material }}</td><td>{{ mv.quantity }}</td><td>{{ mv.supplier|default:mv.construction_object|default:"—" }}</td></tr>{% endfor %}</table>
+{% if movements %}<div class="list">{% for mv in movements %}
+  <div class="row"><span class="ico {% if mv.kind == 'in' %}in{% else %}out{% endif %}">{% if mv.kind == 'in' %}+{% else %}−{% endif %}</span>
+    <div class="body"><div class="title">{{ mv.material }}</div><div class="meta">{{ mv.date|date:"d.m.Y" }} · {{ mv.supplier|default:mv.construction_object|default:"—" }}</div></div>
+    <div class="side">{% if mv.kind == 'in' %}+{% else %}−{% endif %}{{ mv.quantity|num }} {{ mv.material.unit }}</div></div>
+{% endfor %}</div>
 {% else %}<div class="empty">Движений нет</div>{% endif %}
 {% endblock %}

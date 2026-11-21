@@ -1,21 +1,22 @@
-{% extends "base.html" %}
+{% extends "base.html" %}{% load ui %}
 {% block content %}
-<h1>Объекты</h1>
-<div class="filters">
-  <a href="{% url 'object_list' %}" {% if not current %}class="active"{% endif %}>Все</a>
-  {% for value, label in statuses %}<a href="?status={{ value }}" {% if current == value %}class="active"{% endif %}>{{ label }}</a>{% endfor %}
+<div class="page-head">
+  <div class="titles"><h1>Объекты</h1><div class="sub">Площадки, где мы работаем</div></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'object_create' %}">{% icon 'plus' 18 %}Новый объект</a></div>
 </div>
-{% if objects %}
-<table>
-<tr><th>Объект</th><th>Заказчик</th><th>Ответственный</th><th>Статус</th><th>Срок</th><th>Задач</th></tr>
+<div class="chips">
+  <a href="{% url 'object_list' %}" class="{% if not current %}active{% endif %}">Все</a>
+  {% for value, label in statuses %}<a href="?status={{ value }}" class="{% if current == value %}active{% endif %}">{{ label }}</a>{% endfor %}
+</div>
+{% if objects %}<div class="list">
 {% for o in objects %}
-<tr>
-  <td><a href="{% url 'object_detail' o.pk %}">{{ o.name }}</a><br><small style="color:var(--muted)">{{ o.address }}</small></td>
-  <td>{{ o.client|default:"—" }}</td><td>{{ o.manager|default:"—" }}</td>
-  <td><span class="badge {{ o.status }}">{{ o.get_status_display }}</span></td>
-  <td>{{ o.end_date|default:"—" }}</td><td>{{ o.task_count }}</td>
-</tr>
-{% endfor %}
-</table>
-{% else %}<div class="empty">Объектов пока нет. Добавьте их в <a href="{% url 'admin:objects_constructionobject_add' %}">админке</a>.</div>{% endif %}
+  <a class="row" href="{% url 'object_detail' o.pk %}">
+    <span class="ico">{% icon 'building' 20 %}</span>
+    <div class="body"><div class="title">{{ o.name }}</div>
+      <div class="meta">{{ o.client|default:"Заказчик не указан" }}{% if o.address %} · {{ o.address }}{% endif %}</div></div>
+    <div class="side"><span class="badge {{ o.status }}">{{ o.get_status_display }}</span><div class="meta">объёмов: {{ o.contract_count }}</div></div>
+    <span class="chev">{% icon 'chevron' 18 %}</span>
+  </a>
+{% endfor %}</div>
+{% else %}<div class="empty">Объектов пока нет.<br><a class="btn btn-primary" href="{% url 'object_create' %}">Добавить объект</a></div>{% endif %}
 {% endblock %}

@@ -1,11 +1,23 @@
-{% extends "base.html" %}
-{% block title %}Вход — Paramount Buildings{% endblock %}
+{% extends "base.html" %}{% load static %}
+{% block title %}Вход · Paramount Buildings{% endblock %}
 {% block content %}
-<div class="login card">
-  <h1>Вход</h1>
-  <form method="post">{% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Войти</button>
-  </form>
+<div class="login-wrap">
+  <div class="login-art">
+    <img class="logo" src="{% static 'img/logo-white.png' %}" alt="Paramount Buildings">
+    <h2>Объёмы, бригады и деньги<br><span>в одном месте</span></h2>
+    <div class="muted" style="color:#B9C6E0">Строим современное будущее</div>
+    <img class="mark" src="{% static 'img/mark-white.png' %}" alt="">
+  </div>
+  <div class="login-box">
+    <form method="post" class="login">{% csrf_token %}
+      <img class="mobile-logo" src="{% static 'img/logo.png' %}" alt="Paramount Buildings">
+      <h1>Вход</h1>
+      <p class="muted">Введите логин и пароль</p>
+      {% if form.errors %}<div class="errors">Неверный логин или пароль</div>{% endif %}
+      <div class="fieldrow"><label for="id_username">Логин</label>{{ form.username }}</div>
+      <div class="fieldrow"><label for="id_password">Пароль</label>{{ form.password }}</div>
+      <button class="btn btn-primary btn-lg btn-block" type="submit">Войти</button>
+    </form>
+  </div>
 </div>
 {% endblock %}
