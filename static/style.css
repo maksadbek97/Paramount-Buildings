@@ -874,3 +874,5 @@ a.k.link:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(11,31,
 }
 .otable td.dl { width: 1%; }
 @media (max-width: 899px) { .otable td.dl { width: auto; } }
+.av.lt { background: #EEF2F7; color: var(--navy-2); width: 30px; height: 30px; font-size: 13px; }
+.nodept { margin-top: 18px; max-width: 520px; } .nodept .dept-head { padding: 6px 0; } .nodept .dept-head > span:nth-child(2) { flex: 1; }

@@ -81,10 +81,10 @@ class Command(BaseCommand):
         if not ConstructionObject.objects.exists():
             raise CommandError("База пуста. Сначала выполните: python manage.py seed_demo")
 
-        user, _ = get_user_model().objects.get_or_create(username="n.balatev")
+        user, _ = get_user_model().objects.get_or_create(username="n.baltaev")
         user.is_superuser = True  # в демо видны все кнопки (проверка ПТО и т.п.)
-        user.first_name, user.last_name = "Нурбек", "Балатев"  # в шапке: «Балатев Нурбек»
-        user.email = user.email or "n.balatev@paramount-buildings.kz"
+        user.first_name, user.last_name = "Нурбек", "Балтаев"  # в шапке: «Балтаев Нурбек»
+        user.email = user.email or "n.baltaev@paramount-buildings.kz"
         user.save()
         client = Client()
         client.force_login(user)

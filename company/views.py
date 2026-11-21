@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 
@@ -30,7 +30,7 @@ def _page(request, tab, template, ctx):
 
 def _schedule_rows():
     """Штатное расписание с фактом: сколько людей реально сидит на каждой строке."""
-    fact = {(r["department"], r["position"]): r["n"] for r in Employee.objects.filter(is_active=True).values(
+    fact = {(r["department"], r["position"]): r["n"] for r in Employee.objects.filter(is_active=True, in_staff=True).values(
         "department", "position").annotate(n=Count("id"))}
     groups = []
     for d in Department.objects.prefetch_related("units__position"):
@@ -51,7 +51,7 @@ def _schedule_rows():
 def profile(request):
     company = Company.get()
     groups, total = _schedule_rows()
-    active = Employee.objects.filter(is_active=True)
+    active = Employee.objects.filter(is_active=True, in_staff=True)
     req = [("Наименование", company.name), ("БИН", company.bin), ("КБе", company.kbe),
            ("Юридический адрес", company.legal_address)]
     main = BankAccount.objects.filter(is_main=True, currency="KZT").first() or BankAccount.objects.first()
@@ -92,12 +92,17 @@ def docs(request):
 def _tree():
     """Отделы деревом: [(отдел, глубина)], с числом людей и вакансиями."""
     deps = list(Department.objects.select_related("head__position").annotate(
-        n=Count("employees", filter=Q(employees__is_active=True))))
+        n=Count("employees", filter=Q(employees__is_active=True, employees__in_staff=True))))
+    members = {}
+    for e in Employee.objects.filter(is_active=True, in_staff=True, department__isnull=False).select_related(
+            "position"):
+        members.setdefault(e.department_id, []).append(e)
     groups, _ = _schedule_rows()
     vacant = {g["d"].pk: g["vacant"] for g in groups}
     kids = {}
     for d in deps:
         d.vacant = vacant.get(d.pk, 0)
+        d.members = [e for e in members.get(d.pk, []) if e.pk != d.head_id]
         kids.setdefault(d.parent_id, []).append(d)
     out = []
 
@@ -117,23 +122,26 @@ def structure(request):
     top = [d for d in deps if d.depth == 0]
     return _page(request, "structure", "company/structure.html", {
         "top": top, "deps": deps,
-        "no_dept": Employee.objects.filter(is_active=True, department__isnull=True).count()})
+        "no_dept": Employee.objects.filter(is_active=True, in_staff=True, department__isnull=True).select_related(
+            "position")})
 
 
 @login_required
 def staff(request):
     dept = request.GET.get("dept", "")
-    qs = Employee.objects.select_related("position", "department").order_by("department__order", "full_name")
+    qs = Employee.objects.filter(in_staff=True).select_related("position", "department").order_by(
+        F("department__order").asc(nulls_last=True), "full_name")
     show_fired = dept == "fired"
     qs = qs.filter(is_active=not show_fired)
     selected = None
     if dept.isdigit():
         selected = get_object_or_404(Department, pk=int(dept))
         qs = qs.filter(department=selected)
-    counts = dict(Employee.objects.filter(is_active=True).values_list("department").annotate(n=Count("id")))
+    counts = dict(Employee.objects.filter(is_active=True, in_staff=True).values_list("department").annotate(
+        n=Count("id")))
     filters = [("", "Все", sum(counts.values()))] + [
         (str(d.pk), d.name, counts.get(d.pk, 0)) for d in Department.objects.all()]
-    fired = Employee.objects.filter(is_active=False).count()
+    fired = Employee.objects.filter(is_active=False, in_staff=True).count()
     if fired:
         filters.append(("fired", "Уволенные", fired))
     today = date.today()
@@ -141,7 +149,7 @@ def staff(request):
     for e in qs:
         months = ((today - e.hired_at).days // 30) if e.hired_at else None
         rows.append({"e": e, "tenure": (f"{months // 12} г. {months % 12} мес." if months >= 12 else
-                                        f"{months} мес.") if months is not None else ""})
+                                        (f"{months} мес." if months else "меньше месяца")) if months is not None else ""})
     return _page(request, "staff", "company/staff.html", {"rows": rows, "dept": dept, "filters": filters,
                                                           "selected": selected})
 
@@ -149,7 +157,7 @@ def staff(request):
 @login_required
 def schedule(request):
     groups, total = _schedule_rows()
-    fact_fund = sum((e.salary for e in Employee.objects.filter(is_active=True)), Decimal(0))
+    fact_fund = sum((e.salary for e in Employee.objects.filter(is_active=True, in_staff=True)), Decimal(0))
     return _page(request, "schedule", "company/schedule.html", {"groups": groups, "total": total,
                                                                 "fact_fund": fact_fund})
 
