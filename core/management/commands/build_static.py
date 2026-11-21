@@ -13,14 +13,14 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client, override_settings
 
-from contracts.models import Crew, WorkContract
+from contracts.models import Crew, WorkContract, WorkLog
 from objects.models import ConstructionObject
 from staff.models import Employee
 
 STATIC_PAGES = [
     "/", "/menu/", "/objects/", "/objects/new/", "/contracts/", "/contracts/new/", "/worklog/new/",
     "/payments/new/", "/staff/", "/staff/new/", "/crews/new/", "/tasks/new/", "/warehouse/",
-    "/warehouse/materials/new/", "/warehouse/movements/new/", "/finance/", "/finance/new/",
+    "/warehouse/materials/new/", "/warehouse/movements/new/", "/finance/", "/finance/new/", "/pto/", "/history/",
 ]
 
 
@@ -35,8 +35,10 @@ def page_list():
         pages[f"/objects/{pk}/"] = f"/objects/{pk}/"
         pages[f"/objects/{pk}/edit/"] = f"/objects/{pk}/edit/"
     for pk in WorkContract.objects.values_list("pk", flat=True):
-        for suffix in ("", "edit/", "assign/"):
+        for suffix in ("", "edit/", "assign/", "norm/"):
             pages[f"/contracts/{pk}/{suffix}"] = f"/contracts/{pk}/{suffix}"
+    for pk in WorkLog.objects.filter(status=WorkLog.Status.SUBMITTED).values_list("pk", flat=True):
+        pages[f"/worklog/{pk}/review/"] = f"/worklog/{pk}/review/"
     for pk in Employee.objects.values_list("pk", flat=True):
         pages[f"/staff/{pk}/edit/"] = f"/staff/{pk}/edit/"
     for pk in Crew.objects.values_list("pk", flat=True):
@@ -56,6 +58,8 @@ class Command(BaseCommand):
             raise CommandError("База пуста. Сначала выполните: python manage.py seed_demo")
 
         user, _ = get_user_model().objects.get_or_create(username="Демо")
+        user.is_superuser = True  # в демо видны все кнопки (проверка ПТО и т.п.)
+        user.save()
         client = Client()
         client.force_login(user)
 

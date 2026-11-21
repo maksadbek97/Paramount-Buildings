@@ -1,0 +1,14 @@
+{% load ui %}<div class="row">
+  <span class="ico {% if l.status == 'accepted' %}in{% elif l.status == 'rejected' %}out{% else %}warn{% endif %}">{% if l.status == 'accepted' %}{% icon 'check' 20 %}{% elif l.status == 'rejected' %}✕{% else %}{% icon 'brick' 20 %}{% endif %}</span>
+  <div class="body">
+    <div class="title">{% if show_contract %}{{ l.assignment.performer }}{% else %}{{ l.date|date:"d E, D" }}{% endif %}</div>
+    <div class="meta">{% if show_contract %}{{ c.work_type }} · {{ l.date|date:"d E" }}{% else %}{{ l.assignment.performer }} · {{ l.people }} чел.{% endif %}{% if l.section or l.floor %} · {% if l.section %}с.{{ l.section }}{% endif %}{% if l.floor %} эт.{{ l.floor }}{% endif %}{% endif %}{% if l.note %} · {{ l.note }}{% endif %}{% if l.review_note %} · <i>ПТО: {{ l.review_note }}</i>{% endif %}</div>
+  </div>
+  <div class="side">
+    {% if l.status == 'submitted' %}{{ l.volume|num }} {{ c.unit }}
+      <div class="meta">{% if perms.contracts.review_worklog %}<a href="{% url 'worklog_review' l.pk %}">Проверить →</a>{% else %}на проверке{% endif %}</div>
+    {% elif l.status == 'accepted' %}<span class="ok">+{{ l.accepted_volume|num }} {{ c.unit }}</span>
+      <div class="meta">{% if l.rejected_part %}из {{ l.volume|num }} · {% endif %}{{ l.pay|money }} ₸</div>
+    {% else %}<span class="bad">0 из {{ l.volume|num }}</span><div class="meta">отклонено</div>{% endif %}
+  </div>
+</div>

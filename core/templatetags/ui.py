@@ -52,8 +52,8 @@ def short(value):
         if a >= size:
             v = (a / size).quantize(Decimal("0.1"))
             text = f"{v}".replace(".", ",").removesuffix(",0")
-            return f"{sign}{text}{NBSP}{word}"
-    return sign + money(a)
+            return f"{sign}{text}{NBSP}{word}{NBSP}₸"
+    return sign + money(a) + NBSP + "₸"
 
 
 @register.simple_tag
@@ -83,5 +83,8 @@ ICONS = {
     "logout": '<path d="M15 4h4v16h-4M10 17l5-5-5-5M15 12H3"/>',
     "settings": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.8 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.8-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.8 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 10h.1a2 2 0 1 1 0 4z"/>',
     "alert": '<path d="M12 3l10 18H2z"/><path d="M12 10v4M12 17.5h.01"/>',
+    "check": '<path d="M5 12l5 5L20 7"/>',
+    "history": '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
+    "ruler": '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
     "dot": '<circle cx="12" cy="12" r="3"/>',
 }

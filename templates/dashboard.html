@@ -1,34 +1,52 @@
 {% extends "base.html" %}{% load ui %}
 {% block content %}
 <div class="page-head">
-  <div class="titles"><h1>Главная</h1><div class="sub">Субподряд: что взяли, что сделали, сколько денег</div></div>
+  <div class="titles"><h1>Дашборд компании</h1><div class="sub">Общая картина по объектам, объёмам и деньгам</div></div>
 </div>
 
 <div class="quick">
   <a class="main" href="{% url 'worklog_create' %}"><span class="ico">{% icon 'brick' %}</span>Записать выработку</a>
+  <a href="{% url 'pto' %}"><span class="ico">{% icon 'check' %}</span>Проверка ПТО{% if s.pending %} <span class="badge paused">{{ s.pending|short }}</span>{% endif %}</a>
   <a href="{% url 'payment_create' %}"><span class="ico">{% icon 'cash' %}</span>Платёж / выплата</a>
   <a href="{% url 'contract_create' %}"><span class="ico">{% icon 'contract' %}</span>Новый объём</a>
-  <a href="{% url 'employee_create' %}"><span class="ico">{% icon 'users' %}</span>Новый рабочий</a>
 </div>
+
+{% if alerts %}
+<h2>Требует внимания <span class="count">{{ alerts|length }}</span></h2>
+<div class="list alerts">
+  {% for level, text, url in alerts|slice:":8" %}
+  <a class="row" href="{{ url }}"><span class="ico {% if level == 'bad' %}out{% elif level == 'warn' %}warn{% endif %}">{% icon 'alert' 20 %}</span>
+    <div class="body"><div class="title" style="font-weight:600">{{ text }}</div></div><span class="chev">{% icon 'chevron' 18 %}</span></a>
+  {% endfor %}
+</div>
+{% endif %}
 
 <h2>Объёмы работ</h2>
 <div class="stats">
   <div class="stat hero">
-    <div class="label">Взяли работ на сумму</div>
-    <div class="value" title="{{ s.total|money }} сум">{{ s.total|short }} сум</div>
+    <div class="label">Общая сумма договоров</div>
+    <div class="value" title="{{ s.total|money }} ₸">{{ s.total|short }}</div>
     <div class="bar"><span style="width:{{ s.progress }}%"></span></div>
-    <div class="hint" style="margin-top:8px">Сделано {{ s.progress }}% · договоров: {{ s.count }}</div>
+    <div class="hint" style="margin-top:8px">Принято {{ s.progress }}% · договоров: {{ s.count }}</div>
   </div>
-  <div class="stat"><div class="label">Сделано</div><div class="value" title="{{ s.earned|money }}">{{ s.earned|short }}</div><div class="hint">заработано по объёму</div></div>
+  <div class="stat"><div class="label">Принято работ</div><div class="value" title="{{ s.earned|money }}">{{ s.earned|short }}</div><div class="hint">на проверке: {{ s.pending|short }}</div></div>
   <div class="stat"><div class="label">Осталось сделать</div><div class="value" title="{{ s.remaining|money }}">{{ s.remaining|short }}</div><div class="hint">на эту сумму</div></div>
 </div>
 
 <h2>Деньги</h2>
 <div class="stats">
-  <div class="stat"><div class="label">Получено от генподрядчика</div><div class="value ok" title="{{ s.received|money }}">{{ s.received|short }}</div><div class="hint">ещё должны: {{ s.client_due|short }}</div></div>
+  <div class="stat"><div class="label">Получено от заказчиков</div><div class="value ok" title="{{ s.received|money }}">{{ s.received|short }}</div><div class="hint">дебиторка: {{ s.client_due|short }}</div></div>
   <div class="stat"><div class="label">Выплачено рабочим</div><div class="value" title="{{ s.paid_workers|money }}">{{ s.paid_workers|short }}</div><div class="hint">{% if s.workers_due > 0 %}<span class="bad">должны рабочим: {{ s.workers_due|short }}</span>{% else %}долгов нет{% endif %}</div></div>
   <div class="stat"><div class="label">Материалы и прочее</div><div class="value" title="{{ s.materials|money }}">{{ s.materials|short }}</div></div>
-  <div class="stat"><div class="label">Прибыль</div><div class="value {% if s.profit >= 0 %}ok{% else %}bad{% endif %}" title="{{ s.profit|money }}">{{ s.profit|short }}</div><div class="hint">на руках: {{ s.cash|short }}</div></div>
+  <div class="stat"><div class="label">Фактическая прибыль</div><div class="value {% if s.profit >= 0 %}ok{% else %}bad{% endif %}" title="{{ s.profit|money }}">{{ s.profit|short }}</div><div class="hint">на руках: {{ s.cash|short }}</div></div>
+</div>
+
+<h2>Компания</h2>
+<div class="stats">
+  <a class="stat" href="{% url 'object_list' %}"><div class="label">Объекты</div><div class="value">{{ objects_count.working }}</div><div class="hint">в работе · приостановлено {{ objects_count.paused }} · завершено {{ objects_count.done }}</div></a>
+  <a class="stat" href="{% url 'warehouse_list' %}"><div class="label">Материалы на складе</div><div class="value">{{ stock_value|short }}</div><div class="hint {% if low_materials %}bad{% endif %}">дефицит: {{ low_materials|length }}</div></a>
+  <a class="stat" href="{% url 'staff_list' %}#tasks"><div class="label">Задачи</div><div class="value {% if tasks_overdue %}bad{% endif %}">{{ tasks_overdue }}</div><div class="hint">просрочено · открыто {{ tasks_open }}</div></a>
+  <a class="stat" href="{% url 'staff_list' %}"><div class="label">Рабочие · бригады</div><div class="value">{{ workers }} · {{ crews }}</div></a>
 </div>
 
 <h2>В работе <span class="count">{{ active_contracts|length }}</span><a class="more" href="{% url 'contract_list' %}">Все →</a></h2>
@@ -38,27 +56,8 @@
 <div class="empty">Пока нет объёмов в работе.<br><a class="btn btn-primary" href="{% url 'contract_create' %}">{% icon 'plus' 18 %}Добавить объём работ</a></div>
 {% endif %}
 
-<div class="grid2">
-  <div>
-    <h2>Последняя выработка</h2>
-    {% if recent_logs %}<div class="list">
-    {% for l in recent_logs %}
-      <a class="row" href="{% url 'contract_detail' l.assignment.contract_id %}">
-        <span class="ico">{% icon 'brick' 20 %}</span>
-        <div class="body"><div class="title">{{ l.assignment.performer }}</div><div class="meta">{{ l.assignment.contract.work_type }} · {{ l.date|date:"d E" }}</div></div>
-        <div class="side">+{{ l.volume|num }} {{ l.assignment.contract.unit }}</div>
-      </a>
-    {% endfor %}</div>
-    {% else %}<div class="empty">Выработки ещё нет</div>{% endif %}
-  </div>
-  <div>
-    <h2>Коротко</h2>
-    <div class="list">
-      <a class="row" href="{% url 'object_list' %}"><span class="ico">{% icon 'building' 20 %}</span><div class="body"><div class="title">Объекты в работе</div></div><div class="side">{{ objects_active }}</div></a>
-      <a class="row" href="{% url 'staff_list' %}"><span class="ico">{% icon 'users' 20 %}</span><div class="body"><div class="title">Рабочие · бригады</div></div><div class="side">{{ workers }} · {{ crews }}</div></a>
-      <a class="row" href="{% url 'staff_list' %}#tasks"><span class="ico">{% icon 'task' 20 %}</span><div class="body"><div class="title">Открытые задачи</div></div><div class="side">{{ tasks_open }}</div></a>
-      <a class="row" href="{% url 'warehouse_list' %}"><span class="ico {% if low_materials %}out{% endif %}">{% icon 'box' 20 %}</span><div class="body"><div class="title">Материалы на исходе</div>{% if low_materials %}<div class="meta">{% for m in low_materials %}{{ m.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}</div><div class="side {% if low_materials %}bad{% endif %}">{{ low_materials|length }}</div></a>
-    </div>
-  </div>
-</div>
+<h2>Последняя выработка<a class="more" href="{% url 'pto' %}">ПТО →</a></h2>
+{% if recent_logs %}<div class="list">
+{% for l in recent_logs %}{% include "contracts/_log_row.html" with c=l.assignment.contract show_contract=1 %}{% endfor %}</div>
+{% else %}<div class="empty">Выработки ещё нет</div>{% endif %}
 {% endblock %}

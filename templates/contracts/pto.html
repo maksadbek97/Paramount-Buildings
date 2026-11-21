@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><h1>ПТО и объёмы работ</h1><div class="sub">Проверка внесённых объёмов и план-факт. В учёт идёт только принятый объём.</div></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'contract_create' %}">{% icon 'plus' 18 %}Новый объём</a></div>
+</div>
+
+<h2>Ждут проверки <span class="count">{{ pending|length }}</span></h2>
+{% if pending %}<div class="list">{% for l in pending %}{% include "contracts/_log_row.html" with c=l.assignment.contract show_contract=1 %}{% endfor %}</div>
+{% if not perms.contracts.review_worklog %}<p class="muted small">Принимать объёмы может технический директор или ПТО с правом проверки.</p>{% endif %}
+{% else %}<div class="empty">Всё проверено</div>{% endif %}
+
+<h2>План-факт</h2>
+{% if contracts %}
+<table class="ptable">
+  <tr><th>Объект · вид работ</th><th>Где</th><th class="num">План</th><th class="num">Внесено</th><th class="num">Принято</th><th class="num">Не принято</th><th class="num">Остаток</th><th class="num">%</th><th class="num">Стоимость</th></tr>
+  {% for c in contracts %}
+  <tr>
+    <td data-label="Вид работ"><a href="{% url 'contract_detail' c.pk %}">{{ c.work_type }}</a><br><span class="muted small">{{ c.construction_object.name }}</span></td>
+    <td data-label="Где">{{ c.place|default:"—" }}</td>
+    <td class="num" data-label="План">{{ c.volume|num }} {{ c.unit }}</td>
+    <td class="num" data-label="Внесено">{{ c.reported_volume|num }}</td>
+    <td class="num ok" data-label="Принято">{{ c.accepted_volume|num }}</td>
+    <td class="num {% if c.rejected_volume %}bad{% endif %}" data-label="Не принято">{{ c.rejected_volume|num }}</td>
+    <td class="num" data-label="Остаток">{{ c.remaining_volume|num }}</td>
+    <td class="num" data-label="Выполнение">{{ c.progress }}%</td>
+    <td class="num" data-label="Стоимость">{{ c.earned|money }} ₸</td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="muted small">Остаток = План − Принято. Выполнение = Принято ÷ План × 100. Стоимость = Принято × Цена за единицу.</p>
+{% else %}<div class="empty">Объёмов нет</div>{% endif %}
+{% endblock %}

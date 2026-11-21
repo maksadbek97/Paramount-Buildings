@@ -2,7 +2,7 @@
 {% block content %}
 <a class="back" href="{{ back }}">{% icon 'back' 18 %}Назад</a>
 <div class="page-head"><div class="titles"><h1>{{ title }}</h1>{% if subtitle %}<div class="sub">{{ subtitle }}</div>{% endif %}</div></div>
-<form method="post" class="form-card" novalidate>{% csrf_token %}
+<form method="post" class="form-card" enctype="multipart/form-data" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="errors">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
   {% for f in form.hidden_fields %}{{ f }}{% endfor %}
   {% for f in form.visible_fields %}
@@ -22,6 +22,9 @@
   </div>
   {% endwith %}
   {% endfor %}
+  {% if editing %}<div class="field"><label for="id_change_reason">Причина изменения</label>
+    <input id="id_change_reason" name="change_reason" maxlength="300" placeholder="Например: уточнили объём по проекту">
+    <div class="help">Попадёт в журнал действий вместе со старым и новым значением</div></div>{% endif %}
   <div class="form-actions">
     <a class="btn btn-ghost btn-lg" href="{{ back }}">Отмена</a>
     <button class="btn btn-primary btn-lg" type="submit">{{ submit }}</button>

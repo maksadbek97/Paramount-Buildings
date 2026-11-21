@@ -50,9 +50,10 @@ class ObjectForm(StyledMixin, forms.ModelForm):
 
     class Meta:
         model = ConstructionObject
-        fields = ["name", "address", "client", "new_client", "manager", "status", "start_date", "end_date",
-                  "description"]
-        labels = {"client": "Заказчик / генподрядчик"}
+        fields = ["code", "name", "status", "city", "address", "client", "new_client", "general_contractor",
+                  "contract_number", "contract_amount", "budget", "start_date", "end_date",
+                  "manager", "foreman", "pto", "description"]
+        labels = {"client": "Заказчик"}
 
     def save(self, commit=True):
         name = self.cleaned_data.get("new_client")
@@ -67,7 +68,9 @@ class EmployeeForm(StyledMixin, forms.ModelForm):
 
     class Meta:
         model = Employee
-        fields = ["full_name", "phone", "position", "new_position", "hired_at", "salary", "is_active"]
+        fields = ["full_name", "iin", "phone", "position", "new_position", "hired_at", "salary", "is_active"]
+        widgets = {"iin": forms.TextInput(attrs={"inputmode": "numeric", "maxlength": 12}),
+                   "phone": forms.TextInput(attrs={"inputmode": "tel", "placeholder": "+7 7__ ___ __ __"})}
         labels = {"position": "Специальность", "salary": "Оклад (если есть)"}
 
     def save(self, commit=True):
@@ -92,7 +95,7 @@ class MaterialForm(StyledMixin, forms.ModelForm):
 class StockMovementForm(StyledMixin, forms.ModelForm):
     class Meta:
         model = StockMovement
-        fields = ["kind", "material", "quantity", "date", "construction_object", "supplier", "note"]
+        fields = ["kind", "material", "quantity", "date", "construction_object", "contract", "supplier", "note"]
         widgets = {"kind": forms.RadioSelect}
 
     def __init__(self, *args, **kwargs):
