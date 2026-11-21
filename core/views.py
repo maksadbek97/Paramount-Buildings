@@ -41,6 +41,30 @@ def form_page(request, form_class, title, success_url, instance=None, form_kwarg
     })
 
 
+WIDE_WIDGETS = {"textarea", "radioselect", "checkboxselectmultiple", "clearablefile", "file"}
+
+
+def form_groups(form):
+    """Поля формы группами: [(заголовок, подсказка, [(поле, на всю ширину)])].
+
+    Форма может задать fieldsets = [("Заголовок", "подсказка", ["поле", ...]), ...] и wide = {"поле"};
+    иначе все видимые поля идут одной группой.
+    """
+    visible = {f.name: f for f in form.visible_fields()}
+    wide = set(getattr(form, "wide", ()))
+    sets = getattr(form, "fieldsets", None) or [("", "", list(visible))]
+    used, groups = set(), []
+    for title, hint, names in sets:
+        fields = [(visible[n], visible[n].widget_type in WIDE_WIDGETS or n in wide) for n in names if n in visible]
+        used.update(names)
+        if fields:
+            groups.append((title, hint, fields))
+    rest = [(f, f.widget_type in WIDE_WIDGETS or n in wide) for n, f in visible.items() if n not in used]
+    if rest:
+        groups.append(("Дополнительно" if groups else "", "", rest))
+    return groups
+
+
 def _object_cards(contracts):
     """Карточки объектов: деньги, прогресс, просрочки, открытые задачи и заявки."""
     from warehouse.models import PurchaseRequest

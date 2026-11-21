@@ -12,7 +12,7 @@
   <section class="card">
     <header><h3>Реквизиты</h3><span class="muted">для договоров и счетов</span>
       <button type="button" class="btn btn-ghost btn-sm copybtn" data-copy="{{ requisites_text }}">{% icon 'copy' 16 %}<span> Скопировать всё</span></button></header>
-    {% if requisites %}<dl class="req">{% for k, v in requisites %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
+    {% if requisites %}<dl class="reqs">{% for k, v in requisites %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
     {% else %}<div class="empty-s">Реквизиты не заполнены. <a href="{% url 'company_edit' %}">Заполнить профиль</a></div>{% endif %}
   </section>
   <section class="card">
@@ -51,7 +51,7 @@
 <div class="row2">
   <section class="card">
     <header><h3>Общие сведения</h3></header>
-    <dl class="req">
+    <dl class="reqs">
       <dt>Форма</dt><dd>{{ company.get_legal_form_display }}</dd>
       {% if company.short_name %}<dt>Краткое название</dt><dd>{{ company.short_name }}</dd>{% endif %}
       {% if company.registered_at %}<dt>Зарегистрирована</dt><dd>{{ company.registered_at|date:"d.m.Y" }}{% if years %} · {{ years }} {% if years == 1 %}год{% elif years < 5 %}года{% else %}лет{% endif %} на рынке{% endif %}</dd>{% endif %}
