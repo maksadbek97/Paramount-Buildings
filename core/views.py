@@ -60,11 +60,15 @@ def dashboard(request):
         cards.append({"o": o, "s": summary(cs), "remarks": open_remarks.get(o.pk, 0),
                       "pending": pending.get(o.pk, 0),
                       "active": sum(c.status == WorkContract.Status.ACTIVE for c in cs)})
-    working = [c for c in cards if c["o"].is_working]
-    others = [c for c in cards if not c["o"].is_working]
+    view = "done" if request.GET.get("status") == "done" else "active"
+    active = sorted((c for c in cards if not c["o"].is_closed), key=lambda c: (not c["o"].is_working, -c["s"]["total"]))
+    done = [c for c in cards if c["o"].is_closed]
     return render(request, "dashboard.html", {
-        "s": summary(contracts), "alerts": alerts.collect(contracts),
-        "working": working, "others": others,
+        "s": summary([c for c in contracts if not c.construction_object.is_closed]),
+        "alerts": alerts.collect(contracts) if view == "active" else [],
+        "view": view, "cards": done if view == "done" else active,
+        "active_count": len(active), "done_count": len(done),
+        "working_count": sum(c["o"].is_working for c in cards),
     })
 
 

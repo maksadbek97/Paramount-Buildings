@@ -67,6 +67,8 @@ class ConstructionObject(models.Model):
     start_date = models.DateField("Дата начала", null=True, blank=True)
     end_date = models.DateField("Плановое завершение", null=True, blank=True)
     description = models.TextField("Описание", blank=True)
+    photo = models.ImageField("Фото объекта", upload_to="objects/", blank=True,
+                              help_text="Фото или визуализация. Если не загрузить — будет картинка по умолчанию.")
     created_at = models.DateTimeField("Создан", auto_now_add=True)
 
     class Meta:
@@ -76,6 +78,27 @@ class ConstructionObject(models.Model):
 
     def __str__(self):
         return f"{self.code} · {self.name}" if self.code else self.name
+
+    @property
+    def cover(self):
+        """Картинка для плитки: своё фото или красивая заглушка."""
+        from django.templatetags.static import static
+        if self.photo:
+            return self.photo.url
+        name = self.name.lower()
+        if "склад" in name or "завод" in name or "цех" in name:
+            n = 4
+        elif "школ" in name or "сад" in name or "больниц" in name:
+            n = 3
+        elif "центр" in name or "офис" in name or "бц" in name:
+            n = 2
+        else:
+            n = 1
+        return static(f"img/objects/{n}.svg")
+
+    @property
+    def is_closed(self):
+        return self.status in (self.Status.DONE, self.Status.ARCHIVE)
 
     @property
     def is_working(self):

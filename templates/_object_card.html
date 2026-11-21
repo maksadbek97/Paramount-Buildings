@@ -1,20 +1,22 @@
-{% load ui %}<a class="ocard" href="{% url 'object_detail' c.o.pk %}">
-  <div class="top">
-    <span class="ico">{% icon 'building' %}</span>
-    <div style="flex:1;min-width:0"><div class="name">{{ c.o.name }}</div>
-      <div class="where">{% if c.o.code %}{{ c.o.code }} · {% endif %}{{ c.o.city }}{% if c.o.general_contractor %} · {{ c.o.general_contractor }}{% endif %}</div></div>
+{% load ui %}<a class="ocard tile" href="{% url 'object_detail' c.o.pk %}">
+  <div class="cover" style="background-image:url('{{ c.o.cover }}')">
     <span class="badge {{ c.o.status }}">{{ c.o.get_status_display }}</span>
+    {% if c.o.code %}<span class="code">{{ c.o.code }}</span>{% endif %}
   </div>
-  <div><div class="bar"><span style="width:{{ c.s.progress }}%"></span></div>
-    <div class="where" style="margin-top:6px">Выполнено <b style="color:var(--navy)">{{ c.s.progress }}%</b> · видов работ: {{ c.s.count }}</div></div>
-  <div class="money">
-    <div>Взяли на<b>{{ c.s.total|short }}</b></div>
-    <div>Получили<b>{{ c.s.received|short }}</b></div>
-    <div>Прибыль<b class="{% if c.s.profit >= 0 %}ok{% else %}bad{% endif %}">{{ c.s.profit|short }}</b></div>
+  <div class="inner">
+    <div class="name">{{ c.o.name }}</div>
+    <div class="where">{{ c.o.city|default:"" }}{% if c.o.general_contractor %} · {{ c.o.general_contractor }}{% endif %}</div>
+    <div><div class="bar"><span style="width:{{ c.s.progress }}%"></span></div>
+      <div class="where" style="margin-top:6px">Выполнено <b style="color:var(--navy)">{{ c.s.progress }}%</b> · видов работ: {{ c.s.count }}</div></div>
+    <div class="money">
+      <div>Взяли на<b>{{ c.s.total|short }}</b></div>
+      <div>Получили<b>{{ c.s.received|short }}</b></div>
+      <div>Прибыль<b class="{% if c.s.profit >= 0 %}ok{% else %}bad{% endif %}">{{ c.s.profit|short }}</b></div>
+    </div>
+    {% if c.pending or c.remarks or c.s.workers_due > 0 %}<div class="flags">
+      {% if c.pending %}<span class="w">на проверке ПТО: {{ c.pending }}</span>{% endif %}
+      {% if c.remarks %}<span class="b">замечаний: {{ c.remarks }}</span>{% endif %}
+      {% if c.s.workers_due > 0 %}<span>должны рабочим {{ c.s.workers_due|short }}</span>{% endif %}
+    </div>{% endif %}
   </div>
-  {% if c.pending or c.remarks or c.s.workers_due > 0 %}<div class="flags">
-    {% if c.pending %}<span class="w">на проверке ПТО: {{ c.pending }}</span>{% endif %}
-    {% if c.remarks %}<span class="b">замечаний: {{ c.remarks }}</span>{% endif %}
-    {% if c.s.workers_due > 0 %}<span>должны рабочим {{ c.s.workers_due|short }}</span>{% endif %}
-  </div>{% endif %}
 </a>

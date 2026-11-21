@@ -28,6 +28,7 @@ STATIC_PAGES = [
     "/warehouse/new/", "/warehouse/inventory/new/", "/purchases/", "/purchases/new/", "/purchases/suppliers/new/",
 ]
 STATUS_FILTERS = {
+    "/": ["done"],
     "/remarks/": ["open", "overdue", "review", "closed", "all"],
     "/tasks/": ["active", "overdue", "review", "done", "all"],
     "/purchases/": ["open"] + [v for v, _ in PurchaseRequest.Status.choices] + ["all"],
@@ -108,6 +109,8 @@ class Command(BaseCommand):
 
         for static_dir in settings.STATICFILES_DIRS:
             shutil.copytree(static_dir, out / "static", dirs_exist_ok=True)
+        if Path(settings.MEDIA_ROOT).exists():  # загруженные фото объектов и документы
+            shutil.copytree(settings.MEDIA_ROOT, out / "media", dirs_exist_ok=True)
         self.stdout.write(self.style.SUCCESS(f"Готово: {len(pages)} страниц в {out}"))
 
     @staticmethod
@@ -118,5 +121,6 @@ class Command(BaseCommand):
         html = re.sub(r'href="(/[^"?#]*)\?[^"#]*"', r'href="\1"', html)
         # Абсолютные ссылки -> относительные, чтобы сайт работал в подпапке GitHub Pages.
         prefix = "../" * target.strip("/").count("/") + ("../" if target.strip("/") else "")
+        html = re.sub(r"url\('/(?!/)([^']*)'\)", lambda m: f"url('{prefix + m.group(1)}')", html)
         return re.sub(r'(href|src|action)="/(?!/)([^"]*)"',
                       lambda m: f'{m.group(1)}="{prefix + m.group(2) or "./"}"', html)
