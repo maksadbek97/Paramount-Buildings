@@ -5,11 +5,24 @@
   <div class="actions"><a class="btn btn-primary" href="{% url 'object_create' %}">{% icon 'plus' 18 %}Новый объект</a></div>
 </div>
 
+<nav class="utabs">
+  <a href="{% url 'dashboard' %}" class="{% if view == 'active' %}active{% endif %}">В работе ({{ active_count }})</a>
+  <a href="?status=done" class="{% if view == 'done' %}active{% endif %}">Завершённые ({{ done_count }})</a>
+</nav>
+
+{% if view == 'active' %}
 <div class="strip">
-  <div><span>Объектов в работе</span><b>{{ working|length }}</b></div>
+  <div><span>Объектов в работе</span><b>{{ working_count }}</b></div>
   <div><span>Взяли работ на</span><b>{{ s.total|short }}</b></div>
   <div><span>Принято · {{ s.progress }}%</span><b>{{ s.earned|short }}</b></div>
   <div><span>Прибыль</span><b class="{% if s.profit >= 0 %}ok{% else %}bad{% endif %}">{{ s.profit|short }}</b></div>
+</div>
+{% endif %}
+
+<div class="ogrid" style="margin-top:18px">
+  {% for c in cards %}{% include "_object_card.html" %}{% endfor %}
+  {% if view == 'active' %}<a class="ocard new" href="{% url 'object_create' %}"><span class="ico">{% icon 'plus' %}</span>Новый объект<small>Взяли объект — добавьте его сюда</small></a>
+  {% elif not cards %}<div class="empty" style="grid-column:1/-1">Завершённых объектов пока нет</div>{% endif %}
 </div>
 
 {% if alerts %}
@@ -21,16 +34,5 @@
   {% endfor %}
 </div>
 {% if alerts|length > 6 %}<p class="muted small">Ещё {{ alerts|length|add:"-6" }} — откройте объект, там всё по нему.</p>{% endif %}
-{% endif %}
-
-<h2>В работе <span class="count">{{ working|length }}</span></h2>
-<div class="ogrid">
-  {% for c in working %}{% include "_object_card.html" %}{% endfor %}
-  <a class="ocard new" href="{% url 'object_create' %}"><span class="ico">{% icon 'plus' %}</span>Новый объект</a>
-</div>
-
-{% if others %}
-<h2>Остальные <span class="count">{{ others|length }}</span></h2>
-<div class="ogrid">{% for c in others %}{% include "_object_card.html" %}{% endfor %}</div>
 {% endif %}
 {% endblock %}

@@ -51,7 +51,7 @@ class ObjectForm(StyledMixin, forms.ModelForm):
     class Meta:
         model = ConstructionObject
         fields = ["code", "name", "status", "city", "address", "client", "new_client", "general_contractor",
-                  "contract_number", "contract_amount", "budget", "start_date", "end_date",
+                  "contract_number", "contract_amount", "budget", "start_date", "end_date", "photo",
                   "manager", "foreman", "pto", "description"]
         labels = {"client": "Заказчик"}
 

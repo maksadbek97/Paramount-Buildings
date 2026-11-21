@@ -248,6 +248,8 @@ class DemoBuildTests(TestCase):
             self.assertIn("₸", home)
             self.assertIn("static/img/logo-white.png", home)
             self.assertNotIn('href="/', home)
+            self.assertNotIn("url('/", home)
+            self.assertTrue((Path(tmp) / "status/done/index.html").exists())
             for page in ("contracts/status/done", "worklog/new", "pto", "history", "objects/1/money",
                          "objects/1/new/output", "purchases/status/open", "add"):
                 self.assertTrue((Path(tmp) / page / "index.html").exists(), page)

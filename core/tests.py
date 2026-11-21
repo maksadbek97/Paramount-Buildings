@@ -127,3 +127,15 @@ class ObjectHubTests(TestCase):
             "price": "50000", "status": "active"})
         self.assertRedirects(r, reverse("object_tab", args=[self.obj.pk, "work"]))
         self.assertEqual(WorkContract.objects.get(work_type="Монолит").construction_object, self.obj)
+
+    def test_finished_objects_are_on_separate_tab_with_picture(self):
+        done = ConstructionObject.objects.create(name="Логистический склад", status="done")
+        r = self.client.get(reverse("dashboard"))
+        names = [c["o"].name for c in r.context["cards"]]
+        self.assertIn("ЖК Атлант", names)
+        self.assertNotIn(done.name, names)
+        self.assertContains(r, "Завершённые (1)")
+        self.assertContains(r, "img/objects/1.svg")  # заглушка, пока нет своего фото
+        r = self.client.get(reverse("dashboard") + "?status=done")
+        self.assertEqual([c["o"].name for c in r.context["cards"]], [done.name])
+        self.assertContains(r, "img/objects/4.svg")
