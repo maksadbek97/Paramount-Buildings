@@ -294,3 +294,6 @@ details.row.hist .changes s { color: var(--gray); }
 .badge.preparing, .badge.finishing { background: var(--sky); color: var(--navy-2); }
 .badge.acceptance { background: var(--warn-bg); color: var(--warn); }
 .badge.archive { background: #EEF1F6; color: var(--gray); }
+img.photo { max-width: 100%; max-height: 420px; border-radius: 12px; display: block; margin-top: 10px; }
+.warn-t { color: var(--warn); }
+.sidebar .navgroup { color: #6F81A8; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; margin: 10px 12px 2px; }

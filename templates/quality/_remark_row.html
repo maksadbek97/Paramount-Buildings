@@ -1,0 +1,7 @@
+{% load ui %}<a class="row" href="{% url 'remark_detail' r.pk %}">
+  <span class="ico {% if r.is_closed %}in{% elif r.is_overdue or r.priority >= 4 %}out{% else %}warn{% endif %}">{% icon 'flag' 20 %}</span>
+  <div class="body"><div class="title">{{ r.description|truncatechars:80 }}</div>
+    <div class="meta">{{ r.number }} · {{ r.construction_object.name }}{% if r.location %} · {{ r.location }}{% endif %} · {{ r.responsible }}</div></div>
+  <div class="side"><span class="badge {% if r.is_closed %}done{% elif r.status == 'review' %}active{% elif r.status == 'returned' %}paused{% endif %}">{{ r.get_status_display }}</span>
+    <div class="meta {% if r.is_overdue %}bad{% elif r.due_soon %}warn-t{% endif %}">{% if r.is_closed %}закрыто{% elif r.is_overdue %}просрочено с {{ r.deadline|date:"d.m" }}{% else %}до {{ r.deadline|date:"d.m" }}{% endif %}</div></div>
+</a>

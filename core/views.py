@@ -9,6 +9,7 @@ from django.urls import reverse
 from contracts.models import Crew, WorkContract, WorkLog, summary
 from finance.models import Estimate, Transaction
 from objects.models import ConstructionObject
+from quality.models import Remark
 from staff.models import Employee, Task
 from warehouse.models import Material, StockMovement
 
@@ -48,6 +49,7 @@ def dashboard(request):
     active = [c for c in contracts if c.status == WorkContract.Status.ACTIVE]
     objects = ConstructionObject.objects.all()
     working = [o for o in objects if o.is_working]
+    open_remarks = Remark.objects.exclude(status=Remark.Status.CLOSED)
     return render(request, "dashboard.html", {
         "s": summary(contracts),
         "alerts": alerts.collect(contracts),
@@ -56,6 +58,9 @@ def dashboard(request):
                           "done": sum(o.status in ("done", "archive") for o in objects), "total": len(objects)},
         "stock_value": sum((m.stock_value for m in Material.objects.all()), 0),
         "tasks_overdue": Task.objects.exclude(status="done").filter(due_date__lt=date.today()).count(),
+        "remarks_open": open_remarks.count(),
+        "remarks_overdue": open_remarks.filter(deadline__lt=date.today()).count(),
+        "remarks_review": open_remarks.filter(status="review").count(),
         "objects_active": len(working),
         "workers": Employee.objects.filter(is_active=True).count(),
         "crews": Crew.objects.count(),
@@ -94,6 +99,8 @@ def object_detail(request, pk):
         "obj": obj, "contracts": contracts, "s": summary(contracts),
         "spent": spent, "budget_left": obj.budget - spent if obj.budget else None,
         "history": obj.history.select_related("user")[:15],
+        "remarks": obj.remarks.exclude(status="closed").select_related("responsible", "construction_object"),
+        "reports": obj.daily_reports.all()[:5],
         "tasks": obj.tasks.select_related("assignee"),
         "estimates": obj.estimates.all(), "documents": obj.documents.all(),
         "income": income, "expense": expense, "balance": income - expense,
@@ -138,7 +145,7 @@ def employee_edit(request, pk):
 
 @login_required
 def task_create(request):
-    return form_page(request, forms.TaskForm, "Новая задача", reverse("staff_list"), back=reverse("staff_list"))
+    return form_page(request, forms.TaskForm, "Новая задача", reverse("task_list"), back=reverse("task_list"))
 
 
 @login_required

@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load ui %}
+{% block title %}{{ r.number }} · Paramount Buildings{% endblock %}
+{% block content %}
+<a class="back" href="{% url 'remark_list' %}">{% icon 'back' 18 %}Замечания</a>
+<div class="page-head"><div class="titles"><h1>{{ r.number }} <span class="badge {% if r.is_closed %}done{% elif r.status == 'review' %}active{% elif r.status == 'returned' %}paused{% endif %}">{{ r.get_status_display }}</span></h1>
+  <div class="sub">{{ r.construction_object }}{% if r.location %} · {{ r.location }}{% endif %}</div></div></div>
+
+{% if repeats %}<div class="demo-note" style="background:var(--warn-bg);border-color:#F5D9A8">{% icon 'alert' 18 %}<span><b>Повторное замечание:</b> на этом месте уже было {{ repeats|length }} — {% for x in repeats %}<a href="{% url 'remark_detail' x.pk %}">{{ x.number }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</span></div>{% endif %}
+
+<div class="kv">
+  <div><span>Приоритет</span><b class="{% if r.priority >= 3 %}bad{% endif %}">{{ r.get_priority_display }}</b></div>
+  <div><span>Срок</span><b class="{% if r.is_overdue %}bad{% endif %}">{{ r.deadline|date:"d.m.Y" }}{% if r.is_overdue %} (просрочено){% endif %}</b></div>
+  <div><span>Автор</span><b>{{ r.author|default:"—" }}</b></div>
+  <div><span>Ответственный</span><b>{{ r.responsible }}</b></div>
+  <div><span>Исполнитель</span><b>{{ r.executor|default:"—" }}</b></div>
+  <div><span>Проверил</span><b>{{ r.reviewer|default:"—" }}{% if r.accepted_at %} · {{ r.accepted_at|date:"d.m.Y" }}{% endif %}</b></div>
+  {% if r.task %}<div><span>Задача прорабу</span><b><a href="{% url 'task_list' %}">{{ r.task.get_status_display }}</a></b></div>{% endif %}
+</div>
+<h2>Замечание</h2>
+<div class="kv" style="display:block">{{ r.description|linebreaksbr }}
+  {% if r.photo %}<p><img src="{{ r.photo.url }}" alt="Фото замечания" class="photo"></p>{% endif %}</div>
+{% if r.fix_comment or r.fix_photo %}<h2>Что сделано</h2>
+<div class="kv" style="display:block">{{ r.fix_comment|default:"" }}{% if r.fix_photo %}<p><img src="{{ r.fix_photo.url }}" alt="Фото выполнения" class="photo"></p>{% endif %}</div>{% endif %}
+
+{% if actions %}
+<h2>Действия</h2>
+<div class="cgrid">
+{% for to, label in actions %}
+  <form method="post" action="{% url 'remark_act' r.pk %}" enctype="multipart/form-data" class="form-card" style="max-width:none">{% csrf_token %}
+    <input type="hidden" name="to" value="{{ to }}">
+    {% if to == 'in_work' %}<div class="field"><label>Исполнитель</label><select name="executor"><option value="">— прораб сам —</option>{% for w in workers %}<option value="{{ w.pk }}" {% if r.executor_id == w.pk %}selected{% endif %}>{{ w }}</option>{% endfor %}</select></div>{% endif %}
+    {% if to == 'review' %}<div class="field"><label>Фото выполнения</label><input type="file" name="fix_photo" accept="image/*" capture="environment"></div>
+      <div class="field"><label>Что сделано</label><input name="comment" maxlength="300" placeholder="Например: откосы переделаны"></div>{% endif %}
+    {% if to == 'returned' %}<div class="field"><label>Что переделать <span class="req">*</span></label><input name="comment" maxlength="300" required></div>{% endif %}
+    <button class="btn {% if to == 'returned' %}btn-ghost{% else %}btn-primary{% endif %} btn-lg btn-block" type="submit">{{ label }}</button>
+  </form>
+{% endfor %}
+</div>
+{% elif not r.is_closed %}<p class="muted">Принимать или возвращать замечание может руководитель с правом проверки.</p>{% endif %}
+
+<h2>История</h2>
+{% include "_history.html" with entries=history hide_object=1 %}
+{% endblock %}

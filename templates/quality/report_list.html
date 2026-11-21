@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><h1>Ежедневные отчёты</h1><div class="sub">Отчёт прораба: погода, люди, работы, материалы, проблемы</div></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'report_create' %}">{% icon 'plus' 18 %}Отчёт за сегодня</a></div>
+</div>
+{% if reports %}<div class="list">{% for rep in reports %}
+  <a class="row" href="{% url 'report_detail' rep.pk %}"><span class="ico {% if rep.confirmed %}in{% else %}warn{% endif %}">{% icon 'clipboard' 20 %}</span>
+    <div class="body"><div class="title">{{ rep.date|date:"d E, D" }} · {{ rep.construction_object.name }}</div>
+      <div class="meta">{{ rep.get_weather_display }}{% if rep.temperature is not None %} {{ rep.temperature }}°{% endif %} · {{ rep.workers_count }} чел.{% for c in rep.crews.all %} · {{ c.name }}{% endfor %}{% if rep.problems %} · <span class="bad">есть проблемы</span>{% endif %}</div></div>
+    <div class="side"><span class="badge {% if rep.confirmed %}done{% else %}paused{% endif %}">{% if rep.confirmed %}подтверждён{% else %}черновик{% endif %}</span></div>
+    <span class="chev">{% icon 'chevron' 18 %}</span></a>
+{% endfor %}</div>
+{% else %}<div class="empty">Отчётов пока нет.<br><a class="btn btn-primary" href="{% url 'report_create' %}">Заполнить отчёт</a></div>{% endif %}
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<a class="back" href="{% url 'report_list' %}">{% icon 'back' 18 %}Отчёты</a>
+<div class="page-head"><div class="titles"><h1>Отчёт за {{ rep.date|date:"d E Y" }}</h1>
+  <div class="sub">{{ rep.construction_object }} · {{ rep.author|default:"" }}</div></div>
+  <div class="actions">{% if rep.confirmed %}<span class="badge done" style="padding:10px 14px">Подтверждён {{ rep.confirmed_at|date:"d.m H:i" }}</span>{% else %}
+    <form method="post" action="{% url 'report_confirm' rep.pk %}">{% csrf_token %}<button class="btn btn-primary">{% icon 'check' 18 %}Подтвердить отчёт</button></form>{% endif %}</div></div>
+<div class="kv">
+  <div><span>Погода</span><b>{{ rep.get_weather_display }}{% if rep.temperature is not None %}, {{ rep.temperature }}°C{% endif %}</b></div>
+  <div><span>Рабочих</span><b>{{ rep.workers_count }}</b></div>
+  <div><span>Бригады</span><b>{% for c in rep.crews.all %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</b></div>
+</div>
+<h2>Работы и объёмы</h2>
+{% if logs %}<div class="list">{% for l in logs %}{% include "contracts/_log_row.html" with c=l.assignment.contract show_contract=1 %}{% endfor %}</div>{% endif %}
+{% if rep.works %}<div class="kv" style="display:block;margin-top:10px">{{ rep.works|linebreaksbr }}</div>{% endif %}
+{% if not logs and not rep.works %}<div class="empty">Нет записей</div>{% endif %}
+<div class="grid2">
+  <div><h2>Расход материалов</h2>
+    {% if materials_out %}<div class="list">{% for m in materials_out %}<div class="row"><div class="body"><div class="title">{{ m.material }}</div>{% if m.contract %}<div class="meta">{{ m.contract.work_type }}</div>{% endif %}</div><div class="side">−{{ m.quantity|num }} {{ m.material.unit }}</div></div>{% endfor %}</div>{% endif %}
+    {% if rep.materials %}<div class="kv" style="display:block;margin-top:10px">{{ rep.materials|linebreaksbr }}</div>{% endif %}
+    {% if not materials_out and not rep.materials %}<div class="empty">—</div>{% endif %}</div>
+  <div><h2>Техника</h2><div class="kv" style="display:block">{{ rep.equipment|default:"—"|linebreaksbr }}</div></div>
+</div>
+<div class="grid2">
+  <div><h2>Проблемы</h2><div class="kv" style="display:block">{% if rep.problems %}<span class="bad">{{ rep.problems|linebreaksbr }}</span>{% else %}Нет{% endif %}</div></div>
+  <div><h2>План на завтра</h2><div class="kv" style="display:block">{{ rep.plan_next|default:"—"|linebreaksbr }}</div></div>
+</div>
+{% if remarks %}<h2>Замечания за день</h2><div class="list">{% for r in remarks %}{% include "quality/_remark_row.html" %}{% endfor %}</div>{% endif %}
+{% if rep.photo %}<h2>Фото</h2><img src="{{ rep.photo.url }}" class="photo" alt="Фото с объекта">{% endif %}
+{% endblock %}

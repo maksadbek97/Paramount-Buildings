@@ -23,7 +23,7 @@
 {% endfor %}</div>
 {% else %}<div class="empty">Рабочих нет. <a href="{% url 'employee_create' %}">Добавить</a></div>{% endif %}
 
-<h2 id="tasks">Открытые задачи <span class="count">{{ tasks|length }}</span><a class="more" href="{% url 'task_create' %}">+ Задача</a></h2>
+<h2 id="tasks">Открытые задачи <span class="count">{{ tasks|length }}</span><a class="more" href="{% url 'task_list' %}">Все задачи →</a></h2>
 {% if tasks %}<div class="list">{% for t in tasks %}
   <div class="row"><span class="ico">{% icon 'task' 20 %}</span><div class="body"><div class="title">{{ t.title }}</div><div class="meta">{{ t.construction_object|default:"—" }} · {{ t.assignee|default:"без исполнителя" }}</div></div>
   <div class="side"><span class="badge {% if t.status == 'in_progress' %}in_progress{% endif %}">{{ t.get_status_display }}</span><div class="meta">{% if t.due_date %}до {{ t.due_date|date:"d.m" }}{% endif %}</div></div></div>

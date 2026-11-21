@@ -7,8 +7,8 @@
 <div class="quick">
   <a class="main" href="{% url 'worklog_create' %}"><span class="ico">{% icon 'brick' %}</span>Записать выработку</a>
   <a href="{% url 'pto' %}"><span class="ico">{% icon 'check' %}</span>Проверка ПТО{% if s.pending %} <span class="badge paused">{{ s.pending|short }}</span>{% endif %}</a>
-  <a href="{% url 'payment_create' %}"><span class="ico">{% icon 'cash' %}</span>Платёж / выплата</a>
-  <a href="{% url 'contract_create' %}"><span class="ico">{% icon 'contract' %}</span>Новый объём</a>
+  <a href="{% url 'report_create' %}"><span class="ico">{% icon 'clipboard' %}</span>Отчёт за день</a>
+  <a href="{% url 'remark_create' %}"><span class="ico">{% icon 'flag' %}</span>Замечание</a>
 </div>
 
 {% if alerts %}
@@ -45,7 +45,8 @@
 <div class="stats">
   <a class="stat" href="{% url 'object_list' %}"><div class="label">Объекты</div><div class="value">{{ objects_count.working }}</div><div class="hint">в работе · приостановлено {{ objects_count.paused }} · завершено {{ objects_count.done }}</div></a>
   <a class="stat" href="{% url 'warehouse_list' %}"><div class="label">Материалы на складе</div><div class="value">{{ stock_value|short }}</div><div class="hint {% if low_materials %}bad{% endif %}">дефицит: {{ low_materials|length }}</div></a>
-  <a class="stat" href="{% url 'staff_list' %}#tasks"><div class="label">Задачи</div><div class="value {% if tasks_overdue %}bad{% endif %}">{{ tasks_overdue }}</div><div class="hint">просрочено · открыто {{ tasks_open }}</div></a>
+  <a class="stat" href="{% url 'task_list' %}?status=overdue"><div class="label">Задачи</div><div class="value {% if tasks_overdue %}bad{% endif %}">{{ tasks_overdue }}</div><div class="hint">просрочено · открыто {{ tasks_open }}</div></a>
+  <a class="stat" href="{% url 'remark_list' %}"><div class="label">Открытые замечания</div><div class="value {% if remarks_overdue %}bad{% endif %}">{{ remarks_open }}</div><div class="hint">просрочено {{ remarks_overdue }} · на проверке {{ remarks_review }}</div></a>
   <a class="stat" href="{% url 'staff_list' %}"><div class="label">Рабочие · бригады</div><div class="value">{{ workers }} · {{ crews }}</div></a>
 </div>
 

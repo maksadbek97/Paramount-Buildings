@@ -15,13 +15,19 @@ from django.test import Client, override_settings
 
 from contracts.models import Crew, WorkContract, WorkLog
 from objects.models import ConstructionObject
+from quality.models import DailyReport, Remark
 from staff.models import Employee
 
 STATIC_PAGES = [
     "/", "/menu/", "/objects/", "/objects/new/", "/contracts/", "/contracts/new/", "/worklog/new/",
     "/payments/new/", "/staff/", "/staff/new/", "/crews/new/", "/tasks/new/", "/warehouse/",
     "/warehouse/materials/new/", "/warehouse/movements/new/", "/finance/", "/finance/new/", "/pto/", "/history/",
+    "/remarks/", "/remarks/new/", "/reports/", "/reports/new/", "/tasks/",
 ]
+STATUS_FILTERS = {
+    "/remarks/": ["open", "overdue", "review", "closed", "all"],
+    "/tasks/": ["active", "overdue", "review", "done", "all"],
+}
 
 
 def page_list():
@@ -31,6 +37,13 @@ def page_list():
         pages[f"/objects/status/{value}/"] = f"/objects/?status={value}"
     for value, _ in WorkContract.Status.choices:
         pages[f"/contracts/status/{value}/"] = f"/contracts/?status={value}"
+    for base, values in STATUS_FILTERS.items():
+        for value in values:
+            pages[f"{base}status/{value}/"] = f"{base}?status={value}"
+    for pk in Remark.objects.values_list("pk", flat=True):
+        pages[f"/remarks/{pk}/"] = f"/remarks/{pk}/"
+    for pk in DailyReport.objects.values_list("pk", flat=True):
+        pages[f"/reports/{pk}/"] = f"/reports/{pk}/"
     for pk in ConstructionObject.objects.values_list("pk", flat=True):
         pages[f"/objects/{pk}/"] = f"/objects/{pk}/"
         pages[f"/objects/{pk}/edit/"] = f"/objects/{pk}/edit/"

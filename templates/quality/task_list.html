@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><h1>Задачи</h1><div class="sub">Новая → Принята → В работе → На проверке → Выполнена</div></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'task_create' %}">{% icon 'plus' 18 %}Задача</a></div>
+</div>
+<div class="chips">
+  {% for v, label in "active:В работе,overdue:Просроченные,review:На проверке,done:Выполненные,all:Все"|pairs %}
+  <a href="?status={{ v }}" class="{% if current == v %}active{% endif %}">{{ label }}</a>{% endfor %}
+</div>
+{% if tasks %}<div class="list">{% for t in tasks %}
+  <div class="row stack">
+    <span class="ico {% if t.status == 'done' %}in{% elif t.is_overdue %}out{% endif %}">{% icon 'task' 20 %}</span>
+    <div class="body"><div class="title">{{ t.title }}</div>
+      <div class="meta">{{ t.get_source_display }} · {{ t.construction_object.name|default:"—" }} · {{ t.assignee|default:"без исполнителя" }}{% if t.due_date %} · <span class="{% if t.is_overdue %}bad{% endif %}">{% if t.is_overdue %}просрочено с {% else %}до {% endif %}{{ t.due_date|date:"d.m" }}</span>{% endif %}{% if t.remark %} · <a href="{% url 'remark_detail' t.remark.pk %}">{{ t.remark.number }}</a>{% endif %}</div></div>
+    <div class="side">
+      <span class="badge {% if t.status == 'done' %}done{% elif t.status == 'review' %}active{% elif t.status == 'in_progress' %}in_progress{% endif %}">{{ t.get_status_display }}</span>
+      {% if t.next_step %}{% if t.next_step.0 != 'done' or perms.staff.close_task %}
+      <form method="post" action="{% url 'task_next' t.pk %}" style="margin-top:6px">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="btn btn-ghost" style="min-height:38px;padding:0 12px;font-size:13px">{{ t.next_step.1 }}</button></form>
+      {% endif %}{% endif %}
+    </div>
+  </div>
+{% endfor %}</div>
+{% else %}<div class="empty">Задач нет</div>{% endif %}
+{% endblock %}

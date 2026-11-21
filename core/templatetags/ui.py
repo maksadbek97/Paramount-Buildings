@@ -56,6 +56,12 @@ def short(value):
     return sign + money(a) + NBSP + "₸"
 
 
+@register.filter
+def pairs(value):
+    """«a:Метка,b:Метка» -> [(a, Метка), ...] для строк фильтров."""
+    return [tuple(item.split(":", 1)) for item in value.split(",")]
+
+
 @register.simple_tag
 def icon(name, size=22):
     path = ICONS.get(name, ICONS["dot"])
@@ -86,5 +92,9 @@ ICONS = {
     "check": '<path d="M5 12l5 5L20 7"/>',
     "history": '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/>',
     "ruler": '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+    "flag": '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    "clipboard": '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/>',
+    "camera": '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+    "sun": '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     "dot": '<circle cx="12" cy="12" r="3"/>',
 }
