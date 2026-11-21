@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.core.validators import RegexValidator
 from django.db import models
 
 
@@ -20,6 +21,8 @@ class Employee(models.Model):
         null=True, blank=True, on_delete=models.SET_NULL,
     )
     full_name = models.CharField("ФИО", max_length=200)
+    iin = models.CharField("ИИН", max_length=12, blank=True,
+                           validators=[RegexValidator(r"^\d{12}$", "ИИН — 12 цифр.")])
     position = models.ForeignKey(
         Position, verbose_name="Должность", null=True, blank=True,
         on_delete=models.SET_NULL,

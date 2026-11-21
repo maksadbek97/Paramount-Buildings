@@ -65,8 +65,8 @@ class SystemTests(TestCase):
         from core.templatetags.ui import money, num, short
         self.assertEqual(num("1234567.50"), "1\u00a0234\u00a0567,5")
         self.assertEqual(money(-2500), "−2\u00a0500")
-        self.assertEqual(short(3700000000), "3,7\u00a0млрд")
-        self.assertEqual(short(250000000), "250\u00a0млн")
+        self.assertEqual(short(3700000000), "3,7\u00a0млрд\u00a0₸")
+        self.assertEqual(short(250000000), "250\u00a0млн\u00a0₸")
 
     def test_login_page_has_brand(self):
         r = self.client.get(reverse("login"))

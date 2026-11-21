@@ -1,0 +1,10 @@
+{% load ui %}{% if entries %}<div class="list">
+{% for e in entries %}
+  <details class="row hist">
+    <summary><span class="ico {% if e.action == 'reject' or e.action == 'delete' %}out{% elif e.action == 'accept' %}in{% endif %}">{% icon 'history' 20 %}</span>
+      <div class="body"><div class="title">{{ e.get_action_display }}: {{ e.object_repr }}</div>
+        <div class="meta">{{ e.created_at|date:"d.m.Y H:i" }} · {{ e.user|default:"система" }} · {{ e.module }}{% if e.construction_object and not hide_object %} · {{ e.construction_object.name }}{% endif %}{% if e.reason %} · причина: {{ e.reason }}{% endif %}</div></div></summary>
+    {% if e.change_list %}<div class="changes">{% for k, old, new in e.change_list %}<div><span class="muted">{{ k }}:</span> {% if old %}<s>{{ old }}</s> → {% endif %}<b>{{ new|default:"—" }}</b></div>{% endfor %}</div>{% endif %}
+  </details>
+{% endfor %}</div>
+{% else %}<div class="empty">Записей пока нет</div>{% endif %}

@@ -39,6 +39,10 @@ class Material(models.Model):
     def is_low(self):
         return self.stock < self.min_stock
 
+    @property
+    def stock_value(self):
+        return self.stock * self.price
+
 
 class StockMovement(models.Model):
     class Kind(models.TextChoices):
@@ -56,6 +60,10 @@ class StockMovement(models.Model):
         "objects.ConstructionObject", verbose_name="Объект (для расхода)",
         null=True, blank=True, on_delete=models.SET_NULL, related_name="material_movements",
     )
+    contract = models.ForeignKey(
+        "contracts.WorkContract", verbose_name="На какой вид работ (для расхода)",
+        null=True, blank=True, on_delete=models.SET_NULL, related_name="material_movements",
+    )
     note = models.CharField("Примечание", max_length=300, blank=True)
 
     class Meta:
@@ -65,3 +73,19 @@ class StockMovement(models.Model):
 
     def __str__(self):
         return f"{self.get_kind_display()}: {self.material} × {self.quantity}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.quantity is not None and self.quantity <= 0:
+            raise ValidationError({"quantity": "Количество должно быть больше нуля."})
+        if self.kind == self.Kind.OUT and self.material_id and self.quantity:
+            available = self.material.stock
+            if self.pk:
+                old = StockMovement.objects.get(pk=self.pk)
+                if old.kind == self.Kind.OUT:
+                    available += old.quantity
+            if self.quantity > available:
+                raise ValidationError({"quantity": f"На складе только {available} {self.material.unit}. "
+                                                   "Нельзя выдать больше, чем есть."})
+        if self.contract_id and self.construction_object_id is None:
+            self.construction_object = self.contract.construction_object

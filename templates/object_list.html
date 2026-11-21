@@ -12,8 +12,8 @@
 {% for o in objects %}
   <a class="row" href="{% url 'object_detail' o.pk %}">
     <span class="ico">{% icon 'building' 20 %}</span>
-    <div class="body"><div class="title">{{ o.name }}</div>
-      <div class="meta">{{ o.client|default:"Заказчик не указан" }}{% if o.address %} · {{ o.address }}{% endif %}</div></div>
+    <div class="body"><div class="title">{% if o.code %}<span class="muted">{{ o.code }}</span> {% endif %}{{ o.name }}</div>
+      <div class="meta">{{ o.client|default:"Заказчик не указан" }}{% if o.city %} · {{ o.city }}{% endif %}{% if o.foreman %} · прораб {{ o.foreman }}{% endif %}</div></div>
     <div class="side"><span class="badge {{ o.status }}">{{ o.get_status_display }}</span><div class="meta">объёмов: {{ o.contract_count }}</div></div>
     <span class="chev">{% icon 'chevron' 18 %}</span>
   </a>

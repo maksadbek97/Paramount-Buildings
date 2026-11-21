@@ -1,21 +1,31 @@
 {% extends "base.html" %}{% load ui %}
-{% block title %}{{ obj.name }} · Paramount Buildings{% endblock %}
+{% block title %}{{ obj.name }} · Paramount Buildings<h2>История операций<a class="more" href="{% url 'history' %}?object={{ obj.pk }}">Вся →</a></h2>
+{% include "_history.html" with entries=history hide_object=1 %}
+{% endblock %}
 {% block content %}
 <a class="back" href="{% url 'object_list' %}">{% icon 'back' 18 %}Все объекты</a>
 <div class="page-head">
   <div class="titles"><h1>{{ obj.name }} <span class="badge {{ obj.status }}">{{ obj.get_status_display }}</span></h1>
-    {% if obj.address %}<div class="sub">{{ obj.address }}</div>{% endif %}</div>
+    <div class="sub">{% if obj.code %}{{ obj.code }} · {% endif %}{% if obj.city %}{{ obj.city }}, {% endif %}{{ obj.address }}</div></div>
   <div class="actions">
     <a class="btn btn-primary" href="{% url 'contract_create' %}?construction_object={{ obj.pk }}">{% icon 'plus' 18 %}Объём работ</a>
     <a class="btn btn-ghost" href="{% url 'object_edit' obj.pk %}" aria-label="Изменить">{% icon 'edit' 18 %}</a>
   </div>
 </div>
 <div class="kv">
-  <div><span>Заказчик / генподрядчик</span><b>{{ obj.client|default:"—" }}</b></div>
-  <div><span>Ответственный</span><b>{{ obj.manager|default:"—" }}</b></div>
-  <div><span>Начало</span><b>{{ obj.start_date|date:"d.m.Y"|default:"—" }}</b></div>
-  <div><span>Завершение</span><b>{{ obj.end_date|date:"d.m.Y"|default:"—" }}</b></div>
+  <div><span>Заказчик</span><b>{{ obj.client|default:"—" }}</b></div>
+  <div><span>Генподрядчик</span><b>{{ obj.general_contractor|default:"—" }}</b></div>
+  <div><span>Договор</span><b>{{ obj.contract_number|default:"—" }}</b></div>
+  <div><span>Сумма договора</span><b>{% if obj.contract_amount %}{{ obj.contract_amount|money }} ₸{% else %}—{% endif %}</b></div>
+  <div><span>Бюджет</span><b>{% if obj.budget %}{{ obj.budget|money }} ₸{% else %}—{% endif %}</b></div>
+  <div><span>Потрачено</span><b class="{% if obj.budget and spent > obj.budget %}bad{% endif %}">{{ spent|money }} ₸</b></div>
+  <div><span>Руководитель проекта</span><b>{{ obj.manager|default:"—" }}</b></div>
+  <div><span>Прораб</span><b>{{ obj.foreman|default:"—" }}</b></div>
+  <div><span>ПТО</span><b>{{ obj.pto|default:"—" }}</b></div>
+  <div><span>Сроки</span><b>{{ obj.start_date|date:"d.m.Y"|default:"—" }} – {{ obj.end_date|date:"d.m.Y"|default:"—" }}</b></div>
 </div>
+{% if obj.budget %}<div style="margin-top:10px" title="Потрачено из бюджета"><div class="bar"><span style="width:{% widthratio spent obj.budget 100 %}%;{% if spent > obj.budget %}background:var(--bad){% endif %}"></span></div>
+<div class="muted small" style="margin-top:4px">Бюджет использован на {% widthratio spent obj.budget 100 %}%{% if budget_left < 0 %} — <b class="bad">превышен</b>{% endif %}</div></div>{% endif %}
 {% if obj.description %}<p class="muted">{{ obj.description }}</p>{% endif %}
 
 <h2>Объёмы работ <span class="count">{{ contracts|length }}</span></h2>
@@ -47,4 +57,6 @@
     {% if documents %}<h2>Документы</h2><div class="list">{% for d in documents %}<a class="row" href="{{ d.file.url }}"><div class="body"><div class="title">{{ d.title }}</div><div class="meta">{{ d.uploaded_at|date:"d.m.Y" }}</div></div></a>{% endfor %}</div>{% endif %}
   </div>
 </div>
+<h2>История операций<a class="more" href="{% url 'history' %}?object={{ obj.pk }}">Вся →</a></h2>
+{% include "_history.html" with entries=history hide_object=1 %}
 {% endblock %}

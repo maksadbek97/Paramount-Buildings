@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Sum
@@ -10,23 +12,28 @@ from objects.models import ConstructionObject
 from staff.models import Employee, Task
 from warehouse.models import Material, StockMovement
 
-from . import forms
+from . import alerts, audit, forms
+from .models import AuditLog
 
 
 def form_page(request, form_class, title, success_url, instance=None, form_kwargs=None, subtitle="",
               submit="Сохранить", back=None):
-    """Общая страница с формой: показывает, проверяет и сохраняет."""
+    """Общая страница с формой: показывает, проверяет, сохраняет и пишет в журнал действий."""
     form_kwargs = form_kwargs or {}
+    editing = instance is not None and instance.pk is not None
     if request.method == "POST":
+        before = audit.snapshot(instance) if editing else None
         form = form_class(request.POST, request.FILES, instance=instance, **form_kwargs)
         if form.is_valid():
             obj = form.save()
+            audit.log(request, obj, AuditLog.Action.UPDATE if editing else AuditLog.Action.CREATE,
+                      before=before, reason=request.POST.get("change_reason", "")[:300])
             messages.success(request, "Сохранено")
             return redirect(success_url(obj) if callable(success_url) else success_url)
     else:
         form = form_class(instance=instance, initial=dict(request.GET.items()), **form_kwargs)
     return render(request, "form.html", {
-        "form": form, "title": title, "subtitle": subtitle, "submit": submit,
+        "form": form, "title": title, "subtitle": subtitle, "submit": submit, "editing": editing,
         "back": back or request.META.get("HTTP_REFERER") or reverse("dashboard"),
     })
 
@@ -35,11 +42,21 @@ def form_page(request, form_class, title, success_url, instance=None, form_kwarg
 def dashboard(request):
     contracts = list(WorkContract.objects.select_related("construction_object").prefetch_related(
         "assignments__crew", "assignments__employee"))
+    obj_id = request.GET.get("object")
+    if obj_id and obj_id.isdigit():
+        contracts = [c for c in contracts if c.construction_object_id == int(obj_id)]
     active = [c for c in contracts if c.status == WorkContract.Status.ACTIVE]
+    objects = ConstructionObject.objects.all()
+    working = [o for o in objects if o.is_working]
     return render(request, "dashboard.html", {
         "s": summary(contracts),
+        "alerts": alerts.collect(contracts),
         "active_contracts": active,
-        "objects_active": ConstructionObject.objects.filter(status="in_progress").count(),
+        "objects_count": {"working": len(working), "paused": sum(o.status == "paused" for o in objects),
+                          "done": sum(o.status in ("done", "archive") for o in objects), "total": len(objects)},
+        "stock_value": sum((m.stock_value for m in Material.objects.all()), 0),
+        "tasks_overdue": Task.objects.exclude(status="done").filter(due_date__lt=date.today()).count(),
+        "objects_active": len(working),
         "workers": Employee.objects.filter(is_active=True).count(),
         "crews": Crew.objects.count(),
         "recent_logs": WorkLog.objects.select_related(
@@ -72,8 +89,11 @@ def object_detail(request, pk):
     contracts = list(obj.contracts.prefetch_related("assignments"))
     income = obj.transactions.filter(kind="income").aggregate(s=Sum("amount"))["s"] or 0
     expense = obj.transactions.filter(kind="expense").aggregate(s=Sum("amount"))["s"] or 0
+    spent = alerts.object_expenses(obj)
     return render(request, "object_detail.html", {
         "obj": obj, "contracts": contracts, "s": summary(contracts),
+        "spent": spent, "budget_left": obj.budget - spent if obj.budget else None,
+        "history": obj.history.select_related("user")[:15],
         "tasks": obj.tasks.select_related("assignee"),
         "estimates": obj.estimates.all(), "documents": obj.documents.all(),
         "income": income, "expense": expense, "balance": income - expense,
@@ -156,3 +176,12 @@ def finance_list(request):
 def transaction_create(request):
     return form_page(request, forms.TransactionForm, "Доход / расход компании", reverse("finance_list"),
                      back=reverse("finance_list"))
+
+
+@login_required
+def history(request):
+    qs = AuditLog.objects.select_related("user", "construction_object")
+    obj = request.GET.get("object")
+    if obj and obj.isdigit():
+        qs = qs.filter(construction_object_id=obj)
+    return render(request, "history.html", {"entries": qs[:200]})

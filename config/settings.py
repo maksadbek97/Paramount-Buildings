@@ -111,7 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'ru'
 
-TIME_ZONE = 'Asia/Tashkent'
+TIME_ZONE = 'Asia/Almaty'
 
 USE_I18N = True
 
@@ -140,3 +140,7 @@ MAILERS = {
         "BACKEND": "django.core.mail.backends.console.EmailBackend",
     },
 }
+
+# Компания и валюта (Республика Казахстан)
+COMPANY_NAME = "ТОО «PARAMOUNT BUILDINGS»"
+CURRENCY = "₸"

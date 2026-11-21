@@ -17,13 +17,16 @@
 {% if user.is_authenticated %}
 <aside class="sidebar">
   <a class="logo" href="{% url 'dashboard' %}"><img src="{% static 'img/logo-white.png' %}" alt="Paramount Buildings"></a>
+  <div class="company">ТОО «PARAMOUNT BUILDINGS» · Smart Building</div>
   <nav>
     <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' %}Главная</a>
     <a href="{% url 'contract_list' %}" class="{% if 'contract' in n or 'assignment' in n %}active{% endif %}">{% icon 'contract' %}Объёмы работ</a>
     <a href="{% url 'object_list' %}" class="{% if 'object' in n %}active{% endif %}">{% icon 'building' %}Объекты</a>
+    <a href="{% url 'pto' %}" class="{% if n == 'pto' or 'review' in n or 'norm' in n %}active{% endif %}">{% icon 'check' %}ПТО и приёмка</a>
     <a href="{% url 'staff_list' %}" class="{% if 'staff' in n or 'employee' in n or 'crew' in n or 'task' in n %}active{% endif %}">{% icon 'users' %}Рабочие и бригады</a>
     <a href="{% url 'warehouse_list' %}" class="{% if 'warehouse' in n or 'material' in n or 'movement' in n %}active{% endif %}">{% icon 'box' %}Склад</a>
     <a href="{% url 'finance_list' %}" class="{% if 'finance' in n or 'transaction' in n %}active{% endif %}">{% icon 'wallet' %}Финансы</a>
+    <a href="{% url 'history' %}" class="{% if n == 'history' %}active{% endif %}">{% icon 'history' %}Журнал действий</a>
   </nav>
   <a class="btn btn-accent btn-block" href="{% url 'worklog_create' %}">{% icon 'plus' %}Записать выработку</a>
   <div class="me">
@@ -51,7 +54,7 @@
   <a href="{% url 'contract_list' %}" class="{% if 'contract' in n or 'assignment' in n %}active{% endif %}">{% icon 'contract' %}<span>Объёмы</span></a>
   <a href="{% url 'worklog_create' %}" class="fab {% if n == 'worklog_create' %}active{% endif %}" aria-label="Записать выработку">{% icon 'plus' 28 %}</a>
   <a href="{% url 'staff_list' %}" class="{% if 'staff' in n or 'employee' in n or 'crew' in n %}active{% endif %}">{% icon 'users' %}<span>Рабочие</span></a>
-  <a href="{% url 'menu' %}" class="{% if n == 'menu' or 'object' in n or 'warehouse' in n or 'finance' in n %}active{% endif %}">{% icon 'menu' %}<span>Ещё</span></a>
+  <a href="{% url 'menu' %}" class="{% if n == 'menu' or 'object' in n or 'warehouse' in n or 'finance' in n or n == 'pto' or n == 'history' %}active{% endif %}">{% icon 'menu' %}<span>Ещё</span></a>
 </nav>
 {% endif %}
 {% if DEMO %}<script>
