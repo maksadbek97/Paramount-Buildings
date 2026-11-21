@@ -14,7 +14,7 @@
       <td data-label="Номер" class="nowrap">{{ d.number|default:"—" }}</td>
       <td data-label="Дата" class="nowrap">{{ d.date|date:"d.m.Y" }}</td>
       <td data-label="Статус">{{ d.status }}</td>
-      <td class="r dl">{% if d.download %}<a class="btn-dl" href="{{ d.url }}" download>{% icon 'download' 15 %}Скачать</a>{% elif d.url %}<a class="btn-dl" href="{{ d.url }}">Открыть</a>{% endif %}</td>
+      <td class="r dl">{% if d.file %}<a class="btn-dl" href="{{ d.file }}" download>{% icon 'download' 15 %}Скачать</a>{% elif d.download %}<a class="btn-dl" href="{{ d.url }}" download>{% icon 'download' 15 %}Скачать</a>{% elif d.url %}<a class="btn-dl" href="{{ d.url }}">Открыть</a>{% endif %}</td>
     </tr>{% endfor %}</tbody>
   </table>
   <div class="empty-s ob-empty" data-none hidden>В этой категории документов нет.</div>

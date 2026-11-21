@@ -1,0 +1,120 @@
+{% extends "base.html" %}{% load ui static %}
+{% block title %}Письмо на фирменном бланке · Документы · Paramount Buildings{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{% url 'docflow_home' %}">Документы</a><span>/</span><a href="{% url 'docflow_letters_out' %}">Исходящие</a><span>/</span><b>Письмо на бланке</b></div>
+<div class="dh"><div class="dh-title"><h1>Письмо на фирменном бланке</h1><div class="sub">Заполните шаги — система сама поставит номер, дату, подпись и печать, сформирует PDF и внесёт письмо в журнал исходящих</div></div></div>
+
+<form method="post" class="df-gen" id="dfGen" enctype="multipart/form-data" novalidate data-local{% if DEMO %} data-demo="1"{% endif %}>{% csrf_token %}
+<ol class="df-gsteps" id="gSteps">
+  <li class="on" data-go="1"><span>1</span><b>Бланк</b></li><li data-go="2"><span>2</span><b>Адресат</b></li><li data-go="3"><span>3</span><b>Текст</b></li><li data-go="4"><span>4</span><b>Приложения</b></li><li data-go="5"><span>5</span><b>Подпись и печать</b></li><li data-go="6"><span>6</span><b>Предпросмотр</b></li><li data-go="7"><span>7</span><b>Регистрация</b></li>
+</ol>
+<div class="df-gwrap">
+  <div class="df-gform card">
+    <div class="errors" id="gErr" hidden></div>
+    {% if messages %}{% endif %}
+
+    <fieldset data-step="1">
+      <legend>Шаг 1. Тип документа и бланк</legend>
+      <div class="fgrid">
+        <div class="field wide"><span class="lbl">Фирменный бланк<span class="req">*</span></span>
+          <div class="df-lhs">{% for t in letterheads %}<label class="df-lhopt"><input type="radio" name="template" value="{{ t.pk }}" data-rule="{{ t.sign_rule }}" data-code="{{ t.code|lower }}" data-name="{{ t.name }}" {% if forloop.first %}checked{% endif %}><span class="df-lhmini df-lh-{{ t.code|lower }}"><i></i><i></i><i></i></span><span><b>{{ t.name }}</b><small>v{{ t.version }} · {{ t.get_sign_rule_display|lower }}</small></span></label>{% endfor %}</div></div>
+        <div class="field"><label for="gType">Тип письма</label><select id="gType" name="letter_type"><option>Деловое письмо</option><option>Ответ на входящее</option><option>Гарантийное письмо</option><option>Уведомление</option><option>Претензия</option><option>Запрос</option></select></div>
+        <div class="field"><label>Компания</label><input value="{{ company.name }}" readonly></div>
+      </div>
+    </fieldset>
+
+    <fieldset data-step="2" hidden>
+      <legend>Шаг 2. Адресат и реквизиты</legend>
+      <div class="fgrid">
+        <div class="field wide"><label for="gTo">Адресат (организация и должность)<span class="req">*</span></label><input id="gTo" name="addressee" list="gToList" required placeholder="Генеральному директору ТОО «Астана Курылыс Груп»" value="{{ post.addressee|default:'' }}"><datalist id="gToList">{% for a in addressees %}<option value="{{ a }}">{% endfor %}</datalist></div>
+        <div class="field"><label for="gObj">Объект</label><select id="gObj" name="object"><option value="">Без объекта</option>{% for o in objects %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="gCon">Договор</label><select id="gCon" name="contract"><option value="">Без договора</option>{% for c in contracts_list %}<option value="{{ c.pk }}">№ {% firstof c.number "—" %} · {{ c.counterparty|truncatechars:30 }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="gPar">В ответ на входящее</label><select id="gPar" name="parent"><option value="">—</option>{% for d in incoming_list %}<option value="{{ d.pk }}" data-to="{{ d.counterparty }}" data-subj="{{ d.title }}">{% firstof d.number d.uid %} · {{ d.title|truncatechars:40 }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="gSigner">Подписант</label><select id="gSigner" name="signer">{% for e in signers %}<option value="{{ e.pk }}" data-pos="{{ e.position }}" data-name="{{ e.full_name }}" {% if e.pk == director.pk %}selected{% endif %}>{{ e.full_name }} · {{ e.position }}</option>{% endfor %}</select></div>
+      </div>
+    </fieldset>
+
+    <fieldset data-step="3" hidden>
+      <legend>Шаг 3. Текст письма</legend>
+      <div class="fgrid">
+        <div class="field wide"><label for="gSubj">Тема<span class="req">*</span></label><input id="gSubj" name="subject" required placeholder="О продлении срока выполнения работ" value="{{ post.subject|default:'' }}"></div>
+        <div class="field wide"><label for="gBody">Текст<span class="req">*</span></label>
+          <div class="df-tools"><button type="button" data-ins="Уважаемый(ая) ___!">Обращение</button><button type="button" data-ins="Просим рассмотреть возможность ">Просим…</button><button type="button" data-ins="Сообщаем, что ">Сообщаем…</button><button type="button" data-ins="— ">• Пункт списка</button><button type="button" data-ins="Гарантируем оплату в срок до ___.">Гарантия оплаты</button></div>
+          <textarea id="gBody" name="body" rows="10" required placeholder="Каждый абзац с новой строки">{{ post.body|default:'' }}</textarea>
+          <div class="help">Абзацы и списки переносятся в бланк как есть. Номер и дата подставятся при регистрации.</div></div>
+      </div>
+    </fieldset>
+
+    <fieldset data-step="4" hidden>
+      <legend>Шаг 4. Приложения</legend>
+      <div class="fgrid">
+        <div class="field wide"><label for="gAtt">Перечень приложений</label><textarea id="gAtt" name="attachments" rows="3" placeholder="График работ на декабрь, 1 л.&#10;Копия акта КС-2, 2 л.">{{ post.attachments|default:'' }}</textarea><div class="help">Каждое приложение с новой строки — попадёт в письмо списком.</div></div>
+        <div class="field wide"><label class="df-dropz" for="gFiles">{% icon 'download' 22 %}<span><b>Перетащите файлы сюда</b> или нажмите, чтобы выбрать<small>PDF, DOCX, XLSX, JPG, PNG · до 25 МБ</small></span><input type="file" id="gFiles" name="files" multiple hidden></label><div class="df-flist" id="gFList"></div></div>
+      </div>
+    </fieldset>
+
+    <fieldset data-step="5" hidden>
+      <legend>Шаг 5. Подпись и печать</legend>
+      <div class="df-q"><b>Добавить подпись и печать на документ?</b><span class="req">*</span>
+        <div class="df-qopts">{% for v, l in sign_choices %}<label class="df-qopt"><input type="radio" name="sign_mode" value="{{ v }}" required {% if post.sign_mode == v %}checked{% endif %}><span>{% if v == 'both' %}{% icon 'stamp' 20 %}{% elif v == 'sign' %}{% icon 'pen' 20 %}{% elif v == 'seal' %}{% icon 'stamp' 20 %}{% else %}{% icon 'x' 20 %}{% endif %}<b>{{ l }}</b></span></label>{% endfor %}</div>
+        <div class="df-rule" id="gRule" hidden></div>
+      </div>
+      <div class="fgrid" id="gSealBox">
+        <div class="field"><label for="gSeal">Печать</label><select id="gSeal" name="seal">{% for s in seals %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}</select><div class="help">Использование печати попадёт в журнал печатей</div></div>
+        <div class="field"><label>Образ подписи</label><input value="{% firstof director.full_name '' %} — утверждённый образ" readonly id="gSignImg"></div>
+      </div>
+      <div class="obnote info">{% icon 'shield' 18 %}<span>Изображение подписи и печати — визуальное, это не ЭЦП. {% if can_sign %}У вас есть право подписи и печати.{% else %}У вас нет права подписи — выберите «Без подписи и печати».{% endif %}</span></div>
+    </fieldset>
+
+    <fieldset data-step="6" hidden>
+      <legend>Шаг 6. Предпросмотр</legend>
+      <p class="muted">Так письмо будет выглядеть в PDF. Можно вернуться на любой шаг и поправить.</p>
+      <div class="df-pvslot" id="gPvSlot"></div>
+    </fieldset>
+
+    <fieldset data-step="7" hidden>
+      <legend>Шаг 7. Сформировать и зарегистрировать</legend>
+      <ul class="df-check" id="gCheck"></ul>
+      <div class="obnote">{% icon 'table' 18 %}<span>Номер по журналу исходящих: <b>{{ next_number }}</b> (предварительно). Номер расходуется только при успешной регистрации; запись в журнал появится сама.</span></div>
+      <button class="btn btn-primary btn-lg btn-block" type="submit" id="gGo">{% icon 'check' 20 %}Сформировать и зарегистрировать</button>
+    </fieldset>
+
+    <div class="df-success" id="gDone" hidden>
+      <div class="df-done-ic big">{% icon 'check' 34 %}</div>
+      <h2>Письмо сформировано и зарегистрировано</h2>
+      <p class="df-dn">№ <b id="gDoneNum">{{ next_number }}</b> от {{ today_text }}</p>
+      <p class="muted" id="gDoneNote">Демо-версия: показываем пример готового письма из журнала. В рабочей системе PDF собирается из вашего текста.</p>
+      <div class="df-done-grid">
+        <a class="btn btn-primary" href="{% if sample %}{{ sample.file.url }}{% else %}#{% endif %}" download="Письмо {{ next_number }}.pdf">{% icon 'download' 18 %}Скачать PDF</a>
+        <a class="btn btn-ghost" id="gWa" href="https://wa.me/?text=" target="_blank" rel="noopener">{% icon 'chat' 18 %}WhatsApp</a>
+        <a class="btn btn-ghost" href="{% if sample %}{{ sample.file.url }}{% else %}#{% endif %}" data-print>{% icon 'print' 18 %}Печать</a>
+        <a class="btn btn-ghost" href="{% if sample %}{% url 'docflow_journal' sample.journal_id %}{% else %}{% url 'docflow_journals' %}{% endif %}">{% icon 'table' 18 %}Открыть в журнале</a>
+        {% if sample %}<a class="btn btn-ghost" href="{% url 'docflow_detail' sample.pk %}">{% icon 'eye' 18 %}Открыть карточку</a>{% endif %}
+        <a class="btn btn-ghost" href="{% url 'docflow_letter' %}">{% icon 'layers' 18 %}Создать копию</a>
+      </div>
+    </div>
+
+    <div class="df-gnav" id="gNav">
+      <button type="button" class="btn btn-ghost" id="gPrev">Назад</button>
+      <button type="button" class="btn btn-primary" id="gNext">Далее</button>
+    </div>
+  </div>
+
+  <aside class="df-gside">
+    <div class="df-pvh"><b>Предпросмотр</b><small>обновляется по мере ввода</small></div>
+    <div class="df-paperwrap" id="gPvHome">
+    <div class="df-a4" id="gPaper">
+      <div class="a4-bar"></div>
+      <div class="a4-head"><img src="{% static 'img/logo.png' %}" alt=""><div><b>{{ company.name }}</b><span>{{ company.legal_address }}</span><span>БИН {{ company.bin }} · {{ company.phone }}</span><span>{{ company.email }}</span></div></div>
+      <div class="a4-line"></div>
+      <div class="a4-meta"><div>Исх. № <b>{{ next_number }}</b> <em>(предв.)</em><br>от {{ today_text }}</div><div class="a4-to" id="pTo">Адресат</div></div>
+      <div class="a4-subj" id="pSubj">Тема письма</div>
+      <div class="a4-body" id="pBody"><p class="ph">Здесь появится текст письма…</p></div>
+      <div class="a4-att" id="pAtt" hidden></div>
+      <div class="a4-sign"><span id="pPos">{{ director.position|default:"Директор" }}</span><span class="a4-seal" id="pSeal" hidden><span>PARAMOUNT<br>BUILDINGS</span></span><svg id="pSig" hidden viewBox="0 0 120 50" width="110" height="46"><path d="M5 35 C20 5, 30 45, 45 25 S70 10, 80 30 S100 40, 115 12" fill="none" stroke="#244AAA" stroke-width="3" stroke-linecap="round"/></svg><b id="pName">{{ director.full_name }}</b></div>
+      <div class="a4-foot">{% if me %}Исп.: {{ me.full_name }}{% endif %}</div>
+    </div></div>
+  </aside>
+</div>
+</form>
+{% endblock %}

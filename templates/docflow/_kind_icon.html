@@ -1,0 +1,1 @@
+{% load ui %}<span class="dic dk-{{ d.kind }}">{% if d.kind == 'incoming' %}{% icon 'inbox' 18 %}{% elif d.kind == 'outgoing' %}{% icon 'send' 18 %}{% elif d.kind == 'order' %}{% icon 'stamp' 18 %}{% elif d.kind == 'contract' %}{% icon 'contract' 18 %}{% elif d.kind == 'internal' %}{% icon 'clipboard' 18 %}{% else %}{% icon 'file' 18 %}{% endif %}</span>

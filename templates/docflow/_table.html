@@ -1,0 +1,84 @@
+{% load ui obj %}
+<section class="df-list" data-key="{{ tab }}{{ sub_on }}">
+  <div class="card flat df-filters">
+    <div class="fchips" role="tablist" aria-label="Быстрый фильтр">
+      {% for k, label, n in chips %}<button type="button" class="fchip{% if not k %} on{% endif %}" data-chip="{{ chip_field|default:'g' }}" data-v="{{ k }}">{{ label }} <span>{{ n }}</span></button>{% endfor %}
+      {% if chip_field == "kind" %}{% for k, label in groups %}<button type="button" class="fchip" data-chip="g" data-v="{{ k }}" hidden>{{ label }} ✕</button>{% endfor %}{% endif %}
+      <button type="button" class="fchip hot" data-chip="due" data-v="overdue">Просрочены <span>{{ overdue_n }}</span></button>
+    </div>
+    <div class="ob-search">
+      <label class="ob-q">{% icon 'search' 18 %}<input type="search" data-q placeholder="Номер, название, контрагент, объект, автор, ключевые слова" autocomplete="off" aria-label="Поиск"></label>
+      <button type="button" class="btn btn-ghost ob-ftoggle" data-ftoggle aria-expanded="false">{% icon 'filter' 18 %}<span>Фильтры</span><i data-fcount></i></button>
+      <details class="dd df-cols"><summary aria-label="Колонки" title="Настроить колонки">{% icon 'table' 18 %}<span>Колонки</span>{% icon 'chevron' 16 %}</summary>
+        <div class="dd-menu" data-colmenu></div>
+      </details>
+      <button type="button" class="btn btn-ghost df-exp" data-export="{{ export_name }}" title="Скачать список в Excel (CSV)">{% icon 'download' 18 %}<span>Экспорт</span></button>
+    </div>
+    <div class="ob-more df-more" data-more hidden>
+      <label>Статус<select data-f="st"><option value="">Все</option>{% for v, l in f_status %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Ответственный<select data-f="resp"><option value="">Все</option>{% for v, l in f_resp %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Объект<select data-f="obj"><option value="">Все</option>{% for v, l in f_obj %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Контрагент<select data-f="cp"><option value="">Все</option>{% for v, l in f_cp %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Подразделение<select data-f="dep"><option value="">Все</option>{% for v, l in f_dep %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Дело<select data-f="case"><option value="">Все</option>{% for v, l in f_case %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Срок<select data-f="due"><option value="">Любой</option><option value="overdue">Просрочен</option><option value="soon">В ближайшие 3 дня</option><option value="has">Есть срок</option></select></label>
+      <label>Дата с<input type="date" data-f="from"></label>
+      <label>Дата по<input type="date" data-f="to"></label>
+      <label class="df-chk"><input type="checkbox" data-f="miss" value="1"> Не хватает реквизитов</label>
+      <button type="button" class="ob-reset" data-reset>Сбросить фильтры</button>
+    </div>
+  </div>
+
+  <div class="card flat">
+  <div class="tscroll"><table class="otable df-table">
+    <thead><tr>
+      <th data-col="doc" data-sort="title">Документ</th>
+      <th data-col="num" data-sort="date">Номер и дата</th>
+      {% if tab == 'contracts' %}<th data-col="money" data-sort="amount" class="r">Сумма и оплата</th><th data-col="term" data-sort="left">Срок действия</th>
+      {% elif tab == 'orders' %}<th data-col="obj">Объект</th><th data-col="exec">Исполнение</th>
+      {% else %}<th data-col="cp">Контрагент и объект</th>{% endif %}
+      <th data-col="resp">Ответственный</th>
+      <th data-col="st">Статус</th>
+      {% if tab != 'contracts' %}<th data-col="due" data-sort="due">Срок</th>{% endif %}
+      <th data-col="case" data-off>Дело</th>
+      <th data-col="file">Файл</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}{% with d=r.d %}
+    <tr data-kind="{{ d.kind }}" data-g="{{ r.group }}" data-st="{{ d.status }}" data-resp="{{ d.responsible_id|default:'' }}" data-obj="{{ d.construction_object_id|default:'' }}" data-cp="{{ d.counterparty }}" data-dep="{{ d.department_id|default:'' }}" data-case="{{ d.case_id|default:'' }}" data-date="{{ d.doc_date|date:'Y-m-d' }}" data-due="{{ r.due }}" data-duev="{{ d.due_date|date:'Y-m-d'|default:'9999' }}" data-miss="{% if r.missing %}1{% endif %}" data-amount="{{ d.amount|default:0|floatformat:0 }}" data-left="{{ r.left|default_if_none:99999 }}" data-title="{{ d.title|lower }}" data-q="{{ d.number|lower }} {{ d.title|lower }} {{ d.counterparty|lower }} {{ d.construction_object.name|lower }} {{ d.author.full_name|lower }} {{ d.responsible.full_name|lower }} {{ d.keywords|lower }} {{ d.summary|lower|truncatechars:300 }} {{ d.uid|lower }} {{ d.sender_number|lower }}" class="{% if d.status == 'cancelled' or d.status == 'archived' %}dim{% endif %}">
+      <td data-label="Документ" data-col="doc"><div class="on">{% include "docflow/_kind_icon.html" %}<div><a class="doclink" href="{% url 'docflow_detail' d.pk %}">{{ d.title }}</a><small>{{ d.get_kind_display }}{% if d.subtype %} · {{ d.subtype }}{% endif %} · {{ d.uid }}{% if d.confidential %} · {% icon 'lock' 12 %} конфиденциально{% endif %}</small></div></div></td>
+      <td data-label="Номер и дата" data-col="num" class="nowrap"><div>{% if d.number %}<b class="df-num">№ {{ d.number }}</b>{% else %}<span class="muted">без номера</span>{% endif %}<small class="block muted">{{ d.doc_date|date:"d.m.Y" }}{% if d.sender_number %} · исх. {{ d.sender_number }}{% endif %}</small></div></td>
+      {% if tab == 'contracts' %}
+      <td data-label="Сумма и оплата" data-col="money" class="r df-money"><div><b>{{ d.amount|money }} ₸</b>{% if d.amount %}<div class="pb df-pb"><div class="bar"><span style="width:{{ d.paid_pct }}%"></span></div><b>{{ d.paid_pct }}%</b></div>{% endif %}<small>{{ d.counterparty }}</small></div></td>
+      <td data-label="Срок действия" data-col="term" class="nowrap"><div>{% if d.valid_until %}{{ d.valid_from|date:"d.m.y"|default:"…" }} – {{ d.valid_until|date:"d.m.y" }}{% if r.left is not None %}{% if r.left < 0 %}<small class="bad block">истёк</small>{% elif r.left <= 30 %}<small class="warn-t block">осталось {{ r.left }} дн.</small>{% else %}<small class="muted block">{{ r.left }} дн.</small>{% endif %}{% endif %}{% else %}<span class="muted">—</span>{% endif %}</div></td>
+      {% elif tab == 'orders' %}
+      <td data-label="Объект" data-col="obj">{{ d.construction_object|default:"по компании" }}</td>
+      <td data-label="Исполнение" data-col="exec">{% if r.pct is not None %}<div class="pb"><div class="bar"><span style="width:{{ r.pct }}%"></span></div><b>{{ r.tasks_done }}/{{ r.tasks }}</b></div>{% else %}<span class="muted small">поручений нет</span>{% endif %}</td>
+      {% else %}
+      <td data-label="Контрагент и объект" data-col="cp"><div class="df-cp">{% if d.counterparty %}<span title="{{ d.counterparty }}">{{ d.counterparty|truncatechars:48 }}</span>{% endif %}{% if d.construction_object %}<small>{% icon 'building' 13 %} {{ d.construction_object.name }}</small>{% endif %}{% if not d.counterparty and not d.construction_object %}<span class="muted">—</span>{% endif %}{% if d.kind == 'internal' and d.recipients.all %}<small>ознакомлены {{ d.recipients.all|length }}</small>{% endif %}</div></td>
+      {% endif %}
+      <td data-label="Ответственный" data-col="resp"><span title="{{ d.responsible.full_name }}">{{ d.responsible.full_name|initials|default:"—" }}</span></td>
+      <td data-label="Статус" data-col="st"><div class="df-stc">{% include "docflow/_status.html" %}{% if r.missing and d.status != 'draft' and d.status != 'cancelled' %}<small class="warn-t">нет: {{ r.missing|join:", " }}</small>{% endif %}</div></td>
+      {% if tab != 'contracts' %}<td data-label="Срок" data-col="due" class="nowrap"><div>{% if d.due_date and not d.is_final %}<span class="{% if r.due == 'overdue' %}bad{% elif r.due == 'soon' %}warn-t{% endif %}">{{ d.due_date|date:"d.m.Y" }}</span><small class="block {% if r.due == 'overdue' %}bad{% else %}muted{% endif %}">{{ r.due_text }}</small>{% else %}<span class="muted">—</span>{% endif %}</div></td>{% endif %}
+      <td data-label="Дело" data-col="case">{% if d.case %}<span title="{{ d.case.title }}">{{ d.case.index }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td data-label="Файл" data-col="file" class="dl">{% if d.file %}<a class="btn-dl" href="{{ d.file.url }}" download="{% firstof d.number d.uid %}.pdf">{% icon 'download' 16 %}Скачать</a>{% else %}<span class="muted small">нет файла</span>{% endif %}</td>
+      <td class="r ob-act">
+        <details class="dd rowmenu"><summary aria-label="Действия" title="Действия">{% icon 'dots' 20 %}</summary>
+          <div class="dd-menu">
+            <a href="{% url 'docflow_detail' d.pk %}">{% icon 'eye' 18 %}Открыть карточку</a>
+            {% if d.file %}<a href="{{ d.file.url }}" target="_blank" rel="noopener">{% icon 'file' 18 %}Открыть PDF</a>{% endif %}
+            {% if not d.is_locked %}<a href="{% url 'docflow_edit' d.pk %}">{% icon 'edit' 18 %}Изменить</a>{% endif %}
+            {% if d.kind == 'incoming' %}<a href="{% url 'docflow_letter' %}">{% icon 'send' 18 %}Ответить письмом</a>{% endif %}
+            <a href="{% url 'docflow_task_new' %}">{% icon 'task' 18 %}Поручение по документу</a>
+          </div>
+        </details>
+      </td>
+    </tr>{% endwith %}{% endfor %}
+    </tbody>
+  </table></div>
+  <div class="empty-s ob-empty" data-none hidden>Под условия ничего не подходит. <button type="button" class="linkbtn" data-reset>Сбросить фильтры</button></div>
+  {% if not rows %}<div class="empty-s ob-empty">Документов пока нет.</div>{% endif %}
+  <div class="df-foot"><span data-shown></span><button type="button" class="btn btn-ghost btn-sm" data-moreb hidden>Показать ещё</button></div>
+  </div>
+</section>

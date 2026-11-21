@@ -1,0 +1,30 @@
+{% extends "docflow/_base.html" %}{% load ui %}
+{% block ptitle %}Архив{% endblock %}
+{% block tab %}
+<div class="tabhead df-th">
+  <div><h2>Архив</h2><p class="muted">Документ попадает сюда после всех обязательных этапов. Просмотр и скачивание — по правам; выдача и возврат фиксируются. Уничтожение — только по утверждённому акту экспертизы ценности.</p></div>
+</div>
+<div class="card flat df-filters"><div class="ob-search"><label class="ob-q">{% icon 'search' 18 %}<input type="search" id="aQ" placeholder="Архивный номер, документ, дело" autocomplete="off" aria-label="Поиск в архиве"></label>
+  <select id="aYear" class="df-sel" aria-label="Год"><option value="">Все годы</option>{% for y in years %}<option>{{ y }}</option>{% endfor %}</select>
+  <button type="button" class="btn btn-ghost df-exp" data-export="arhiv" data-target="#aTable">{% icon 'download' 18 %}<span>Опись (CSV)</span></button></div></div>
+<section class="card flat">
+  <table class="otable" id="aTable">
+    <thead><tr><th>Архивный №</th><th>Документ</th><th>Дело</th><th>Передан</th><th>Хранить</th><th>Место · архивариус</th><th>Статус</th><th>Файл</th></tr></thead>
+    <tbody>{% for r in recs %}<tr data-year="{{ r.archived_at.year }}" data-q="{{ r.archive_id|lower }} {{ r.document.title|lower }} {{ r.document.number|lower }} {{ r.case.index }} {{ r.case.title|lower }}">
+      <td data-label="Архивный №" class="nowrap"><b class="df-num">{{ r.archive_id }}</b></td>
+      <td data-label="Документ"><div><a class="doclink" href="{% url 'docflow_detail' r.document_id %}">{{ r.document.title }}</a><small class="muted">{{ r.document.get_kind_display }}{% if r.document.number %} · № {{ r.document.number }}{% endif %}</small></div></td>
+      <td data-label="Дело"><div>{{ r.case.index }}<small class="block muted">{{ r.case.title|truncatechars:34 }}</small></div></td>
+      <td data-label="Передан" class="nowrap">{{ r.archived_at|date:"d.m.Y" }}</td>
+      <td data-label="Хранить" class="nowrap">{{ r.keep_text }}</td>
+      <td data-label="Место"><div>{{ r.location|default:"—" }}<small class="block muted">{{ r.archivist.full_name|default:"" }}</small></div></td>
+      <td data-label="Статус"><div><span class="dst t-{% if r.status == 'stored' %}ok{% elif r.status == 'issued' %}warn{% else %}violet{% endif %}">{{ r.get_status_display }}</span>{% if r.issued_to %}<small class="block muted">{{ r.issued_to }}</small>{% endif %}</div></td>
+      <td data-label="Файл" class="dl">{% if r.document.file %}<a class="btn-dl" href="{{ r.document.file.url }}" download="{{ r.archive_id }}.pdf">{% icon 'download' 15 %}Скачать</a>{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="8" class="muted">В архиве пока пусто</td></tr>{% endfor %}</tbody>
+  </table>
+  <div class="empty-s ob-empty" id="aNone" hidden>Ничего не найдено.</div>
+</section>
+{% if ready %}<section class="card">
+  <header><h3>Готовы к передаче в архив</h3><span class="muted">исполнены, дело указано</span></header>
+  <ul class="doclist">{% for d in ready %}<li>{% include "docflow/_kind_icon.html" %}<div class="dt"><a class="doclink" href="{% url 'docflow_detail' d.pk %}">{{ d.title }}</a><small>{% if d.number %}№ {{ d.number }} · {% endif %}дело {{ d.case.index }}</small></div>{% include "docflow/_status.html" %}</li>{% endfor %}</ul>
+</section>{% endif %}
+{% endblock %}

@@ -1,0 +1,168 @@
+{% extends "base.html" %}{% load ui obj %}
+{% block title %}{{ d.title }} · Документы · Paramount Buildings{% endblock %}
+{% block content %}
+<div class="crumbs"><a href="{% url 'docflow_home' %}">Документы</a><span>/</span><a href="{% url back_tab %}">{% if d.kind == 'order' %}Приказы{% elif d.kind == 'incoming' %}Входящие{% elif d.kind == 'outgoing' %}Исходящие{% elif d.kind == 'internal' %}Внутренние{% elif d.kind == 'contract' %}Договоры{% else %}Все документы{% endif %}</a><span>/</span><b>{% firstof d.number d.uid %}</b></div>
+
+{% if request.GET.done %}<div class="df-done">
+  <div class="df-done-ic">{% icon 'check' 26 %}</div>
+  <div class="df-done-t"><b>Письмо сформировано и зарегистрировано</b><span>№ {{ d.number }} от {{ d.reg_date|date:"d.m.Y" }} · запись добавлена в журнал исходящих</span></div>
+  <div class="df-done-a">
+    <a class="btn btn-primary btn-sm" href="{{ d.file.url }}" download="Письмо {{ d.number }}.pdf">{% icon 'download' 16 %}Скачать PDF</a>
+    <a class="btn btn-ghost btn-sm" href="https://wa.me/?text={{ wa_text|urlencode }}" target="_blank" rel="noopener">{% icon 'chat' 16 %}WhatsApp</a>
+    <a class="btn btn-ghost btn-sm" href="{{ d.file.url }}" data-print>{% icon 'print' 16 %}Печать</a>
+    <a class="btn btn-ghost btn-sm" href="mailto:?subject={{ wa_text|urlencode }}">{% icon 'mail' 16 %}Email</a>
+    <a class="btn btn-ghost btn-sm" href="{% url 'docflow_journal' d.journal_id %}">{% icon 'table' 16 %}Открыть в журнале</a>
+  </div>
+</div>{% endif %}
+
+<section class="card df-dhead">
+  <div class="df-dtop">
+    {% include "docflow/_kind_icon.html" %}
+    <div class="df-dt">
+      <div class="df-dmeta">{{ d.get_kind_display }}{% if d.subtype %} · {{ d.subtype }}{% endif %} · {{ d.uid }}{% if d.confidential %} · <span class="warn-t">{% icon 'lock' 12 %} конфиденциально</span>{% endif %}</div>
+      <h1>{{ d.title }}</h1>
+      <div class="df-dsub">{% if d.number %}<b>№ {{ d.number }}</b>{% else %}<span class="muted">номер присвоится при регистрации</span>{% endif %} · от {{ d.doc_date|date:"d.m.Y" }}{% if d.counterparty %} · {{ d.counterparty }}{% endif %}</div>
+    </div>
+    <div class="df-dst">{% include "docflow/_status.html" %}{% if due_text %}<small class="{% if d.overdue %}bad{% elif d.due_soon %}warn-t{% else %}muted{% endif %}">срок {{ d.due_date|date:"d.m.Y" }} · {{ due_text }}</small>{% endif %}</div>
+  </div>
+  <ol class="df-steps">{% for s in steps %}<li class="{{ s.state }}"><span>{% if s.state == 'done' %}{% icon 'check' 14 %}{% else %}{{ forloop.counter }}{% endif %}</span><b>{{ s.label }}</b></li>{% endfor %}</ol>
+  {% if d.status == 'cancelled' or d.status == 'rejected' %}<div class="obnote bad">{% icon 'alert' 18 %}<span>Документ {{ d.get_status_display|lower }}. Номер, файлы и история сохранены.</span></div>{% endif %}
+  {% if d.is_locked and d.status != 'cancelled' %}<div class="df-lock">{% icon 'lock' 14 %}Подписанная и зарегистрированная версия защищена: изменения — только новой версией или корректирующим документом.</div>{% endif %}
+  <div class="df-acts">
+    {% for code, label, style, need in actions %}{% if style != 'danger' %}
+    <form method="post" action="{% url 'docflow_action' d.pk %}">{% csrf_token %}<input type="hidden" name="action" value="{{ code }}"><input type="hidden" name="reason" value="">
+      <button class="btn btn-{{ style }} btn-sm"{% if need %} data-reason="{{ label }}"{% endif %}>{{ label }}</button></form>
+    {% endif %}{% endfor %}
+    {% if d.file %}<a class="btn btn-ghost btn-sm" href="{{ d.file.url }}" download="{% firstof d.number d.uid %}.pdf">{% icon 'download' 16 %}Скачать</a>{% endif %}
+    <details class="dd df-more-a"><summary>{% icon 'dots' 18 %}<span>Ещё</span></summary>
+      <div class="dd-menu">
+        {% if d.file %}<a href="{{ d.file.url }}" data-print>{% icon 'print' 18 %}Печать</a>
+        <a href="https://wa.me/?text={{ wa_text|urlencode }}" target="_blank" rel="noopener">{% icon 'chat' 18 %}Отправить в WhatsApp</a>{% endif %}
+        <a href="{% url 'docflow_task_new' %}">{% icon 'task' 18 %}Назначить исполнителя</a>
+        <a href="{% if d.kind == 'incoming' %}{% url 'docflow_letter' %}{% else %}{% url 'docflow_new' 'outgoing' %}{% endif %}">{% icon 'layers' 18 %}Создать на основании</a>
+        {% if not d.is_locked %}<a href="{% url 'docflow_edit' d.pk %}">{% icon 'edit' 18 %}Изменить реквизиты</a>{% endif %}
+        {% for code, label, style, need in actions %}{% if style == 'danger' %}<form method="post" action="{% url 'docflow_action' d.pk %}">{% csrf_token %}<input type="hidden" name="action" value="{{ code }}"><input type="hidden" name="reason" value=""><button class="df-danger" data-reason="{{ label }}">{% icon 'x' 18 %}{{ label }}</button></form>{% endif %}{% endfor %}
+      </div>
+    </details>
+  </div>
+</section>
+
+<div class="df-dgrid">
+  <div class="df-main">
+    <nav class="obtabs df-ctabs" role="tablist">
+      <a href="#main" data-tab="main" class="active">Основное</a>
+      <a href="#files" data-tab="files">Файлы <span class="c">{{ files|length }}</span></a>
+      <a href="#approval" data-tab="approval">Согласование <span class="c{% if d.status == 'approval' or d.status == 'signing' %} hot{% endif %}">{{ approvals|length }}</span></a>
+      <a href="#exec" data-tab="exec">Исполнение <span class="c">{{ tasks|length|add:recipients|length }}</span></a>
+      <a href="#links" data-tab="links">Связи <span class="c">{{ related|length }}</span></a>
+      <a href="#history" data-tab="history">История <span class="c">{{ events|length }}</span></a>
+    </nav>
+
+    <div data-panel="main">
+      <section class="card">
+        <header><h3>Реквизиты</h3></header>
+        <dl class="df-req">{% for k, v in req %}<div><dt>{{ k }}</dt><dd>{{ v }}</dd></div>{% endfor %}</dl>
+      </section>
+      {% if money %}<section class="card">
+        <header><h3>Договор</h3></header>
+        <dl class="df-req">{% for k, v in money %}<div><dt>{{ k }}</dt><dd>{% if k == 'Сумма' or k == 'Оплачено' %}{{ v|money }} ₸{% else %}{{ v }}{% endif %}</dd></div>{% endfor %}</dl>
+        {% if d.amount %}<div class="df-pay"><div class="pb"><div class="bar"><span style="width:{{ d.paid_pct }}%"></span></div><b>{{ d.paid_pct }}%</b></div><small class="muted">оплачено {{ d.paid|money }} из {{ d.amount|money }} ₸</small></div>{% endif %}
+      </section>{% endif %}
+      {% if d.summary %}<section class="card"><header><h3>{% if d.kind == 'order' %}Основание и текст{% else %}Содержание{% endif %}</h3></header><div class="df-text">{{ d.summary|linebreaks }}</div>
+        {% if d.keywords %}<div class="tags df-kw">{% for k in d.keywords_list %}<span>{{ k }}</span>{% endfor %}</div>{% endif %}</section>{% endif %}
+      {% if d.resolution %}<section class="card df-res"><header><h3>Резолюция руководителя</h3></header><p>{{ d.resolution }}</p></section>{% endif %}
+    </div>
+
+    <div data-panel="files" hidden>
+      <section class="card flat">
+        <header><h3>Файлы и версии</h3><span class="muted">оригинал, рабочие и подписанная версии</span></header>
+        {% if files %}<ul class="df-files">{% for f in files %}<li>
+          <span class="df-ext">{{ f.ext }}</span>
+          <div class="dt"><a class="doclink" href="{{ f.file.url }}" target="_blank" rel="noopener">{{ f.name }}</a><small>{{ f.get_role_display }} · версия {{ f.version }} · {{ f.created_at|date:"d.m.Y H:i" }}{% if f.author %} · {{ f.author.full_name }}{% endif %}{% if f.size_kb %} · {{ f.size_kb }} КБ{% endif %}</small>{% if f.comment %}<small>{{ f.comment }}</small>{% endif %}</div>
+          {% if f.locked %}<span class="df-lk" title="Защищён от изменений">{% icon 'lock' 14 %}</span>{% endif %}
+          <a class="btn-dl" href="{{ f.file.url }}" download="{{ f.name }}">{% icon 'download' 15 %}Скачать</a>
+        </li>{% endfor %}</ul>{% else %}<div class="empty-s ob-empty">Файлов пока нет.</div>{% endif %}
+        <div class="df-drop">{% icon 'download' 18 %}<span>Перетащите файл сюда или <a href="{% url 'docflow_edit' d.pk %}">выберите</a> · PDF, DOCX, XLSX, JPG, PNG до 25 МБ</span></div>
+      </section>
+    </div>
+
+    <div data-panel="approval" hidden>
+      <section class="card">
+        <header><h3>Маршрут согласования и подписи</h3></header>
+        {% if approvals %}<ol class="df-route">{% for a in approvals %}<li class="dec-{{ a.decision }}">
+          <span class="df-rn">{{ a.step }}</span>
+          <div class="dt"><b>{{ a.employee.full_name }}</b><small>{{ a.get_role_display }} · {{ a.employee.position|default:"" }}</small>{% if a.comment %}<q>{{ a.comment }}</q>{% endif %}</div>
+          <div class="df-rd"><span class="dst t-{% if a.decision == 'approved' or a.decision == 'signed' %}ok{% elif a.decision == 'pending' %}warn{% elif a.decision == 'waiting' %}gray{% else %}bad{% endif %}">{{ a.get_decision_display }}</span>{% if a.decided_at %}<small>{{ a.decided_at|date:"d.m.Y H:i" }}</small>{% endif %}{% if a.method %}<small>{{ a.method }}</small>{% endif %}</div>
+        </li>{% endfor %}</ol>
+        <p class="foot-note">Шаги с одинаковым номером идут параллельно. Отклонение и возврат — только с комментарием. Изображение подписи на бланке не является ЭЦП.</p>
+        {% else %}<div class="empty-s">Маршрут не требуется{% if d.kind == 'incoming' %}: входящий регистрируется канцелярией{% endif %}.</div>{% endif %}
+      </section>
+      {% if seal_usages %}<section class="card"><header><h3>Печать на документе</h3></header>
+        <ul class="doclist">{% for u in seal_usages %}<li><span class="dic dk-seal">{% icon 'stamp' 18 %}</span><div class="dt"><b>{{ u.seal.name }}</b><small>{{ u.get_action_display }} · {{ u.employee.full_name|default:"" }} · {{ u.at|date:"d.m.Y H:i" }}</small></div></li>{% endfor %}</ul></section>{% endif %}
+    </div>
+
+    <div data-panel="exec" hidden>
+      <section class="card flat">
+        <header><h3>Поручения</h3><a class="hlink" href="{% url 'docflow_task_new' %}">{% icon 'plus' 14 %} Поручение</a></header>
+        {% if tasks %}<ul class="df-tasks">{% for t in tasks %}<li class="{% if t.overdue %}late{% endif %}">
+          <div class="dt"><b>{{ t.number }} · {{ t.title }}</b><small>{{ t.assignee.full_name }}{% if t.co_assignees %} + {{ t.co_assignees }}{% endif %}{% if t.postpone_reason %} · срок перенесён: {{ t.postpone_reason }}{% endif %}</small></div>
+          <span class="dst t-{% if t.status == 'done' %}ok{% elif t.overdue %}bad{% elif t.status == 'review' %}violet{% else %}blue{% endif %}">{% if t.overdue %}Просрочено{% else %}{{ t.get_status_display }}{% endif %}</span>
+          <span class="df-due {% if t.overdue %}bad{% endif %}">{{ t.due|date:"d.m.Y" }}</span>
+        </li>{% endfor %}</ul>{% else %}<div class="empty-s ob-empty">Поручений по документу нет.</div>{% endif %}
+      </section>
+      {% if recipients %}<section class="card flat">
+        <header><h3>Адресаты и ознакомление</h3><span class="muted">у каждого свой статус</span></header>
+        <ul class="df-tasks">{% for r in recipients %}<li><div class="dt"><b>{{ r.employee.full_name }}</b><small>{{ r.employee.position|default:"" }}</small></div><span class="dst t-{% if r.state == 'done' %}ok{% elif r.state == 'read' %}blue{% else %}gray{% endif %}">{{ r.get_state_display }}</span><span class="df-due">{{ r.at|date:"d.m H:i"|default:"—" }}</span></li>{% endfor %}</ul>
+      </section>{% endif %}
+    </div>
+
+    <div data-panel="links" hidden>
+      <section class="card">
+        <header><h3>Связанные документы и объекты</h3></header>
+        <ul class="doclist">
+          {% if d.construction_object %}<li><span class="dic">{% icon 'building' 18 %}</span><div class="dt"><a class="doclink" href="{% url 'object_tab' d.construction_object_id 'docs' %}">{{ d.construction_object.name }}</a><small>Объект · документ виден во вкладке «Документы» объекта</small></div></li>{% endif %}
+          {% for label, r in related %}<li>{% include "docflow/_kind_icon.html" with d=r %}<div class="dt"><a class="doclink" href="{% url 'docflow_detail' r.pk %}">{{ r.title }}</a><small>{{ label }} · {% if r.number %}№ {{ r.number }} · {% endif %}{{ r.doc_date|date:"d.m.Y" }}</small></div>{% include "docflow/_status.html" with d=r %}</li>{% endfor %}
+          {% if archive_rec %}<li><span class="dic">{% icon 'archive' 18 %}</span><div class="dt"><a class="doclink" href="{% url 'docflow_archive' %}">{{ archive_rec.archive_id }}</a><small>Архив · дело {{ archive_rec.case.index }} · хранить {{ archive_rec.keep_text }} · {{ archive_rec.location }}</small></div></li>{% endif %}
+          {% if not related and not d.construction_object and not archive_rec %}<li class="muted">Связей пока нет.</li>{% endif %}
+        </ul>
+      </section>
+    </div>
+
+    <div data-panel="history" hidden>
+      <section class="card">
+        <header><h3>История и аудит</h3><span class="muted">записи нельзя изменить или удалить</span></header>
+        <form method="post" action="{% url 'docflow_action' d.pk %}" class="df-comment">{% csrf_token %}<input type="hidden" name="action" value="comment"><input name="reason" placeholder="Комментарий к документу" maxlength="300"><button class="btn btn-ghost btn-sm">Добавить</button></form>
+        <ul class="feed df-hist">{% for e in events %}<li><span class="dot {{ e.kind }}"></span><span><b>{{ e.get_kind_display }}</b> — {{ e.text }}{% if e.old or e.new %}<em class="df-chg">{{ e.old|default:"—" }} → {{ e.new|default:"—" }}</em>{% endif %}{% if e.reason %}<em class="df-why">Причина: {{ e.reason }}</em>{% endif %}<small>{{ e.at|date:"d.m.Y H:i" }} · {{ e.who }}</small></span></li>{% empty %}<li class="muted">Событий нет</li>{% endfor %}</ul>
+      </section>
+    </div>
+  </div>
+
+  <aside class="df-side">
+    <section class="card df-filecard">
+      {% if d.file %}<a class="df-thumb" href="{{ d.file.url }}" target="_blank" rel="noopener" title="Открыть PDF"><span class="df-paper"><i></i><i></i><i></i><i></i><i class="s"></i></span><b>{% firstof d.number d.uid %}.pdf</b><small>основной файл · открыть</small></a>
+      <a class="btn btn-primary btn-block" href="{{ d.file.url }}" download="{% firstof d.number d.uid %}.pdf">{% icon 'download' 18 %}Скачать PDF</a>
+      {% else %}<div class="empty-s">Основной файл не загружен</div>{% endif %}
+    </section>
+    <section class="card">
+      <header><h3>Кратко</h3></header>
+      <ul class="kvlist df-kv">
+        <li><span>Ответственный</span><b title="{{ d.responsible.full_name }}">{{ d.responsible.full_name|initials|default:"—" }}</b></li>
+        {% if d.construction_object %}<li><span>Объект</span><b>{{ d.construction_object.name }}</b></li>{% endif %}
+        {% if d.contract %}<li><span>Договор</span><b><a href="{% url 'docflow_detail' d.contract_id %}">№ {{ d.contract.number }}</a></b></li>{% endif %}
+        <li><span>Дело</span><b>{% if d.case %}{{ d.case.index }}{% else %}<span class="warn-t">не указано</span>{% endif %}</b></li>
+        {% if d.template %}<li><span>Шаблон</span><b>{{ d.template.name }} v{{ d.template.version }}</b></li>{% endif %}
+        {% if d.missing %}<li><span>Не хватает</span><b class="warn-t">{{ d.missing|join:", " }}</b></li>{% endif %}
+      </ul>
+    </section>
+  </aside>
+</div>
+
+<dialog class="ob-dialog df-dialog" id="dfReason">
+  <form method="dialog" class="ob-dialog-in">
+    <h3 data-title>Причина</h3>
+    <p class="muted">Без причины действие не выполняется — она попадёт в историю документа.</p>
+    <textarea rows="3" data-text required placeholder="Например: не согласован объём, уточнить сумму"></textarea>
+    <div class="ob-dialog-act"><button class="btn btn-ghost" value="cancel">Отмена</button><button class="btn btn-primary" value="ok" data-ok>Подтвердить</button></div>
+  </form>
+</dialog>
+{% endblock %}

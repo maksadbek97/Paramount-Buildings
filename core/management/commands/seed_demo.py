@@ -319,6 +319,8 @@ class Command(BaseCommand):
         AuditLog.objects.create(action="create", module="Объекты", object_id=str(o1.pk), object_repr=str(o1),
                                 construction_object=o1, changes='[["Статус", "", "Активный"]]',
                                 reason="Подписан договор субподряда")
+        from docflow.demo import seed as seed_docflow
+        seed_docflow()  # раздел «Документы»
         self._activity_feed()
         self.stdout.write(self.style.SUCCESS("Демо-данные созданы."))
 

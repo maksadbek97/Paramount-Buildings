@@ -345,11 +345,15 @@ def _documents(obj):
     for t in obj.transport.all():
         docs.append({"cat": "transport", "type": "Заявка на транспорт", "title": t.task, "number": t.number,
                      "date": t.date, "url": "", "status": t.get_status_display()})
+    for d in obj.docflow.all():
+        docs.append({"cat": "docflow", "type": d.get_kind_display(), "title": d.title, "number": d.number,
+                     "date": d.doc_date, "url": reverse("docflow_detail", args=[d.pk]),
+                     "status": d.get_status_display(), "file": d.file.url if d.file else ""})
     docs.sort(key=lambda d: d["date"], reverse=True)
     return docs
 
 
-DOC_CATS = [("files", "Файлы"), ("purchases", "Закупки"), ("estimates", "Сметы"), ("reports", "Отчёты"),
+DOC_CATS = [("docflow", "Документооборот"), ("files", "Файлы"), ("purchases", "Закупки"), ("estimates", "Сметы"), ("reports", "Отчёты"),
             ("quality", "Качество"), ("transport", "Транспорт")]
 
 
