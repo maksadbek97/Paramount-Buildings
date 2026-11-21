@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "contracts",
     "quality",
     "company",
+    "docflow",
 ]
 
 MIDDLEWARE = [

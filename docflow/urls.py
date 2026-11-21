@@ -1,0 +1,35 @@
+from django.urls import path
+
+from . import views as v
+
+urlpatterns = [
+    path("", v.home, name="docflow_home"),
+    path("all/", v.registry, name="docflow_all"),
+    path("orders/", v.orders, name="docflow_orders"),
+    path("letters/", v.letters, name="docflow_letters"),
+    path("letters/outgoing/", v.letters, {"kind": "outgoing"}, name="docflow_letters_out"),
+    path("letters/internal/", v.letters, {"kind": "internal"}, name="docflow_letters_internal"),
+    path("contracts/", v.contracts, name="docflow_contracts"),
+    path("tasks/", v.tasks, name="docflow_tasks"),
+    path("tasks/new/", v.task_new, name="docflow_task_new"),
+    path("tasks/<int:pk>/act/", v.task_act, name="docflow_task_act"),
+    path("cases/", v.cases, name="docflow_cases"),
+    path("cases/new/", v.case_form, name="docflow_case_new"),
+    path("cases/<int:pk>/", v.case_form, name="docflow_case_edit"),
+    path("journals/", v.journals, name="docflow_journals"),
+    path("journals/new/", v.journal_form, name="docflow_journal_new"),
+    path("journals/<int:pk>/", v.journal_detail, name="docflow_journal"),
+    path("journals/<int:pk>/edit/", v.journal_form, name="docflow_journal_edit"),
+    path("templates/", v.templates, name="docflow_templates"),
+    path("templates/new/", v.template_form, name="docflow_template_new"),
+    path("templates/<int:pk>/", v.template_form, name="docflow_template_edit"),
+    path("seals/", v.seals, name="docflow_seals"),
+    path("seals/new/", v.seal_form, name="docflow_seal_new"),
+    path("seals/<int:pk>/", v.seal_form, name="docflow_seal_edit"),
+    path("archive/", v.archive, name="docflow_archive"),
+    path("letter/", v.letter, name="docflow_letter"),
+    path("new/<slug:kind>/", v.new, name="docflow_new"),
+    path("<int:pk>/", v.detail, name="docflow_detail"),
+    path("<int:pk>/edit/", v.edit, name="docflow_edit"),
+    path("<int:pk>/action/", v.action, name="docflow_action"),
+]
