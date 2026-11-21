@@ -1,0 +1,42 @@
+{% extends "object/_base.html" %}{% load ui obj %}
+{% block tab %}
+<div class="tabhead">
+  <div><h2>Закупки</h2><p class="muted">Заявка → согласование → заказ → поставка и приёмка → складское поступление. Оплата и поставка учитываются отдельно.</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'purchase' %}">{% icon 'plus' 18 %}Заявка на закупку</a></div>
+</div>
+<div class="ob-flow">{% for key, label in statuses %}<div class="{% if by_status|get_item:key %}on{% endif %} {{ key }}"><b>{{ by_status|get_item:key }}</b><span>{{ label }}</span></div>{% endfor %}</div>
+
+<section class="card flat">
+  <header><h3>Заявки на закупку</h3><span class="muted">{{ requests|length }}</span></header>
+  {% if requests %}
+  <table class="otable">
+    <thead><tr><th>Номер</th><th>Материал</th><th class="r">Количество</th><th>Нужно к</th><th>Поставщик</th><th class="r">Сумма</th><th>Инициатор</th><th>Статус</th></tr></thead>
+    <tbody>{% for p in requests %}<tr>
+      <td data-label="Номер" class="nowrap"><a class="doclink" href="{% url 'purchase_detail' p.pk %}">{{ p.number }}</a><small class="muted block">{{ p.created_at|date:"d.m.Y" }}</small></td>
+      <td data-label="Материал">{{ p.material }}</td>
+      <td data-label="Количество" class="r nowrap">{{ p.quantity|num }} {{ p.material.unit }}</td>
+      <td data-label="Нужно к" class="nowrap {% if p.is_late %}bad{% endif %}">{{ p.needed_by|date:"d.m.Y"|default:"—" }}</td>
+      <td data-label="Поставщик">{{ p.supplier|default:"не выбран" }}</td>
+      <td data-label="Сумма" class="r nowrap">{% if p.amount %}{{ p.amount|money }} ₸{% else %}—{% endif %}</td>
+      <td data-label="Инициатор">{{ p.author|default:"—" }}</td>
+      <td data-label="Статус"><span class="st st-{{ p.status }}">{{ p.get_status_display }}</span></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty-s ob-empty">Заявок пока нет. Заявка проверит бюджет и остатки на складах и уйдёт на согласование руководителю объекта.<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'purchase' %}">{% icon 'plus' 18 %}Создать заявку</a></div>{% endif %}
+</section>
+
+<div class="row2">
+  <section class="card">
+    <header><h3>Ожидаемые поставки</h3><span class="muted">{{ expected_count }}</span></header>
+    {% if expected or transit %}<ul class="kvlist">
+      {% for p in expected %}<li><span><b>{{ p.material }}</b><small class="muted block">{{ p.number }} · {{ p.supplier|default:"поставщик не указан" }}</small></span><b class="{% if p.is_late %}bad{% endif %}">{% if p.needed_by %}к {{ p.needed_by|date:"d.m" }}{% else %}{{ p.quantity|num }} {{ p.material.unit }}{% endif %}</b></li>{% endfor %}
+      {% for mv in transit %}<li><span><b>{{ mv.material }}</b><small class="muted block">перемещение из «{{ mv.warehouse }}» · ждёт приёмки</small></span><b class="warn-t">{{ mv.quantity|num }} {{ mv.material.unit }}</b></li>{% endfor %}
+    </ul>{% else %}<div class="empty-s">Ожидаемых поставок нет</div>{% endif %}
+  </section>
+  <section class="card">
+    <header><h3>Поставщики объекта</h3><span class="muted">{{ suppliers|length }}</span></header>
+    {% if suppliers %}<ul class="kvlist">{% for r in suppliers %}<li><span><b>{{ r.s.name }}</b><small class="muted block">{{ r.n }} {{ r.n|plural:"операция,операции,операций" }}{% if r.last %} · последняя {{ r.last|date:"d.m.Y" }}{% endif %}{% if r.s.phone %} · {{ r.s.phone }}{% endif %}</small></span><b>{{ r.amount|short }}</b></li>{% endfor %}</ul>
+    {% else %}<div class="empty-s">Поставщики появятся после первой заявки с выбранным поставщиком или поступления на склад.</div>{% endif %}
+  </section>
+</div>
+{% endblock %}

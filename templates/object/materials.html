@@ -1,40 +1,57 @@
-{% extends "object/_base.html" %}{% load ui %}
+{% extends "object/_base.html" %}{% load ui obj %}
 {% block tab %}
-<div class="tabbar-act">
-  <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'purchase' %}">{% icon 'plus' 18 %}Заявка на материал</a>
-  <a class="btn btn-ghost" href="{% url 'object_new' obj.pk 'movement' %}">Приход / расход</a>
+<div class="tabhead">
+  <div><h2>Материалы и склад</h2><p class="muted">Поступление, выдача в работу, возврат, перемещение, списание. Выдача при нехватке остатка не проводится.</p></div>
+  <div class="tabhead-act">
+    <a class="btn btn-ghost" href="{% url 'object_new' obj.pk 'purchase' %}">{% icon 'cash' 18 %}Заявка</a>
+    <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'movement' %}">{% icon 'plus' 18 %}Складская операция</a>
+  </div>
 </div>
 {% for item in warehouses %}
-  {% if item.pending %}<h2>Пришло, ждёт приёмки <span class="count">{{ item.pending|length }}</span></h2>
-  <div class="list">{% for mv in item.pending %}
-    <div class="row stack"><span class="ico warn">⇄</span>
-      <div class="body"><div class="title">{{ mv.material }} — {{ mv.quantity|num }} {{ mv.material.unit }}</div><div class="meta">из «{{ mv.warehouse }}» · {{ mv.date|date:"d.m.Y" }}{% if mv.note %} · {{ mv.note }}{% endif %}</div></div>
-      <div class="side"><form method="post" action="{% url 'transfer_accept' mv.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'object_tab' obj.pk 'materials' %}"><button class="btn btn-primary" style="min-height:40px">{% icon 'check' 18 %}Принять</button></form></div></div>
-  {% endfor %}</div>{% endif %}
-  <h2>Остатки на объекте<a class="more" href="{% url 'warehouse_detail' item.w.pk %}">Карточка склада →</a></h2>
-  {% if item.rows %}<div class="list">{% for r in item.rows %}
-    <div class="row"><span class="ico">{% icon 'box' 20 %}</span><div class="body"><div class="title">{{ r.material.name }}</div>
-      <div class="meta">пришло {{ r.in|add:r.transfer_in|num }} · в работу {{ r.out|num }}{% if r.writeoff %} · списано {{ r.writeoff|num }}{% endif %}{% if r.pending %} · <span class="warn-t">ждёт приёмки {{ r.pending|num }}</span>{% endif %}</div></div>
-      <div class="side">{{ r.balance|num }} {{ r.material.unit }}<div class="meta">{{ r.value|short }}</div></div></div>
-  {% endfor %}</div>{% else %}<div class="empty">На складе объекта пусто</div>{% endif %}
+  {% if item.pending %}<section class="card flat">
+    <header><h3>Пришло, ждёт приёмки</h3><span class="pill">{{ item.pending|length }}</span></header>
+    <table class="otable"><tbody>{% for mv in item.pending %}<tr>
+      <td data-label="Материал"><b>{{ mv.material }}</b><small class="muted block">из «{{ mv.warehouse }}» · {{ mv.date|date:"d.m.Y" }}{% if mv.note %} · {{ mv.note }}{% endif %}</small></td>
+      <td data-label="Количество" class="r nowrap">{{ mv.quantity|num }} {{ mv.material.unit }}</td>
+      <td class="r"><form method="post" action="{% url 'transfer_accept' mv.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'object_tab' obj.pk 'materials' %}"><button class="btn btn-primary btn-sm">{% icon 'check' 16 %}Принять</button></form></td>
+    </tr>{% endfor %}</tbody></table>
+  </section>{% endif %}
+  <section class="card flat">
+    <header><h3>{{ item.w.name }}</h3><span class="muted">{{ item.w.get_kind_display }}{% if item.w.keeper %} · кладовщик {{ item.w.keeper }}{% endif %}</span></header>
+    {% if item.rows %}<table class="otable">
+      <thead><tr><th>Материал</th><th class="r">Пришло</th><th class="r">Выдано в работу</th><th class="r">Списано</th><th class="r">Остаток</th><th class="r">Стоимость</th></tr></thead>
+      <tbody>{% for r in item.rows %}<tr class="{% if r.balance <= 0 %}dim{% endif %}">
+        <td data-label="Материал"><b>{{ r.material.name }}</b>{% if r.pending %}<small class="warn-t block">ждёт приёмки {{ r.pending|num }}</small>{% endif %}</td>
+        <td data-label="Пришло" class="r nowrap">{{ r.in|add:r.transfer_in|num }}</td>
+        <td data-label="В работу" class="r nowrap">{{ r.out|num }}</td>
+        <td data-label="Списано" class="r nowrap">{{ r.writeoff|num|default:"—" }}</td>
+        <td data-label="Остаток" class="r nowrap"><b>{{ r.balance|num }} {{ r.material.unit }}</b></td>
+        <td data-label="Стоимость" class="r nowrap">{{ r.value|short }}</td>
+      </tr>{% endfor %}</tbody></table>
+    {% else %}<div class="empty-s ob-empty">На складе объекта пока пусто.</div>{% endif %}
+  </section>
 {% empty %}
-<div class="empty">У объекта нет своего склада — материалы списываются с центрального.<br><a class="btn btn-ghost" href="{% url 'warehouse_create' %}?kind=object&construction_object={{ obj.pk }}&name=Склад {{ obj.code|default:obj.name }}">Создать склад объекта</a></div>
+<div class="empty-s ob-empty" style="margin-bottom:14px">У объекта нет своего склада — материалы выдаются с центрального склада со ссылкой на объект.</div>
 {% endfor %}
 
-<h2>Заявки на материалы <span class="count">{{ requests|length }}</span></h2>
-{% if requests %}<div class="list">{% for p in requests %}
-  <a class="row" href="{% url 'purchase_detail' p.pk %}"><span class="ico">{% icon 'cash' 20 %}</span>
-    <div class="body"><div class="title">{{ p.material }} — {{ p.quantity|num }} {{ p.material.unit }}</div><div class="meta">{{ p.number }}{% if p.needed_by %} · нужно к {{ p.needed_by|date:"d.m" }}{% endif %}{% if p.supplier %} · {{ p.supplier }}{% endif %}</div></div>
-    <div class="side"><span class="badge {% if p.status == 'received' %}done{% elif p.status == 'rejected' %}paused{% else %}active{% endif %}">{{ p.get_status_display }}</span></div></a>
-{% endfor %}</div>{% else %}<div class="empty">Заявок нет</div>{% endif %}
+{% if plan_fact %}<section class="card flat">
+  <header><h3>Расход по нормам (план-факт)</h3></header>
+  <table class="otable"><thead><tr><th>Работа</th><th>Материал</th><th class="r">По норме</th><th class="r">Выдано</th><th class="r">Отклонение</th></tr></thead>
+  <tbody>{% for c, rows in plan_fact %}{% for r in rows %}<tr><td data-label="Работа">{{ c.work_type }}</td><td data-label="Материал">{{ r.material.name }}</td><td data-label="По норме" class="r nowrap">{{ r.need|num }} {{ r.material.unit }}</td><td data-label="Выдано" class="r nowrap">{{ r.actual|num }} {{ r.material.unit }}</td><td data-label="Отклонение" class="r"><b class="{% if r.pct > 5 %}bad{% elif r.pct < 0 %}ok{% endif %}">{% if r.pct > 0 %}+{% endif %}{{ r.pct }}%</b></td></tr>{% endfor %}{% endfor %}</tbody></table>
+</section>{% endif %}
 
-{% if plan_fact %}<h2>Расход по нормам (план-факт)</h2>
-{% for c, rows in plan_fact %}
-<div class="list" style="margin-bottom:10px"><div class="row"><div class="body"><div class="title">{{ c.work_type }}</div></div></div>
-{% for r in rows %}<div class="row"><div class="body"><div class="title" style="font-weight:600">{{ r.material.name }}</div><div class="meta">по норме {{ r.need|num }} · выдано {{ r.fact|num }} {{ r.material.unit }}</div></div>
-  <div class="side {% if r.pct > 5 %}bad{% elif r.pct < 0 %}ok{% endif %}">{% if r.pct > 0 %}+{% endif %}{{ r.pct }}%</div></div>{% endfor %}
-</div>{% endfor %}{% endif %}
-
-<h2>Движение материалов</h2>
-{% if movements %}<div class="list">{% for mv in movements %}{% include "warehouse/_mv_row.html" %}{% endfor %}</div>{% else %}<div class="empty">Операций нет</div>{% endif %}
+<section class="card flat">
+  <header><h3>Движение материалов</h3><span class="muted">последние {{ movements|length }}</span></header>
+  {% if movements %}<table class="otable">
+    <thead><tr><th>Дата</th><th>Операция</th><th>Материал</th><th>Склад</th><th class="r">Количество</th><th>Примечание</th></tr></thead>
+    <tbody>{% for mv in movements %}<tr>
+      <td data-label="Дата" class="nowrap">{{ mv.date|date:"d.m.Y" }}</td>
+      <td data-label="Операция"><span class="st {% if mv.is_increase %}st-received{% elif mv.kind == 'transfer' %}st-ordered{% else %}st-out{% endif %}">{{ mv.get_kind_display }}</span></td>
+      <td data-label="Материал">{{ mv.material }}</td>
+      <td data-label="Склад">{{ mv.warehouse }}{% if mv.kind == 'transfer' %} → {{ mv.to_warehouse }}{% if not mv.received %} <small class="warn-t">(ждёт приёмки)</small>{% endif %}{% endif %}</td>
+      <td data-label="Количество" class="r nowrap"><b class="{% if mv.is_increase %}ok{% endif %}">{% if mv.kind != 'transfer' %}{% if mv.is_increase %}+{% else %}−{% endif %}{% endif %}{{ mv.quantity|num }} {{ mv.material.unit }}</b></td>
+      <td data-label="Примечание">{{ mv.supplier|default:"" }}{% if mv.supplier and mv.note %} · {% endif %}{{ mv.note }}</td>
+    </tr>{% endfor %}</tbody></table>
+  {% else %}<div class="empty-s ob-empty">Складских операций по объекту пока нет.</div>{% endif %}
+</section>
 {% endblock %}

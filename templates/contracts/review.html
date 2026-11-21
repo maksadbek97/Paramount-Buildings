@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load ui %}
 {% block content %}
-<a class="back" href="{% url 'pto' %}">{% icon 'back' 18 %}ПТО</a>
+<a class="back" href="{% url 'object_tab' c.construction_object_id 'work' %}">{% icon 'back' 18 %}{{ c.construction_object.name }}</a>
 <div class="page-head"><div class="titles"><h1>Проверка объёма</h1>
   <div class="sub">{{ c.work_type }} · {{ c.construction_object.name }}</div></div></div>
 <div class="kv" style="max-width:640px;margin-bottom:14px">

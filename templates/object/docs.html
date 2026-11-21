@@ -1,13 +1,23 @@
-{% extends "object/_base.html" %}{% load ui %}
+{% extends "object/_base.html" %}{% load ui obj %}
 {% block tab %}
-<div class="tabbar-act">
-  <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'doc' %}">{% icon 'plus' 18 %}Загрузить документ</a>
+<div class="tabhead">
+  <div><h2>Документы объекта</h2><p class="muted">Единый реестр: загруженные файлы и документы, созданные в закупках, отчётах, проверках качества и заявках на технику. Повторно вводить ничего не нужно.</p></div>
+  <div class="tabhead-act"><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'doc' %}">{% icon 'plus' 18 %}Загрузить документ</a></div>
 </div>
-<h2 style="margin-top:4px">Документы <span class="count">{{ documents|length }}</span></h2>
-{% if documents %}<div class="list">{% for d in documents %}
-  <a class="row" href="{{ d.file.url }}"><span class="ico">{% icon 'clipboard' 20 %}</span><div class="body"><div class="title">{{ d.title }}</div><div class="meta">{{ d.uploaded_at|date:"d.m.Y" }}</div></div><span class="chev">{% icon 'chevron' 18 %}</span></a>
-{% endfor %}</div>{% else %}<div class="empty">Договор, акты, сметы, чертежи — загрузите сюда, чтобы всё было в одном месте.</div>{% endif %}
-{% if estimates %}<h2>Сметы</h2><div class="list">{% for e in estimates %}<div class="row"><div class="body"><div class="title">{{ e.title }}</div></div><div class="side">{{ e.total|money }} ₸</div></div>{% endfor %}</div>{% endif %}
-<h2>Журнал действий по объекту</h2>
-{% include "_history.html" with entries=history hide_object=1 %}
+<div class="fchips" data-chips="#docTable"><button type="button" class="fchip on" data-v="">Все <span>{{ documents|length }}</span></button>{% for k, label, n in cats %}{% if n %}<button type="button" class="fchip" data-v="{{ k }}">{{ label }} <span>{{ n }}</span></button>{% endif %}{% endfor %}</div>
+<section class="card flat">
+  {% if documents %}<table class="otable" id="docTable">
+    <thead><tr><th>Документ</th><th>Тип</th><th>Номер</th><th>Дата</th><th>Статус</th><th></th></tr></thead>
+    <tbody>{% for d in documents %}<tr data-cat="{{ d.cat }}">
+      <td data-label="Документ"><div class="on"><span class="dic">{% icon 'file' 18 %}</span><div>{% if d.url %}<a class="doclink" href="{{ d.url }}">{{ d.title|truncatechars:80 }}</a>{% else %}<b>{{ d.title|truncatechars:80 }}</b>{% endif %}</div></div></td>
+      <td data-label="Тип">{{ d.type }}</td>
+      <td data-label="Номер" class="nowrap">{{ d.number|default:"—" }}</td>
+      <td data-label="Дата" class="nowrap">{{ d.date|date:"d.m.Y" }}</td>
+      <td data-label="Статус">{{ d.status }}</td>
+      <td class="r dl">{% if d.download %}<a class="btn-dl" href="{{ d.url }}" download>{% icon 'download' 15 %}Скачать</a>{% elif d.url %}<a class="btn-dl" href="{{ d.url }}">Открыть</a>{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  <div class="empty-s ob-empty" data-none hidden>В этой категории документов нет.</div>
+  {% else %}<div class="empty-s ob-empty">Документов пока нет. Загрузите договор, акты, сметы, чертежи — или они появятся сами, когда вы создадите заявку, отчёт или замечание.<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'doc' %}">{% icon 'plus' 18 %}Загрузить документ</a></div>{% endif %}
+</section>
 {% endblock %}

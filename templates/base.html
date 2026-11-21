@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'style.css' %}">
+  <link rel="stylesheet" href="{% static 'objects.css' %}">
 </head>
 {% with n=request.resolver_match.url_name|default:"" %}
 <body class="{% if user.is_authenticated %}app{% else %}guest{% endif %}">
@@ -41,12 +42,14 @@
 <aside class="sidebar">
   <nav>
     <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' %}Главная</a>
+    <a href="{% url 'object_list' %}" class="{% if n|slice:':6' == 'object' %}active{% endif %}">{% icon 'building' %}Объекты</a>
     <a href="{% url 'company_profile' %}" class="{% if n|slice:':7' == 'company' %}active{% endif %}">{% icon 'company' %}Моя компания</a>
   </nav>
   <div class="side-note">Остальные разделы подключаются по очереди, по мере готовности.</div>
 </aside>
 <nav class="mnav" aria-label="Разделы">
   <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' 22 %}<span>Главная</span></a>
+  <a href="{% url 'object_list' %}" class="{% if n|slice:':6' == 'object' %}active{% endif %}">{% icon 'building' 22 %}<span>Объекты</span></a>
   <a href="{% url 'company_profile' %}" class="{% if n|slice:':7' == 'company' %}active{% endif %}">{% icon 'company' 22 %}<span>Моя компания</span></a>
 </nav>
 <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
@@ -65,6 +68,7 @@ document.addEventListener('click', function (e) {
   document.querySelectorAll('details.picker[open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });
 });
 </script>
+<script src="{% static 'objects.js' %}" defer></script>
 {% if DEMO %}<script>
 document.querySelectorAll('form[method=post]').forEach(function (f) {
   f.addEventListener('submit', function (e) {

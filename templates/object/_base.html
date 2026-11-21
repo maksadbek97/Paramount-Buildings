@@ -1,21 +1,59 @@
-{% extends "base.html" %}{% load ui %}
-{% block title %}{{ obj.name }} · Paramount Buildings{% endblock %}
+{% extends "base.html" %}{% load ui obj %}
+{% block title %}{{ obj.name }} · {{ tab_label }} · Paramount Buildings{% endblock %}
 {% block content %}
-<div class="ohead">
-  <a class="crumb" href="{% url 'object_list' %}">{% icon 'back' 16 %}Все объекты</a>
-  <div class="line">
-    <img class="thumb" src="{{ obj.cover }}" alt="">
-    <div style="flex:1;min-width:0">
-      <h1>{{ obj.name }}</h1>
-      <div class="sub">{% if obj.code %}{{ obj.code }} · {% endif %}{% if obj.city %}{{ obj.city }}{% endif %}{% if obj.client %} · {{ obj.client }}{% endif %}</div>
+<nav class="crumbs" aria-label="Навигация"><a href="{% url 'dashboard' %}">Главная</a><span>/</span><a href="{% url 'object_list' %}">Объекты</a><span>/</span><b>{{ obj.name }}</b></nav>
+<section class="obhead">
+  <div class="obh-main">
+    <img class="obh-thumb" src="{{ obj.cover }}" alt="">
+    <div class="obh-t">
+      <div class="obh-line"><h1>{{ obj.name }}</h1><span class="badge {{ obj.status }}">{{ obj.get_status_display }}</span></div>
+      <div class="sub">{% if obj.code %}<b class="code">{{ obj.code }}</b> · {% endif %}{{ obj.get_kind_display|default:"Тип не указан" }}{% if obj.city %} · {{ obj.city }}{% endif %}{% if obj.address %}, {{ obj.address }}{% endif %}</div>
     </div>
-    <span class="badge {{ obj.status }}">{{ obj.get_status_display }}</span>
-    <a class="edit" href="{% url 'object_edit' obj.pk %}" aria-label="Изменить объект" title="Изменить объект">{% icon 'edit' 18 %}</a>
   </div>
-  <div class="prog"><span>Выполнено <b>{{ s.progress }}%</b></span><div class="bar"><span style="width:{{ s.progress }}%"></span></div><span>взяли на <b>{{ s.total|short }}</b></span></div>
-</div>
-<nav class="otabs">
-  {% for key, label, ic in tabs %}<a href="{% if key == 'overview' %}{% url 'object_detail' obj.pk %}{% else %}{% url 'object_tab' obj.pk key %}{% endif %}" class="{% if key == tab %}active{% endif %}">{{ label }}{% with c=counts|get_item:key %}{% if c %} <span class="c{% if key in hot %} hot{% endif %}">({{ c }})</span>{% endif %}{% endwith %}</a>{% endfor %}
+  <dl class="obh-meta">
+    <div><dt>Заказчик</dt><dd>{{ obj.client|default:"—" }}</dd></div>
+    <div><dt>Руководитель объекта</dt><dd>{{ obj.manager.full_name|default:"не назначен" }}</dd></div>
+    <div><dt>Плановое завершение</dt><dd>{% if obj.end_date %}{{ obj.end_date|date:"d.m.Y" }}{% with d=obj.days_left %}{% if d is not None %}<small class="{% if d < 0 %}bad{% elif d <= 30 %}warn-t{% endif %}">{% if d < 0 %}просрочено на {{ d|cut:"-" }} дн.{% else %}через {{ d }} дн.{% endif %}</small>{% endif %}{% endwith %}{% else %}—{% endif %}</dd></div>
+    <div class="obh-prog"><dt>Готовность</dt><dd><div class="pb"><div class="bar"><span style="width:{{ s.progress }}%"></span></div><b>{{ s.progress }}%</b></div></dd></div>
+  </dl>
+  <div class="obh-act">
+    {% if can_edit %}<a class="btn btn-ghost" href="{% url 'object_edit' obj.pk %}">{% icon 'edit' 17 %}<span>Редактировать</span></a>{% endif %}
+    {% if not obj.is_closed %}
+    <a class="btn btn-ghost" href="{% url 'object_new' obj.pk 'task' %}">{% icon 'task' 17 %}<span>Создать задачу</span></a>
+    <a class="btn btn-ghost" href="{% url 'object_new' obj.pk 'purchase' %}">{% icon 'cash' 17 %}<span>Создать заявку</span></a>
+    <a class="btn btn-ghost" href="{% url 'object_new' obj.pk 'doc' %}">{% icon 'file' 17 %}<span>Добавить документ</span></a>
+    <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'report' %}">{% icon 'clipboard' 17 %}<span>Отчёт</span></a>
+    {% endif %}
+    <details class="dd obh-more"><summary aria-label="Ещё действия" title="Ещё действия">{% icon 'dots' 20 %}<span class="m-only">Ещё</span></summary>
+      <div class="dd-menu">
+        {% if can_edit %}
+          {% if obj.status == 'planned' or obj.status == 'preparing' %}<a href="#" data-confirm="activate" data-url="{% url 'object_status' obj.pk %}" data-name="{{ obj.name }}">{% icon 'play' 18 %}Перевести в работу</a>{% endif %}
+          {% if obj.is_paused %}<a href="#" data-confirm="resume" data-url="{% url 'object_status' obj.pk %}" data-name="{{ obj.name }}">{% icon 'play' 18 %}Возобновить</a>
+          {% elif obj.is_working %}<a href="#" data-confirm="pause" data-url="{% url 'object_status' obj.pk %}" data-name="{{ obj.name }}">{% icon 'pause' 18 %}Приостановить</a>{% endif %}
+        {% endif %}
+        {% if not obj.is_closed and obj.status != 'planned' %}<a href="{% url 'object_tab' obj.pk 'closing' %}">{% icon 'lock' 18 %}Закрыть объект…</a>{% endif %}
+        {% if can_close %}
+          {% if obj.status == 'done' %}<a href="#" data-confirm="archive" data-url="{% url 'object_status' obj.pk %}" data-name="{{ obj.name }}">{% icon 'archive' 18 %}В архив</a>{% endif %}
+          {% if obj.is_closed %}<a href="#" data-confirm="reopen" data-url="{% url 'object_status' obj.pk %}" data-name="{{ obj.name }}">{% icon 'refresh' 18 %}Открыть повторно</a>{% endif %}
+        {% endif %}
+        <a href="{% url 'object_tab' obj.pk 'history' %}">{% icon 'history' 18 %}История изменений</a>
+        {% if can_edit %}<a href="{% url 'object_edit' obj.pk %}">{% icon 'settings' 18 %}Настройки объекта</a>{% endif %}
+      </div>
+    </details>
+  </div>
+</section>
+
+<nav class="obtabs" aria-label="Разделы объекта">
+  {% for t in tabs %}<a href="{{ t.url }}" class="{% if not t.main %}extra{% endif %}{% if t.key == tab %} active{% endif %}" title="{{ t.label }}">{% if t.main %}<span class="tl-s">{{ t.short }}</span><span class="tl-f">{{ t.label }}</span>{% else %}{{ t.label }}{% endif %}{% with c=counts|get_item:t.key %}{% if c %}<span class="c{% if t.key in hot %} hot{% endif %}">{{ c }}</span>{% endif %}{% endwith %}</a>{% endfor %}
+  <details class="dd obtabs-more{% if more_active %} on{% endif %}"><summary><span class="lbl">{% if more_active %}{{ tab_label }}{% else %}Ещё{% endif %}</span>{% if more_hot %}<i class="dotred"></i>{% endif %}{% icon 'chevron' 14 %}</summary>
+    <div class="dd-menu">{% for t in tabs %}{% if not t.main %}<a href="{{ t.url }}" class="{% if t.key == tab %}on{% endif %}">{% icon t.icon 18 %}<span>{{ t.label }}</span>{% with c=counts|get_item:t.key %}{% if c %}<em class="{% if t.key in hot %}hot{% endif %}">{{ c }}</em>{% endif %}{% endwith %}</a>{% endif %}{% endfor %}</div>
+  </details>
 </nav>
-{% block tab %}{% endblock %}
+
+{% if obj.status == 'planned' %}<div class="obnote info">{% icon 'edit' 18 %}<span><b>Черновик.</b> Заполните обязательные поля карточки и переведите объект в работу.</span>{% if can_edit %}<a href="{% url 'object_edit' obj.pk %}">Заполнить</a>{% endif %}</div>
+{% elif obj.is_paused %}<div class="obnote warn">{% icon 'pause' 18 %}<span><b>Объект приостановлен.</b> Данные сохраняются, новые операции лучше не проводить до возобновления.</span>{% if can_edit %}<a href="#" data-confirm="resume" data-url="{% url 'object_status' obj.pk %}" data-name="{{ obj.name }}">Возобновить</a>{% endif %}</div>
+{% elif obj.is_closed %}<div class="obnote">{% icon 'lock' 18 %}<span><b>Объект {% if obj.status == 'archive' %}в архиве{% else %}закрыт{% endif %}.</b> Режим ограниченного редактирования: данные доступны для просмотра и отчётов.</span></div>{% endif %}
+
+<div class="obbody">{% block tab %}{% endblock %}</div>
+{% include "objects/_confirm.html" %}
 {% endblock %}

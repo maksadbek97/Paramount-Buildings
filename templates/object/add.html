@@ -12,6 +12,9 @@
   <a href="{% url 'object_new' obj.pk 'payment' %}"><span class="ico">{% icon 'cash' %}</span><span>Платёж<small>Получили или выплатили</small></span></a>
   <a href="{% url 'object_new' obj.pk 'expense' %}"><span class="ico">{% icon 'wallet' %}</span><span>Прочий расход<small>Техника, доставка</small></span></a>
   <a href="{% url 'object_new' obj.pk 'work' %}"><span class="ico">{% icon 'contract' %}</span><span>Объём работ<small>Взяли у генподрядчика</small></span></a>
-  <a href="{% url 'object_new' obj.pk 'doc' %}"><span class="ico">{% icon 'clipboard' %}</span><span>Документ<small>Договор, акт, фото</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'doc' %}"><span class="ico">{% icon 'file' %}</span><span>Документ<small>Договор, акт, чертёж</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'photo' %}"><span class="ico">{% icon 'camera' %}</span><span>Фото / видео<small>Ход работ, дефекты</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'transport' %}"><span class="ico">{% icon 'truck' %}</span><span>Транспорт<small>Заявка на технику</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'safety' %}"><span class="ico">{% icon 'shield' %}</span><span>Охрана труда<small>Инструктаж, допуск</small></span></a>
 </div>
 {% endblock %}

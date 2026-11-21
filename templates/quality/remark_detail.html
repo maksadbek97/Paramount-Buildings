@@ -14,7 +14,7 @@
   <div><span>Ответственный</span><b>{{ r.responsible }}</b></div>
   <div><span>Исполнитель</span><b>{{ r.executor|default:"—" }}</b></div>
   <div><span>Проверил</span><b>{{ r.reviewer|default:"—" }}{% if r.accepted_at %} · {{ r.accepted_at|date:"d.m.Y" }}{% endif %}</b></div>
-  {% if r.task %}<div><span>Задача прорабу</span><b><a href="{% url 'task_list' %}">{{ r.task.get_status_display }}</a></b></div>{% endif %}
+  {% if r.task %}<div><span>Задача прорабу</span><b><a href="{% url 'object_tab' r.construction_object_id 'tasks' %}">{{ r.task.get_status_display }}</a></b></div>{% endif %}
 </div>
 <h2>Замечание</h2>
 <div class="kv" style="display:block">{{ r.description|linebreaksbr }}

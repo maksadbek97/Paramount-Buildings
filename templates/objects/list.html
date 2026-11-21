@@ -1,0 +1,81 @@
+{% extends "base.html" %}{% load ui obj %}
+{% block title %}Объекты · Paramount Buildings{% endblock %}
+{% block content %}
+<div class="dh">
+  <div class="dh-title">
+    <h1>Объекты</h1>
+    <div class="sub">Все строительные объекты компании · данные на {% now "d.m.Y, H:i" %}</div>
+  </div>
+  <div class="dh-tools">
+    <details class="dd" id="exportMenu">
+      <summary>{% icon 'download' 18 %}<span>Экспорт</span>{% icon 'chevron' 16 %}</summary>
+      <div class="dd-menu">
+        <a href="#" data-export="csv">{% icon 'table' 18 %}Excel (CSV) — то, что в списке</a>
+        <a href="#" data-export="print">{% icon 'print' 18 %}PDF / печать</a>
+      </div>
+    </details>
+    {% if can_create %}<a class="btn btn-primary ob-new" href="{% url 'object_create' %}">{% icon 'plus' 18 %}<span>Создать объект</span></a>{% endif %}
+  </div>
+</div>
+
+<div class="kgrid">
+  <div class="k"><span class="kl">Объекты в работе</span><b class="kv">{{ kpi.working }}</b><span class="kh">из {{ counts.all }} в системе</span></div>
+  <div class="k"><span class="kl">Плановый бюджет</span><b class="kv" title="{{ kpi.budget|money }} ₸">{{ kpi.budget|short }}</b><span class="kh">объекты в работе</span></div>
+  <div class="k"><span class="kl">Фактические расходы</span><b class="kv">{{ kpi.fact|short }}</b><span class="kh">{% if kpi.over %}<em class="down">превышение бюджета: {{ kpi.over }}</em>{% else %}в пределах бюджетов{% endif %}</span></div>
+  <div class="k"><span class="kl">Просроченные задачи</span><b class="kv {% if kpi.late %}bad{% endif %}">{{ kpi.late }}</b><span class="kh">активных задач: {{ kpi.tasks }}</span></div>
+</div>
+
+<section class="card flat ob-list" id="obList" data-status="{{ status }}">
+  <div class="ob-filters">
+    <div class="fchips" role="tablist" aria-label="Статус">
+      {% for key, label, n in statuses %}{% if n or key == 'working' or key == 'all' %}<button type="button" class="fchip{% if key == status %} on{% endif %}" data-status="{{ key }}">{{ label }} <span>{{ n }}</span></button>{% endif %}{% endfor %}
+    </div>
+    <div class="ob-search">
+      <label class="ob-q">{% icon 'search' 18 %}<input type="search" id="obQ" placeholder="Название, код, заказчик, адрес" autocomplete="off" aria-label="Поиск по объектам"></label>
+      <button type="button" class="btn btn-ghost ob-ftoggle" id="obFToggle" aria-expanded="false">{% icon 'filter' 18 %}<span>Фильтры</span><i id="obFCount"></i></button>
+    </div>
+    <div class="ob-more" id="obMore" hidden>
+      <label>Руководитель<select data-f="manager"><option value="">Все</option>{% for v, l in managers %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Заказчик<select data-f="client"><option value="">Все</option>{% for v, l in clients %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Регион<select data-f="city"><option value="">Все</option>{% for v, l in cities %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Тип объекта<select data-f="kind"><option value="">Все</option>{% for v, l in kinds %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></label>
+      <label>Начало с<input type="date" data-f="from"></label>
+      <label>Завершение до<input type="date" data-f="to"></label>
+      <button type="button" class="ob-reset" id="obReset">Сбросить фильтры</button>
+    </div>
+  </div>
+
+  <div class="tscroll"><table class="otable obtable">
+    <thead><tr><th>Объект</th><th>Ответственные</th><th>Статус и сроки</th><th>Готовность</th><th class="r">Бюджет / факт</th><th>Задачи</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}{% with o=r.o %}
+    <tr data-id="{{ o.pk }}" data-group="{{ r.group }}" data-st="{{ o.status }}" data-manager="{{ o.manager_id|default:'' }}" data-client="{{ o.client_id|default:'' }}" data-city="{{ o.city }}" data-kind="{{ o.kind }}" data-start="{{ o.start_date|date:'Y-m-d' }}" data-end="{{ o.end_date|date:'Y-m-d' }}" data-q="{{ o.name|lower }} {{ o.code|lower }} {{ o.client.name|lower }} {{ o.city|lower }} {{ o.address|lower }} {{ o.general_contractor.name|lower }}" class="{% if o.is_closed %}dim{% endif %}">
+      <td data-label="Объект"><a class="on ob-name" href="{% url 'object_detail' o.pk %}"><img src="{{ o.cover }}" alt=""><div><b>{{ o.name }}</b><small>{% if o.code %}<b class="code">{{ o.code }}</b> · {% endif %}{{ o.get_kind_display|default:"тип не указан" }}{% if o.city %} · {{ o.city }}{% endif %}</small><small class="cl" title="{{ o.client|default:'' }}">{{ o.client|default:"заказчик не указан" }}</small></div></a></td>
+      <td data-label="Ответственные"><div class="ob-ppl">{% if o.manager %}<span title="Руководитель объекта: {{ o.manager.full_name }}">{{ o.manager.full_name|initials }}</span><small>руководитель</small>{% else %}<span class="muted">не назначен</span>{% endif %}{% if o.responsible %}<small class="mgr" title="Ответственный менеджер: {{ o.responsible.full_name }}">менеджер {{ o.responsible.full_name|initials }}</small>{% endif %}</div></td>
+      <td data-label="Статус и сроки" class="dates"><div><span class="badge {{ o.status }}">{{ o.get_status_display }}</span><span class="block ob-dt">{{ o.start_date|date:"d.m.y"|default:"…" }} – <span class="{% if r.overdue %}bad{% endif %}">{{ o.end_date|date:"d.m.y"|default:"…" }}</span></span>{% if r.overdue %}<small class="bad block">срок прошёл</small>{% elif o.days_left is not None and o.days_left <= 30 %}<small class="warn-t block">осталось {{ o.days_left }} дн.</small>{% endif %}</div></td>
+      <td data-label="Готовность">{% if r.s.total %}<div class="pb"><div class="bar"><span style="width:{{ r.s.progress }}%"></span></div><b>{{ r.s.progress }}%</b></div>{% else %}<span class="muted small">нет объёмов</span>{% endif %}</td>
+      <td data-label="Бюджет / факт" class="r ob-money"><div>{% if o.budget %}<b>{{ o.budget|short }}</b><small>факт {{ r.fact|short }}</small><small class="{% if r.over %}bad{% else %}ok{% endif %}">{% if r.over %}перерасход {{ r.deviation|short|cut:"−" }}{% else %}остаток {{ r.deviation|short }}{% endif %}</small>{% else %}<span class="muted small">бюджет не задан</span>{% if r.fact %}<small>факт {{ r.fact|short }}</small>{% endif %}{% endif %}</div></td>
+      <td data-label="Задачи"><div class="tags">{% if r.late %}<span class="t-bad">просрочено {{ r.late }}</span>{% endif %}{% if r.tasks %}<span>активных {{ r.tasks }}</span>{% endif %}{% if r.remarks %}<span>дефектов {{ r.remarks }}</span>{% endif %}{% if not r.tasks and not r.remarks %}<span class="t-ok">нет открытых</span>{% endif %}</div></td>
+      <td class="r ob-act">
+        <details class="dd rowmenu"><summary aria-label="Действия с объектом" title="Действия">{% icon 'dots' 20 %}</summary>
+          <div class="dd-menu">
+            <a href="{% url 'object_detail' o.pk %}">{% icon 'building' 18 %}Открыть</a>
+            {% if can_edit %}<a href="{% url 'object_edit' o.pk %}">{% icon 'edit' 18 %}Редактировать</a>
+            {% if o.is_paused %}<a href="#" data-confirm="resume" data-url="{% url 'object_status' o.pk %}" data-name="{{ o.name }}">{% icon 'play' 18 %}Возобновить</a>
+            {% elif o.is_working %}<a href="#" data-confirm="pause" data-url="{% url 'object_status' o.pk %}" data-name="{{ o.name }}">{% icon 'pause' 18 %}Приостановить</a>{% endif %}{% endif %}
+            {% if can_close %}{% if not o.is_closed and o.status != 'planned' %}<a href="{% url 'object_tab' o.pk 'closing' %}">{% icon 'lock' 18 %}Закрыть объект…</a>{% endif %}
+            {% if o.status == 'done' %}<a href="#" data-confirm="archive" data-url="{% url 'object_status' o.pk %}" data-name="{{ o.name }}">{% icon 'archive' 18 %}В архив</a>{% endif %}{% endif %}
+          </div>
+        </details>
+      </td>
+    </tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table></div>
+  <div class="empty-s ob-none" id="obNone" hidden>Под условия ничего не подходит. <button type="button" class="linkbtn" data-reset>Сбросить фильтры</button></div>
+  {% if not rows %}<div class="empty-s" style="margin:0 18px 16px">Объектов пока нет.{% if can_create %} <a href="{% url 'object_create' %}">Создать первый объект</a>{% endif %}</div>{% endif %}
+  <div class="ob-foot" id="obFoot"></div>
+</section>
+{{ export|json_script:"obExport" }}
+{% include "objects/_confirm.html" %}
+{% endblock %}

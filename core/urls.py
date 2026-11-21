@@ -1,6 +1,7 @@
 from django.urls import path
 
 from contracts import views as cv
+from objects import views as objv
 from quality import views as qv
 from warehouse import views as wv
 
@@ -10,10 +11,11 @@ from . import views
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("menu/", views.menu, name="menu"),
-    path("objects/", views.object_list, name="object_list"),
-    path("objects/new/", views.object_create, name="object_create"),
+    path("objects/", objv.object_list, name="object_list"),
+    path("objects/new/", objv.object_create, name="object_create"),
     path("objects/<int:pk>/", ov.object_detail, name="object_detail"),
-    path("objects/<int:pk>/edit/", views.object_edit, name="object_edit"),
+    path("objects/<int:pk>/edit/", objv.object_edit, name="object_edit"),
+    path("objects/<int:pk>/status/", objv.object_status, name="object_status"),
     path("objects/<int:pk>/add/", ov.object_add, name="object_add"),
     path("objects/<int:pk>/new/<slug:what>/", ov.object_new, name="object_new"),
     path("objects/<int:pk>/<slug:tab>/", ov.object_detail, name="object_tab"),

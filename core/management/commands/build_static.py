@@ -34,6 +34,7 @@ def page_list():
                                          f"object={pk}" if pk else "") if x)
             pages["/" + path] = "/?" + query
     pages.update(company_pages())
+    pages.update(object_pages())
     pages["/profile/"] = "/profile/"
     return pages
 
@@ -56,6 +57,37 @@ def company_pages():
                           ("staff", Employee), ("schedule", StaffUnit)]:
         for pk in model.objects.values_list("pk", flat=True):
             pages[f"/company/{prefix}/{pk}/"] = f"/company/{prefix}/{pk}/"
+    return pages
+
+
+def object_pages():
+    """Раздел «Объекты»: список, создание, карточка со всеми вкладками и формы внутри объекта,
+    а также карточки записей, на которые ведут вкладки (заявки, отчёты, замечания, виды работ)."""
+    from contracts.models import WorkContract, WorkLog
+    from core.object_views import NEW, TABS
+    from quality.models import DailyReport, Remark
+    from warehouse.models import PurchaseRequest
+    pages = {"/objects/": "/objects/", "/objects/new/": "/objects/new/"}
+    for pk in ConstructionObject.objects.values_list("pk", flat=True):
+        base = f"/objects/{pk}/"
+        pages[base] = base
+        pages[base + "edit/"] = base + "edit/"
+        for key, *_ in TABS[1:]:
+            pages[f"{base}{key}/"] = f"{base}{key}/"
+        pages[f"{base}output/"] = f"{base}output/"
+        for what in NEW:
+            pages[f"{base}new/{what}/"] = f"{base}new/{what}/"
+    for name, model in [("purchases", PurchaseRequest), ("reports", DailyReport), ("remarks", Remark),
+                        ("contracts", WorkContract)]:
+        for pk in model.objects.values_list("pk", flat=True):
+            pages[f"/{name}/{pk}/"] = f"/{name}/{pk}/"
+    for pk in WorkContract.objects.values_list("pk", flat=True):
+        for sub in ("assign", "edit", "norm"):
+            pages[f"/contracts/{pk}/{sub}/"] = f"/contracts/{pk}/{sub}/"
+    for pk in PurchaseRequest.objects.values_list("pk", flat=True):
+        pages[f"/purchases/{pk}/edit/"] = f"/purchases/{pk}/edit/"
+    for pk in WorkLog.objects.filter(status="submitted").values_list("pk", flat=True):
+        pages[f"/worklog/{pk}/review/"] = f"/worklog/{pk}/review/"
     return pages
 
 

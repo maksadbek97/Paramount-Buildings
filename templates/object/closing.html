@@ -1,0 +1,28 @@
+{% extends "object/_base.html" %}{% load ui obj %}
+{% block tab %}
+<div class="tabhead">
+  <div><h2>Закрытие объекта</h2><p class="muted">Система проверяет чек-лист. Пока есть блокирующие пункты, закрыть объект нельзя. Закрывает уполномоченный руководитель — после этого данные переходят в режим ограниченного редактирования.</p></div>
+</div>
+{% if obj.is_closed %}
+<div class="obnote ok">{% icon 'lock' 18 %}<span><b>Объект {% if obj.status == 'archive' %}в архиве{% else %}закрыт{% endif %}.</b> Чек-лист ниже — для справки.</span></div>
+{% elif blocking %}
+<div class="obnote bad">{% icon 'alert' 18 %}<span><b>Закрыть пока нельзя.</b> Осталось блокирующих пунктов: {{ blocking|length }}. Откройте пункт, чтобы перейти к незавершённым записям.</span></div>
+{% else %}
+<div class="obnote ok">{% icon 'check' 18 %}<span><b>Все обязательные пункты выполнены.</b> Объект можно закрыть.</span></div>
+{% endif %}
+<section class="card">
+  <header><h3>Чек-лист закрытия</h3><span class="muted">выполнено {{ done_count }} из {{ items|length }}</span></header>
+  <div class="ob-usage"><div class="bar"><span style="width:{% widthratio done_count items|length 100 %}%"></span></div></div>
+  <ul class="checklist">{% for i in items %}<li class="{% if i.ok %}ok{% elif i.blocking %}bad{% else %}warn{% endif %}">
+    <span class="ck">{% if i.ok %}{% icon 'check' 16 %}{% elif i.blocking %}{% icon 'x' 16 %}{% else %}!{% endif %}</span>
+    <span class="ct"><b>{{ i.title }}</b><small>{{ i.detail }}{% if not i.ok and not i.blocking %} · не блокирует закрытие{% endif %}</small></span>
+    {% if not i.ok %}<a class="btn-dl" href="{{ i.url }}">Открыть</a>{% endif %}
+  </li>{% endfor %}</ul>
+  {% if not obj.is_closed %}<div class="ob-closebar">
+    {% if can_close %}
+      {% if blocking %}<button class="btn btn-primary" type="button" disabled title="Сначала закройте блокирующие пункты">{% icon 'lock' 18 %}Закрыть объект</button><span class="muted small">Кнопка станет доступна, когда все красные пункты будут выполнены.</span>
+      {% else %}<a class="btn btn-primary" href="#" data-confirm="close" data-url="{% url 'object_status' obj.pk %}" data-name="{{ obj.name }}">{% icon 'lock' 18 %}Закрыть объект</a>{% endif %}
+    {% else %}<span class="muted small">{% icon 'lock' 15 %} Закрыть объект может только руководитель с правом закрытия объектов.</span>{% endif %}
+  </div>{% endif %}
+</section>
+{% endblock %}

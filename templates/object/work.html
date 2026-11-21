@@ -1,19 +1,63 @@
-{% extends "object/_base.html" %}{% load ui %}
+{% extends "object/_base.html" %}{% load ui obj %}
 {% block tab %}
-<div class="tabbar-act">
-  <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'work' %}">{% icon 'plus' 18 %}Новый объём работ</a>
+<div class="tabhead">
+  <div><h2>Работы и объёмы</h2><p class="muted">План-факт по видам работ. В учёт идёт только объём, принятый ПТО; сверх плана — только с разрешением.</p></div>
+  <div class="tabhead-act">
+    <a class="btn btn-ghost" href="{% url 'object_new' obj.pk 'output' %}">{% icon 'brick' 18 %}Записать выработку</a>
+    <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'work' %}">{% icon 'plus' 18 %}Вид работ</a>
+  </div>
 </div>
-{% if contracts %}
-<div class="stats" style="margin-bottom:14px">
-  <div class="stat"><div class="label">Взяли на сумму</div><div class="value">{{ s.total|short }}</div><div class="hint">видов работ: {{ s.count }}</div></div>
-  <div class="stat"><div class="label">Принято</div><div class="value">{{ s.earned|short }}</div><div class="hint">{{ s.progress }}%</div></div>
-  <div class="stat"><div class="label">На проверке ПТО</div><div class="value">{{ s.pending|short }}</div></div>
-  <div class="stat"><div class="label">Осталось</div><div class="value">{{ s.remaining|short }}</div></div>
+
+<div class="kgrid">
+  <div class="k"><span class="kl">Плановая сумма</span><b class="kv">{{ s.total|short }}</b><span class="kh">видов работ: {{ s.count }}</span></div>
+  <div class="k"><span class="kl">Фактически выполнено</span><b class="kv">{{ s.earned|short }}</b><span class="kh">{{ s.progress }}% от плана</span></div>
+  <div class="k"><span class="kl">На проверке ПТО</span><b class="kv {% if s.pending %}warn{% endif %}">{{ s.pending|short }}</b><span class="kh">записей: {{ pending_logs }}</span></div>
+  <div class="k"><span class="kl">Осталось выполнить</span><b class="kv">{{ s.remaining|short }}</b><span class="kh">по договорным ценам</span></div>
 </div>
-<div class="cgrid">{% for c in contracts %}{% include "contracts/_card.html" with hide_obj=1 %}{% endfor %}</div>
-<p class="muted small">Нажмите на вид работ, чтобы назначить бригаду, задать нормы материалов и посмотреть план-факт.</p>
-{% else %}
-<div class="empty">На объекте ещё нет взятых объёмов.<br>Добавьте, что взяли у генподрядчика: например, «Кладка газоблока, 1 200 м³ по 9 500 ₸».<br>
-<a class="btn btn-primary" href="{% url 'object_new' obj.pk 'work' %}">{% icon 'plus' 18 %}Добавить объём работ</a></div>
-{% endif %}
+
+<section class="card flat">
+  <header><h3>Основной договор</h3>{% if obj.contract_number %}<span class="muted">№ {{ obj.contract_number }}</span>{% endif %}</header>
+  <dl class="reqs ob-contract">
+    <dt>Заказчик</dt><dd>{{ obj.client|default:"—" }}</dd>
+    {% if obj.general_contractor %}<dt>Генподрядчик</dt><dd>{{ obj.general_contractor }}</dd>{% endif %}
+    <dt>Сумма договора</dt><dd>{% if obj.contract_amount %}{{ obj.contract_amount|money }} ₸{% else %}<span class="muted">не указана</span>{% endif %}</dd>
+    <dt>Сумма по видам работ</dt><dd>{{ s.total|money }} ₸{% if obj.contract_amount and s.total > obj.contract_amount %} <em class="t-bad">больше договора</em>{% endif %}</dd>
+  </dl>
+</section>
+
+<section class="card flat">
+  <header><h3>Реестр работ</h3><span class="muted">{{ rows|length }}</span></header>
+  {% if rows %}
+  <table class="otable">
+    <thead><tr><th>Наименование</th><th>Раздел / этап</th><th class="r">План</th><th class="r">Цена</th><th class="r">Факт</th><th>Выполнение</th><th>Исполнители</th><th>Сроки</th><th>Статус</th></tr></thead>
+    <tbody>{% for r in rows %}{% with c=r.c %}
+      <tr>
+        <td data-label="Работа"><a class="doclink" href="{% url 'contract_detail' c.pk %}">{{ c.work_type }}</a><small class="muted block">план {{ c.total|short }}</small></td>
+        <td data-label="Раздел">{{ c.place|default:"—" }}</td>
+        <td data-label="План" class="r nowrap">{{ c.volume|num }} {{ c.unit }}</td>
+        <td data-label="Цена" class="r nowrap">{{ c.price|money }} ₸</td>
+        <td data-label="Факт" class="r nowrap">{{ c.done_volume|num }} {{ c.unit }}<small class="muted block">{{ c.earned|short }}</small>{% if c.pending_volume %}<small class="warn-t block">+{{ c.pending_volume|num }} на проверке</small>{% endif %}</td>
+        <td data-label="Выполнение"><div class="pb"><div class="bar"><span style="width:{{ c.progress }}%"></span></div><b>{{ c.progress }}%</b></div></td>
+        <td data-label="Исполнители">{% for p in r.performers %}<span class="block small">{{ p }}</span>{% empty %}<span class="muted small">не назначены</span>{% endfor %}</td>
+        <td data-label="Сроки" class="dates">{{ c.start_date|date:"d.m"|default:"…" }} – <span class="{% if c.is_overdue %}bad{% endif %}">{{ c.end_date|date:"d.m.y"|default:"…" }}</span></td>
+        <td data-label="Статус"><span class="badge {% if c.status == 'active' %}in_progress{% else %}{{ c.status }}{% endif %}">{{ c.get_status_display }}</span></td>
+      </tr>{% endwith %}{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty-s ob-empty">На объекте ещё нет видов работ. Добавьте, что взяли по договору: например, «Кладка газоблока, 1 200 м³ по 9 500 ₸».<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'work' %}">{% icon 'plus' 18 %}Добавить вид работ</a></div>{% endif %}
+</section>
+
+<section class="card flat">
+  <header><h3>Выработка по дням</h3>{% if pending %}<span class="pill">{{ pending|length }} ждут ПТО</span>{% endif %}<span class="muted">{% if logs_total > logs|length %}сначала ждущие проверки, затем последние · всего записей {{ logs_total }}{% endif %}</span></header>
+  {% if logs %}
+  <table class="otable">
+    <thead><tr><th>Дата</th><th>Работа</th><th>Исполнитель</th><th>Где</th><th class="r">Объём</th><th>Статус</th></tr></thead>
+    <tbody>{% for l in logs %}{% with c=l.assignment.contract %}
+      <tr><td data-label="Дата" class="nowrap">{{ l.date|date:"d.m.Y" }}</td><td data-label="Работа">{{ c.work_type }}</td><td data-label="Исполнитель">{{ l.assignment.performer }}<small class="muted block">{{ l.people }} чел.</small></td>
+        <td data-label="Где">{% if l.section %}с. {{ l.section }} {% endif %}{% if l.floor %}эт. {{ l.floor }}{% endif %}{% if not l.section and not l.floor %}—{% endif %}</td>
+        <td data-label="Объём" class="r nowrap">{% if l.status == 'accepted' %}<span class="ok">{{ l.accepted_volume|num }}</span>{% if l.rejected_part %}<small class="muted"> из {{ l.volume|num }}</small>{% endif %}{% else %}{{ l.volume|num }}{% endif %} {{ c.unit }}</td>
+        <td data-label="Статус">{% if l.status == 'submitted' %}<a class="st st-new" href="{% url 'worklog_review' l.pk %}">На проверке →</a>{% elif l.status == 'accepted' %}<span class="st st-received">Принято</span>{% else %}<span class="st st-rejected">Отклонено</span>{% endif %}</td></tr>
+    {% endwith %}{% endfor %}</tbody>
+  </table>
+  {% else %}<div class="empty-s ob-empty">Выработки ещё нет. <a href="{% url 'object_new' obj.pk 'output' %}">Записать первую</a></div>{% endif %}
+</section>
 {% endblock %}

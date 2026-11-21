@@ -94,6 +94,8 @@ class Command(BaseCommand):
             code="KRG-01", name="Логистический склад", city="Караганда", address="ул. Складская, 3", client=c2,
             status="done", start_date=d(-400), end_date=d(-120), contract_amount=D("63000000"))
 
+        self._object_module(emp, workers, [o1, o2, o3, o4, o5])
+
         # --- склад ---
         s1 = Supplier.objects.create(name="ТОО «Central Asia Cement»", phone="+7 721 250-00-00")
         s2 = Supplier.objects.create(name="ТОО «КазМеталл Снаб»", phone="+7 727 260-60-60")
@@ -448,3 +450,47 @@ class Command(BaseCommand):
         pdf = document_pdf(company, doc.title, kind, doc.number, f"{doc.date:%d.%m.%Y}", lines, signer)
         doc.file.save(f"doc-{doc.pk}-{doc.kind}.pdf", ContentFile(pdf), save=True)
 
+    def _object_module(self, emp, workers, objs):
+        """Раздел «Объекты»: тип, ответственный менеджер, координаты, транспорт и охрана труда (примерные данные)."""
+        from datetime import time
+
+        from objects.models import SafetyRecord, TransportRequest
+        d = self.d
+        o1, o2, o3, o4, o5 = objs
+        for o, kind, coords, resp in [
+            (o1, "residential", "51.1290, 71.4305", emp["Ахметова"]),
+            (o2, "commercial", "43.2185, 76.9270", emp["Ахметова"]),
+            (o3, "social", "42.3417, 69.5901", None),
+            (o4, "residential", "51.1605, 71.4704", None),
+            (o5, "industrial", "49.8047, 73.1094", None),
+        ]:
+            o.kind, o.coordinates, o.responsible = kind, coords, resp
+            if o.status == "paused":
+                o.status_before_pause = "in_progress"
+            o.save()
+        for o, kind, task, route, days, hh, driver, status, hours, cost in [
+            (o1, "crane", "Подача газоблока на 7–9 этажи", "Склад объекта → секция 2", 1, 8, "Ержанов К.", "approved", None, 0),
+            (o1, "dump", "Вывоз строительного мусора", "пр. Туран, 55 → полигон", 2, 9, "", "new", None, 0),
+            (o1, "manipulator", "Доставка арматуры с центрального склада", "Центральный склад → объект", -3, 10,
+             "Сапаров Е.", "done", D("6"), D("90000")),
+            (o1, "crane", "Монтаж перемычек, 5 этаж", "", -8, 8, "Ержанов К.", "done", D("8"), D("176000")),
+            (o2, "loader", "Разгрузка штукатурной смеси", "", -1, 14, "Мамыров А.", "in_work", D("3"), D("45000")),
+        ]:
+            TransportRequest.objects.create(construction_object=o, kind=kind, task=task, route=route, date=d(days),
+                                            time=time(hh, 0), driver=driver, status=status, hours=hours, cost=cost,
+                                            responsible=emp["Сейтказиев"] if o == o1 else emp["Оспанов"])
+        crew = ", ".join(w.full_name for w in list(workers.values())[:5])
+        for o, kind, title, days, parts, who, until, measures, ok in [
+            (o1, "briefing", "Вводный инструктаж для новой бригады", -58, crew, emp["Сейтказиев"], None, "", True),
+            (o1, "briefing", "Повторный инструктаж: работы на высоте", -5, crew, emp["Сейтказиев"], None, "", False),
+            (o1, "permit", "Допуск к работам на высоте", -200, "Абдрахманов Нурсултан, Касымов Ерасыл", None,
+             d(-4), "", True),
+            (o1, "permit", "Удостоверение стропальщика", -300, "Байжанов Арман", None, d(10), "", True),
+            (o1, "permit", "Группа по электробезопасности III", -100, "Рахимов Тимур", None, d(260), "", True),
+            (o1, "incident", "Падение инструмента с 6 этажа, без пострадавших", -12, "Бригада Мусина",
+             emp["Сейтказиев"], None, "Установлены защитные сетки, проведён целевой инструктаж", True),
+            (o2, "briefing", "Целевой инструктаж: работа с подъёмником", -20, "Штукатуры Ибраева", emp["Оспанов"],
+             None, "", True),
+        ]:
+            SafetyRecord.objects.create(construction_object=o, kind=kind, title=title, date=d(days), participants=parts,
+                                        instructor=who, valid_until=until, measures=measures, confirmed=ok)

@@ -1,0 +1,18 @@
+{% extends "object/_base.html" %}{% load ui obj %}
+{% block tab %}
+<div class="tabhead">
+  <div><h2>История объекта</h2><p class="muted">Хронология событий из всех разделов объекта: кто, когда и что создал, изменил, принял или отклонил. Нажмите на событие, чтобы увидеть «было → стало».</p></div>
+</div>
+{% if entries %}
+<div class="fchips" data-chips="#timeline"><button type="button" class="fchip on" data-v="">Все <span>{{ entries|length }}</span></button>{% for k, label, n in groups %}<button type="button" class="fchip" data-v="{{ k }}">{{ label }} <span>{{ n }}</span></button>{% endfor %}</div>
+<section class="card timeline" id="timeline">
+  {% regroup entries by created_at.date as days %}
+  {% for d in days %}<div class="tl-day" data-cat="{% for e in d.list %}{{ e.group }} {% endfor %}"><div class="tl-date">{{ d.grouper|date:"d E Y, l" }}</div>
+    {% for e in d.list %}<details class="tl-item" data-cat="{{ e.group }}"><summary><span class="dot {{ e.action }}"></span><span class="tl-t"><b>{{ e.get_action_display }}</b> · {{ e.object_repr }}<small>{{ e.created_at|date:"H:i" }} · {{ e.user|default:"система" }} · {{ e.module }}{% if e.reason %} · причина: {{ e.reason }}{% endif %}</small></span></summary>
+      {% if e.change_list %}<div class="tl-ch">{% for k, old, new in e.change_list %}<div><span class="muted">{{ k }}:</span> {% if old %}<s>{{ old }}</s> → {% endif %}<b>{{ new|default:"—" }}</b></div>{% endfor %}</div>{% else %}<div class="tl-ch muted">Подробностей нет</div>{% endif %}
+    </details>{% endfor %}
+  </div>{% endfor %}
+</section>
+<div class="empty-s ob-empty" data-none hidden>Событий этого типа нет.</div>
+{% else %}<section class="card"><div class="empty-s ob-empty">Событий пока нет.</div></section>{% endif %}
+{% endblock %}
