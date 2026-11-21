@@ -18,7 +18,7 @@ from .models import AuditLog
 
 
 def form_page(request, form_class, title, success_url, instance=None, form_kwargs=None, subtitle="",
-              submit="Сохранить", back=None):
+              submit="Сохранить", back=None, extra=None):
     """Общая страница с формой: показывает, проверяет, сохраняет и пишет в журнал действий."""
     form_kwargs = form_kwargs or {}
     editing = instance is not None and instance.pk is not None
@@ -36,38 +36,35 @@ def form_page(request, form_class, title, success_url, instance=None, form_kwarg
     return render(request, "form.html", {
         "form": form, "title": title, "subtitle": subtitle, "submit": submit, "editing": editing,
         "back": back or request.META.get("HTTP_REFERER") or reverse("dashboard"),
+        **(extra or {}),
     })
 
 
 @login_required
 def dashboard(request):
+    """Главная: мои объекты и что требует внимания. Всё остальное — внутри объекта."""
     contracts = list(WorkContract.objects.select_related("construction_object").prefetch_related(
         "assignments__crew", "assignments__employee"))
-    obj_id = request.GET.get("object")
-    if obj_id and obj_id.isdigit():
-        contracts = [c for c in contracts if c.construction_object_id == int(obj_id)]
-    active = [c for c in contracts if c.status == WorkContract.Status.ACTIVE]
-    objects = ConstructionObject.objects.all()
-    working = [o for o in objects if o.is_working]
-    open_remarks = Remark.objects.exclude(status=Remark.Status.CLOSED)
+    by_obj = {}
+    for c in contracts:
+        by_obj.setdefault(c.construction_object_id, []).append(c)
+    open_remarks = dict(Remark.objects.exclude(status=Remark.Status.CLOSED).values_list(
+        "construction_object").annotate(n=Count("id")))
+    pending = {}
+    for log in WorkLog.objects.filter(status=WorkLog.Status.SUBMITTED).select_related("assignment__contract"):
+        oid = log.assignment.contract.construction_object_id
+        pending[oid] = pending.get(oid, 0) + 1
+    cards = []
+    for o in ConstructionObject.objects.select_related("client", "foreman"):
+        cs = by_obj.get(o.pk, [])
+        cards.append({"o": o, "s": summary(cs), "remarks": open_remarks.get(o.pk, 0),
+                      "pending": pending.get(o.pk, 0),
+                      "active": sum(c.status == WorkContract.Status.ACTIVE for c in cs)})
+    working = [c for c in cards if c["o"].is_working]
+    others = [c for c in cards if not c["o"].is_working]
     return render(request, "dashboard.html", {
-        "s": summary(contracts),
-        "alerts": alerts.collect(contracts),
-        "active_contracts": active,
-        "objects_count": {"working": len(working), "paused": sum(o.status == "paused" for o in objects),
-                          "done": sum(o.status in ("done", "archive") for o in objects), "total": len(objects)},
-        "stock_value": sum((m.stock_value for m in Material.objects.all()), 0),
-        "tasks_overdue": Task.objects.exclude(status="done").filter(due_date__lt=date.today()).count(),
-        "remarks_open": open_remarks.count(),
-        "remarks_overdue": open_remarks.filter(deadline__lt=date.today()).count(),
-        "remarks_review": open_remarks.filter(status="review").count(),
-        "objects_active": len(working),
-        "workers": Employee.objects.filter(is_active=True).count(),
-        "crews": Crew.objects.count(),
-        "recent_logs": WorkLog.objects.select_related(
-            "assignment__contract__construction_object", "assignment__crew", "assignment__employee")[:6],
-        "low_materials": [m for m in Material.objects.all() if m.is_low],
-        "tasks_open": Task.objects.exclude(status="done").count(),
+        "s": summary(contracts), "alerts": alerts.collect(contracts),
+        "working": working, "others": others,
     })
 
 
@@ -89,28 +86,11 @@ def object_list(request):
 
 
 @login_required
-def object_detail(request, pk):
-    obj = get_object_or_404(ConstructionObject.objects.select_related("client", "manager"), pk=pk)
-    contracts = list(obj.contracts.prefetch_related("assignments"))
-    income = obj.transactions.filter(kind="income").aggregate(s=Sum("amount"))["s"] or 0
-    expense = obj.transactions.filter(kind="expense").aggregate(s=Sum("amount"))["s"] or 0
-    spent = alerts.object_expenses(obj)
-    return render(request, "object_detail.html", {
-        "obj": obj, "contracts": contracts, "s": summary(contracts),
-        "spent": spent, "budget_left": obj.budget - spent if obj.budget else None,
-        "history": obj.history.select_related("user")[:15],
-        "remarks": obj.remarks.exclude(status="closed").select_related("responsible", "construction_object"),
-        "reports": obj.daily_reports.all()[:5],
-        "tasks": obj.tasks.select_related("assignee"),
-        "estimates": obj.estimates.all(), "documents": obj.documents.all(),
-        "income": income, "expense": expense, "balance": income - expense,
-    })
-
-
-@login_required
 def object_create(request):
     return form_page(request, forms.ObjectForm, "Новый объект",
-                     lambda o: reverse("object_detail", args=[o.pk]), back=reverse("object_list"))
+                     lambda o: reverse("object_detail", args=[o.pk]), back=reverse("dashboard"),
+                     subtitle="Взяли объект — создайте его здесь. Дальше объёмы, рабочие, материалы, деньги "
+                              "и документы ведутся внутри объекта.", submit="Создать объект")
 
 
 @login_required
@@ -150,9 +130,16 @@ def task_create(request):
 
 @login_required
 def warehouse_list(request):
+    from warehouse.models import PurchaseRequest, Warehouse
+    materials = list(Material.objects.all())
     return render(request, "warehouse_list.html", {
-        "materials": Material.objects.all(),
-        "movements": StockMovement.objects.select_related("material", "supplier", "construction_object")[:30],
+        "warehouses": Warehouse.objects.select_related("construction_object", "keeper"),
+        "materials": materials, "total_value": sum((m.stock_value for m in materials), 0),
+        "in_transit": StockMovement.objects.filter(kind="transfer", received=False).select_related(
+            "material", "warehouse", "to_warehouse"),
+        "open_requests": PurchaseRequest.objects.filter(status__in=PurchaseRequest.OPEN).count(),
+        "movements": StockMovement.objects.select_related("material", "supplier", "construction_object",
+                                                          "warehouse", "to_warehouse")[:30],
     })
 
 
@@ -164,7 +151,9 @@ def material_create(request):
 
 @login_required
 def movement_create(request):
-    return form_page(request, forms.StockMovementForm, "Приход / расход материала", reverse("warehouse_list"),
+    return form_page(request, forms.StockMovementForm, "Складская операция", reverse("warehouse_list"),
+                     form_kwargs={"user": request.user},
+                     subtitle="Приход, расход в работу, перемещение, возврат, списание.",
                      back=reverse("warehouse_list"))
 
 

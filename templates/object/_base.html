@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load ui %}
+{% block title %}{{ obj.name }} · Paramount Buildings{% endblock %}
+{% block content %}
+<div class="ohead">
+  <a class="crumb" href="{% url 'dashboard' %}">{% icon 'back' 16 %}Все объекты</a>
+  <div class="line">
+    <div style="flex:1;min-width:0">
+      <h1>{{ obj.name }}</h1>
+      <div class="sub">{% if obj.code %}{{ obj.code }} · {% endif %}{% if obj.city %}{{ obj.city }}{% endif %}{% if obj.client %} · {{ obj.client }}{% endif %}</div>
+    </div>
+    <span class="badge {{ obj.status }}">{{ obj.get_status_display }}</span>
+    <a class="edit" href="{% url 'object_edit' obj.pk %}" aria-label="Изменить объект" title="Изменить объект">{% icon 'edit' 18 %}</a>
+  </div>
+  <div class="prog"><span>Выполнено <b>{{ s.progress }}%</b></span><div class="bar"><span style="width:{{ s.progress }}%"></span></div><span>взяли на <b>{{ s.total|short }}</b></span></div>
+</div>
+<nav class="otabs">
+  {% for key, label, ic in tabs %}<a href="{% if key == 'overview' %}{% url 'object_detail' obj.pk %}{% else %}{% url 'object_tab' obj.pk key %}{% endif %}" class="{% if key == tab %}active{% endif %}">{{ label }}{% with c=counts|get_item:key %}{% if c %} <span class="c{% if key in hot %} hot{% endif %}">({{ c }})</span>{% endif %}{% endwith %}</a>{% endfor %}
+</nav>
+{% block tab %}{% endblock %}
+{% endblock %}

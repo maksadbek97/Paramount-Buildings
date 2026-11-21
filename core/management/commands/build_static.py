@@ -16,17 +16,21 @@ from django.test import Client, override_settings
 from contracts.models import Crew, WorkContract, WorkLog
 from objects.models import ConstructionObject
 from quality.models import DailyReport, Remark
+from core.object_views import NEW, TABS
 from staff.models import Employee
+from warehouse.models import Inventory, PurchaseRequest, Warehouse
 
 STATIC_PAGES = [
     "/", "/menu/", "/objects/", "/objects/new/", "/contracts/", "/contracts/new/", "/worklog/new/",
     "/payments/new/", "/staff/", "/staff/new/", "/crews/new/", "/tasks/new/", "/warehouse/",
     "/warehouse/materials/new/", "/warehouse/movements/new/", "/finance/", "/finance/new/", "/pto/", "/history/",
-    "/remarks/", "/remarks/new/", "/reports/", "/reports/new/", "/tasks/",
+    "/remarks/", "/remarks/new/", "/reports/", "/reports/new/", "/tasks/", "/add/",
+    "/warehouse/new/", "/warehouse/inventory/new/", "/purchases/", "/purchases/new/", "/purchases/suppliers/new/",
 ]
 STATUS_FILTERS = {
     "/remarks/": ["open", "overdue", "review", "closed", "all"],
     "/tasks/": ["active", "overdue", "review", "done", "all"],
+    "/purchases/": ["open"] + [v for v, _ in PurchaseRequest.Status.choices] + ["all"],
 }
 
 
@@ -47,6 +51,18 @@ def page_list():
     for pk in ConstructionObject.objects.values_list("pk", flat=True):
         pages[f"/objects/{pk}/"] = f"/objects/{pk}/"
         pages[f"/objects/{pk}/edit/"] = f"/objects/{pk}/edit/"
+        pages[f"/objects/{pk}/add/"] = f"/objects/{pk}/add/"
+        for tab, _, _ in TABS[1:]:
+            pages[f"/objects/{pk}/{tab}/"] = f"/objects/{pk}/{tab}/"
+        for what in NEW:
+            pages[f"/objects/{pk}/new/{what}/"] = f"/objects/{pk}/new/{what}/"
+    for pk in Warehouse.objects.values_list("pk", flat=True):
+        pages[f"/warehouse/{pk}/"] = f"/warehouse/{pk}/"
+    for pk in Inventory.objects.values_list("pk", flat=True):
+        pages[f"/warehouse/inventory/{pk}/"] = f"/warehouse/inventory/{pk}/"
+    for pk in PurchaseRequest.objects.values_list("pk", flat=True):
+        pages[f"/purchases/{pk}/"] = f"/purchases/{pk}/"
+        pages[f"/purchases/{pk}/edit/"] = f"/purchases/{pk}/edit/"
     for pk in WorkContract.objects.values_list("pk", flat=True):
         for suffix in ("", "edit/", "assign/", "norm/"):
             pages[f"/contracts/{pk}/{suffix}"] = f"/contracts/{pk}/{suffix}"

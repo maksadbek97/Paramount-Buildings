@@ -11,7 +11,7 @@ from quality.models import DailyReport, Remark
 from finance.models import Estimate, EstimateItem, Transaction
 from objects.models import Client, ConstructionObject
 from staff.models import Employee, Position, Task
-from warehouse.models import Material, StockMovement, Supplier
+from warehouse.models import Inventory, InventoryLine, Material, PurchaseRequest, StockMovement, Supplier, Warehouse
 
 D = Decimal
 
@@ -174,6 +174,16 @@ class Command(BaseCommand):
         ]:
             Payment.objects.create(contract=k, kind=kind, assignment=a, amount=D(amount), date=d(days), note=note)
 
+        # Склады: центральный и склады объектов.
+        central = Warehouse.objects.create(name="Центральный склад (Астана)", kind="central", keeper=emp["Тулегенов"])
+        obj_wh = {
+            o1.pk: Warehouse.objects.create(name="Склад ЖК «Атлант»", kind="object", construction_object=o1,
+                                            keeper=emp["Сейтказиев"]),
+            o2.pk: Warehouse.objects.create(name="Склад БЦ «Алатау»", kind="object", construction_object=o2,
+                                            keeper=emp["Оспанов"]),
+        }
+        Warehouse.objects.create(name="Склад инструментов", kind="tools", keeper=emp["Тулегенов"])
+
         # Движение материалов (расход привязан к виду работ — для план-факта по нормам).
         for mat, kind, qty, days, sup, obj, k in [
             ("Газоблок D500", "in", "2400", -55, s3, None, None),
@@ -194,8 +204,46 @@ class Command(BaseCommand):
             ("Кабель ВВГ 3×2,5", "in", "2000", -15, None, None, None),
             ("Кабель ВВГ 3×2,5", "out", "600", -2, None, o2, None),
         ]:
-            StockMovement.objects.create(material=mats[mat], kind=kind, quantity=D(qty), date=d(days),
-                                         supplier=sup, construction_object=obj, contract=k)
+            m = mats[mat]
+            if kind == "in":
+                StockMovement.objects.create(material=m, kind="in", quantity=D(qty), date=d(days), supplier=sup,
+                                             warehouse=central, price=m.price)
+            else:
+                # Со склада компании на склад объекта (принято прорабом), затем расход в работу.
+                wh = obj_wh[obj.pk]
+                t = StockMovement.objects.create(material=m, kind="transfer", quantity=D(qty), date=d(days - 1),
+                                                 warehouse=central, to_warehouse=wh)
+                t.accept(None)
+                StockMovement.objects.create(material=m, kind="out", quantity=D(qty), date=d(days),
+                                             warehouse=wh, construction_object=obj, contract=k)
+
+        # Перемещение, которое ещё ждёт приёмки прорабом, и списание с причиной.
+        StockMovement.objects.create(material=mats["Газоблок D500"], kind="transfer", quantity=D("80"),
+                                     date=d(0), warehouse=central, to_warehouse=obj_wh[o1.pk],
+                                     note="Машина 2 из 3")
+        StockMovement.objects.create(material=mats["Газоблок D500"], kind="writeoff", quantity=D("3"),
+                                     date=d(-9), warehouse=central, note="Бой при разгрузке")
+        inv = Inventory.objects.create(warehouse=central, date=d(-20), note="Плановая")
+        for m in (mats["Песок"], mats["Цемент М400"]):
+            InventoryLine.objects.create(inventory=inv, material=m, book_qty=m.balance(central),
+                                         actual_qty=m.balance(central))
+        line = inv.lines.first()
+        line.actual_qty = line.book_qty - 2
+        line.save()
+        inv.approve(None)
+
+        # Заявки на материалы.
+        for mat, qty, obj, wh, status, sup, price, days in [
+            ("Клей для газоблока", "600", o1, obj_wh[o1.pk], "new", None, "2650", 4),
+            ("Штукатурная смесь", "900", o1, obj_wh[o1.pk], "approved", s1, "3250", 3),
+            ("Цемент М400", "20", o1, central, "ordered", s1, "38500", 2),
+            ("Газоблок D500", "1100", o1, obj_wh[o1.pk], "received", s3, "26500", -14),
+            ("Кабель ВВГ 3×2,5", "300", o2, obj_wh[o2.pk], "rejected", None, None, 5),
+        ]:
+            PurchaseRequest.objects.create(material=mats[mat], quantity=D(qty), construction_object=obj,
+                                           warehouse=wh, status=status, supplier=sup,
+                                           price=D(price) if price else None, needed_by=d(days),
+                                           payment_terms="Предоплата 50%" if sup else "")
 
         # --- задачи, сметы, общие финансы ---
         for title, obj, who, status, prio, due, src in [

@@ -1,0 +1,33 @@
+{% extends "object/_base.html" %}{% load ui %}
+{% block tab %}
+{% if active_contracts %}
+<div class="tabbar-act">
+  {% for c in active_contracts %}<a class="btn btn-primary" href="{% url 'assignment_create' c.pk %}">{% icon 'plus' 18 %}Бригада на «{{ c.work_type }}»</a>{% endfor %}
+</div>
+{% endif %}
+<div class="stats" style="margin-bottom:14px">
+  <div class="stat"><div class="label">Заработали</div><div class="value">{{ earned|short }}</div><div class="hint">по принятому объёму</div></div>
+  <div class="stat"><div class="label">Выплачено</div><div class="value">{{ paid|short }}</div></div>
+  <div class="stat"><div class="label">Должны рабочим</div><div class="value {% if due > 0 %}bad{% endif %}">{{ due|short }}</div></div>
+</div>
+{% if assignments %}
+<div class="list">
+{% for a in assignments %}
+  <div class="row stack">
+    <span class="ico">{% if a.is_crew %}{% icon 'users' 20 %}{% else %}{{ a.employee.full_name|first }}{% endif %}</span>
+    <div class="body">
+      <div class="title">{{ a.performer }}</div>
+      <div class="meta">{{ a.contract.work_type }} · {% if a.pay_type == 'per_day' %}подённо {{ a.rate|money }} ₸/день · {{ a.days }} чел.-дн.{% else %}за объём {{ a.rate|money }} ₸/{{ a.contract.unit }} · принято {{ a.done_volume|num }} {{ a.contract.unit }}{% endif %}{% if a.is_crew and a.crew.leader %} · бригадир {{ a.crew.leader }}{% endif %}</div>
+    </div>
+    <div class="side">{{ a.earned|money }} ₸
+      <div class="meta">выплачено {{ a.paid|money }}{% if a.due > 0 %} · <span class="bad">долг {{ a.due|money }}</span>{% endif %}</div>
+      {% if a.due > 0 %}<div class="meta"><a href="{% url 'object_new' obj.pk 'payment' %}?kind=worker&contract={{ a.contract_id }}&assignment={{ a.pk }}&amount={{ a.due|floatformat:'0' }}">Выплатить →</a></div>{% endif %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty">На объекте пока никто не работает.{% if active_contracts %}<br>Нажмите «Бригада на …» выше и выберите бригаду или рабочего.{% else %}<br>Сначала добавьте объём работ.<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'work' %}">Добавить объём работ</a>{% endif %}</div>
+{% endif %}
+<p class="muted small" style="margin-top:14px">Нового рабочего или бригаду можно добавить в разделе <a href="{% url 'staff_list' %}">Рабочие и бригады</a> — это общий список компании для всех объектов.</p>
+{% endblock %}

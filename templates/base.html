@@ -15,37 +15,47 @@
 {% with n=request.resolver_match.url_name|default:"" %}
 <body class="{% if user.is_authenticated %}app{% else %}guest{% endif %}">
 {% if user.is_authenticated %}
+<header class="appbar">
+  <button class="burger" type="button" aria-label="Меню" onclick="document.body.classList.toggle('nav-open')">{% icon 'menu' 24 %}</button>
+  <a class="brand" href="{% url 'dashboard' %}"><img src="{% static 'img/logo-white.png' %}" alt="Paramount Buildings"></a>
+  <details class="picker objpick">
+    <summary>{% icon 'building' 18 %}<span>{% if cur_obj %}{{ cur_obj.name }}{% else %}Все объекты{% endif %}</span>{% icon 'chevron' 16 %}</summary>
+    <div class="drop">
+      <a href="{% url 'dashboard' %}" class="{% if not cur_obj %}on{% endif %}">{% icon 'home' 18 %}Все объекты</a>
+      {% for o in nav_objects %}<a href="{% url 'object_detail' o.pk %}" class="{% if cur_obj.pk == o.pk %}on{% endif %}">{% if o.code %}<small>{{ o.code }}</small>{% endif %}{{ o.name }}</a>{% endfor %}
+      <a href="{% url 'object_create' %}" class="new">{% icon 'plus' 18 %}Новый объект</a>
+    </div>
+  </details>
+  <div class="spacer"></div>
+  <a class="btn-add" href="{% if cur_obj %}{% url 'object_add' cur_obj.pk %}{% else %}{% url 'add_choose' %}{% endif %}">{% icon 'plus' 18 %}<span>Добавить</span></a>
+  <details class="picker usermenu">
+    <summary><span class="avatar">{{ user.get_username|first|upper }}</span><span class="who"><b>{{ user.get_full_name|default:user.get_username }}</b><small>{% if user.is_superuser %}Руководитель{% else %}{{ user.groups.all.0.name|default:"Сотрудник" }}{% endif %}</small></span>{% icon 'chevron' 16 %}</summary>
+    <div class="drop right">
+      <a href="{% url 'menu' %}">{% icon 'users' 18 %}Профиль и разделы</a>
+      <a href="{% url 'history' %}">{% icon 'history' 18 %}Журнал действий</a>
+      {% if user.is_staff and not DEMO %}<a href="{% url 'admin:index' %}">{% icon 'settings' 18 %}Админ-панель</a>{% endif %}
+      {% if not DEMO %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button>{% icon 'logout' 18 %}Выйти</button></form>{% endif %}
+    </div>
+  </details>
+</header>
+
 <aside class="sidebar">
-  <a class="logo" href="{% url 'dashboard' %}"><img src="{% static 'img/logo-white.png' %}" alt="Paramount Buildings"></a>
-  <div class="company">ТОО «PARAMOUNT BUILDINGS» · Smart Building</div>
   <nav>
-    <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' %}Главная</a>
-    <div class="navgroup">Производство</div>
-    <a href="{% url 'object_list' %}" class="{% if 'object' in n %}active{% endif %}">{% icon 'building' %}Объекты</a>
+    <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' or 'object' in n or n == 'add_choose' %}active{% endif %}">{% icon 'building' %}Мои объекты</a>
+    <a href="{% url 'task_list' %}" class="{% if 'task' in n %}active{% endif %}">{% icon 'task' %}Мои задачи</a>
+    <a href="{% url 'staff_list' %}" class="{% if 'staff' in n or 'employee' in n or 'crew' in n %}active{% endif %}">{% icon 'users' %}Рабочие и бригады</a>
+    <a href="{% url 'warehouse_list' %}" class="{% if 'warehouse' in n or 'material' in n or 'movement' in n or 'inventory' in n or 'transfer' in n %}active{% endif %}">{% icon 'box' %}Склады</a>
+    <a href="{% url 'purchase_list' %}" class="{% if 'purchase' in n or 'supplier' in n %}active{% endif %}">{% icon 'cash' %}Закупки</a>
+    <a href="{% url 'finance_list' %}" class="{% if 'finance' in n or 'transaction' in n %}active{% endif %}">{% icon 'wallet' %}Финансы компании</a>
+    <div class="navgroup">По всем объектам</div>
     <a href="{% url 'contract_list' %}" class="{% if 'contract' in n or 'assignment' in n %}active{% endif %}">{% icon 'contract' %}Объёмы работ</a>
     <a href="{% url 'pto' %}" class="{% if n == 'pto' or 'review' in n or 'norm' in n %}active{% endif %}">{% icon 'check' %}ПТО и приёмка</a>
-    <a href="{% url 'report_list' %}" class="{% if 'report' in n %}active{% endif %}">{% icon 'clipboard' %}Ежедневные отчёты</a>
-    <div class="navgroup">Контроль</div>
-    <a href="{% url 'remark_list' %}" class="{% if 'remark' in n %}active{% endif %}">{% icon 'flag' %}Обходы и замечания</a>
-    <a href="{% url 'task_list' %}" class="{% if 'task' in n %}active{% endif %}">{% icon 'task' %}Задачи</a>
-    <div class="navgroup">Ресурсы</div>
-    <a href="{% url 'staff_list' %}" class="{% if 'staff' in n or 'employee' in n or 'crew' in n %}active{% endif %}">{% icon 'users' %}Рабочие и бригады</a>
-    <a href="{% url 'warehouse_list' %}" class="{% if 'warehouse' in n or 'material' in n or 'movement' in n %}active{% endif %}">{% icon 'box' %}Склад</a>
-    <a href="{% url 'finance_list' %}" class="{% if 'finance' in n or 'transaction' in n %}active{% endif %}">{% icon 'wallet' %}Финансы</a>
+    <a href="{% url 'remark_list' %}" class="{% if 'remark' in n %}active{% endif %}">{% icon 'flag' %}Замечания</a>
+    <a href="{% url 'report_list' %}" class="{% if 'report' in n %}active{% endif %}">{% icon 'clipboard' %}Отчёты прорабов</a>
     <a href="{% url 'history' %}" class="{% if n == 'history' %}active{% endif %}">{% icon 'history' %}Журнал действий</a>
   </nav>
-  <a class="btn btn-accent btn-block" href="{% url 'worklog_create' %}">{% icon 'plus' %}Записать выработку</a>
-  <div class="me">
-    <span class="avatar">{{ user.get_username|first|upper }}</span>
-    <span class="who">{{ user.get_username }}</span>
-    {% if user.is_staff and not DEMO %}<a href="{% url 'admin:index' %}" title="Админ-панель">{% icon 'settings' 18 %}</a>{% endif %}
-    {% if not DEMO %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button title="Выйти">{% icon 'logout' 18 %}</button></form>{% endif %}
-  </div>
 </aside>
-
-<header class="topbar">
-  <a href="{% url 'dashboard' %}"><img src="{% static 'img/logo.png' %}" alt="Paramount Buildings"></a>
-</header>
+<div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
 {% endif %}
 
 <main>
@@ -56,13 +66,19 @@
 
 {% if user.is_authenticated %}
 <nav class="tabbar">
-  <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% icon 'home' %}<span>Главная</span></a>
-  <a href="{% url 'contract_list' %}" class="{% if 'contract' in n or 'assignment' in n %}active{% endif %}">{% icon 'contract' %}<span>Объёмы</span></a>
-  <a href="{% url 'worklog_create' %}" class="fab {% if n == 'worklog_create' %}active{% endif %}" aria-label="Записать выработку">{% icon 'plus' 28 %}</a>
+  <a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' or 'object' in n %}active{% endif %}">{% icon 'building' %}<span>Объекты</span></a>
+  <a href="{% url 'task_list' %}" class="{% if 'task' in n %}active{% endif %}">{% icon 'task' %}<span>Задачи</span></a>
+  <a href="{% if cur_obj %}{% url 'object_add' cur_obj.pk %}{% else %}{% url 'add_choose' %}{% endif %}" class="fab" aria-label="Добавить">{% icon 'plus' 28 %}</a>
   <a href="{% url 'staff_list' %}" class="{% if 'staff' in n or 'employee' in n or 'crew' in n %}active{% endif %}">{% icon 'users' %}<span>Рабочие</span></a>
-  <a href="{% url 'menu' %}" class="{% if n == 'menu' or 'object' in n or 'warehouse' in n or 'finance' in n or n == 'pto' or n == 'history' or 'remark' in n or 'report' in n or 'task' in n %}active{% endif %}">{% icon 'menu' %}<span>Ещё</span></a>
+  <a href="{% url 'menu' %}" class="{% if n == 'menu' %}active{% endif %}">{% icon 'menu' %}<span>Ещё</span></a>
 </nav>
 {% endif %}
+<script>
+// Выпадающие меню в верхней панели закрываются по клику мимо.
+document.addEventListener('click', function (e) {
+  document.querySelectorAll('details.picker[open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });
+});
+</script>
 {% if DEMO %}<script>
 document.querySelectorAll('form[method=post]').forEach(function (f) {
   f.addEventListener('submit', function (e) {

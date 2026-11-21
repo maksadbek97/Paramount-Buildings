@@ -32,7 +32,7 @@ def contract_detail(request, pk):
     c = get_object_or_404(WorkContract.objects.select_related("construction_object__client"), pk=pk)
     assignments = list(c.assignments.select_related("crew", "employee"))
     return render(request, "contracts/contract_detail.html", {
-        "c": c, "assignments": assignments, "materials": c.material_plan_fact(),
+        "c": c, "cur_obj": c.construction_object, "assignments": assignments, "materials": c.material_plan_fact(),
         "pending": [log for log in pending_logs() if log.assignment.contract_id == c.pk],
         "logs": WorkLog.objects.filter(assignment__contract=c).select_related(
             "assignment__crew", "assignment__employee", "assignment__contract")[:14],
@@ -53,6 +53,7 @@ def contract_edit(request, pk):
     c = get_object_or_404(WorkContract, pk=pk)
     return form_page(request, forms.ContractForm, "Изменить договор",
                      lambda c: reverse("contract_detail", args=[c.pk]), instance=c,
+                     extra={"cur_obj": c.construction_object},
                      back=reverse("contract_detail", args=[pk]))
 
 
@@ -60,7 +61,8 @@ def contract_edit(request, pk):
 def assignment_create(request, pk):
     c = get_object_or_404(WorkContract, pk=pk)
     return form_page(request, forms.AssignmentForm, "Назначить исполнителя",
-                     reverse("contract_detail", args=[pk]), form_kwargs={"contract": c},
+                     reverse("object_tab", args=[c.construction_object_id, "people"]), form_kwargs={"contract": c},
+                     extra={"cur_obj": c.construction_object},
                      subtitle=f"{c.work_type} · {c.construction_object}. Цена для нас: {c.price:,.0f} ₸ за {c.unit}"
                      .replace(",", " "),
                      back=reverse("contract_detail", args=[pk]))
@@ -133,7 +135,8 @@ def worklog_review(request, pk):
                 return redirect(request.POST.get("next") or reverse("pto"))
     else:
         form = forms.ReviewForm(log=log)
-    return render(request, "contracts/review.html", {"log": log, "form": form, "c": log.contract})
+    return render(request, "contracts/review.html", {"log": log, "form": form, "c": log.contract,
+                                                     "cur_obj": log.contract.construction_object})
 
 
 @login_required

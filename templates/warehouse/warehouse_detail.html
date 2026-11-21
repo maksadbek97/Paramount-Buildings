@@ -1,0 +1,42 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<a class="back" href="{% url 'warehouse_list' %}">{% icon 'back' 18 %}Склад</a>
+<div class="page-head">
+  <div class="titles"><h1>{{ w.name }}</h1><div class="sub">{{ w.get_kind_display }}{% if w.construction_object %} · {{ w.construction_object }}{% endif %}{% if w.keeper %} · {{ w.keeper }}{% endif %}</div></div>
+  <div class="actions">
+    <a class="btn btn-primary" href="{% url 'movement_create' %}?warehouse={{ w.pk }}">{% icon 'plus' 18 %}Операция</a>
+    <a class="btn btn-ghost" href="{% url 'inventory_start' %}?warehouse={{ w.pk }}">Инвентаризация</a>
+  </div>
+</div>
+{% if pending %}<h2>Ждут вашей приёмки <span class="count">{{ pending|length }}</span></h2>
+<div class="list">{% for mv in pending %}
+  <div class="row stack"><span class="ico warn">⇄</span>
+    <div class="body"><div class="title">{{ mv.material }} — {{ mv.quantity|num }} {{ mv.material.unit }}</div><div class="meta">из «{{ mv.warehouse }}» · {{ mv.date|date:"d.m.Y" }}{% if mv.note %} · {{ mv.note }}{% endif %}</div></div>
+    <div class="side"><form method="post" action="{% url 'transfer_accept' mv.pk %}">{% csrf_token %}<button class="btn btn-primary" style="min-height:40px">{% icon 'check' 18 %}Принять</button></form></div></div>
+{% endfor %}</div>{% endif %}
+
+<h2>Остатки · {{ value|short }}</h2>
+{% if rows %}
+<table class="ptable">
+  <tr><th>Материал</th><th class="num">Приход</th><th class="num">Перемещ. +/−</th><th class="num">Возврат</th><th class="num">Расход</th><th class="num">Списание</th><th class="num">Коррект.</th><th class="num">Остаток</th><th class="num">Стоимость</th></tr>
+  {% for r in rows %}
+  <tr><td data-label="Материал">{{ r.material.name }}{% if r.pending %}<br><span class="small warn-t">ждёт приёмки {{ r.pending|num }}</span>{% endif %}</td>
+    <td class="num" data-label="Приход">{{ r.in|num }}</td>
+    <td class="num" data-label="Перемещение">+{{ r.transfer_in|num }} / −{{ r.transfer_out|num }}</td>
+    <td class="num" data-label="Возврат">{{ r.return|num }}</td>
+    <td class="num" data-label="Расход">{{ r.out|num }}</td>
+    <td class="num" data-label="Списание">{{ r.writeoff|num }}</td>
+    <td class="num" data-label="Корректировка">{{ r.adjust|num }}</td>
+    <td class="num" data-label="Остаток"><b>{{ r.balance|num }} {{ r.material.unit }}</b></td>
+    <td class="num" data-label="Стоимость">{{ r.value|money }} ₸</td></tr>
+  {% endfor %}
+</table>
+{% else %}<div class="empty">На складе пусто</div>{% endif %}
+
+{% if inventories %}<h2>Инвентаризации</h2><div class="list">{% for inv in inventories %}
+  <a class="row" href="{% url 'inventory_detail' inv.pk %}"><span class="ico">{% icon 'clipboard' 20 %}</span><div class="body"><div class="title">{{ inv.number }}</div><div class="meta">{{ inv.date|date:"d.m.Y" }}</div></div><div class="side"><span class="badge {% if inv.status == 'approved' %}done{% else %}paused{% endif %}">{{ inv.get_status_display }}</span></div></a>
+{% endfor %}</div>{% endif %}
+
+<h2>Операции склада</h2>
+{% if movements %}<div class="list">{% for mv in movements %}{% include "warehouse/_mv_row.html" %}{% endfor %}</div>{% else %}<div class="empty">Операций нет</div>{% endif %}
+{% endblock %}

@@ -1,13 +1,13 @@
 {% extends "base.html" %}{% load ui %}
 {% block title %}{{ c.work_type }} · Paramount Buildings{% endblock %}
 {% block content %}
-<a class="back" href="{% url 'object_detail' c.construction_object_id %}">{% icon 'back' 18 %}{{ c.construction_object }}</a>
+<a class="back" href="{% url 'object_tab' c.construction_object_id 'work' %}">{% icon 'back' 18 %}{{ c.construction_object }} · Объёмы работ</a>
 <div class="page-head">
   <div class="titles"><h1>{{ c.work_type }} <span class="badge {{ c.status }}">{{ c.get_status_display }}</span></h1>
     <div class="sub">{% if c.place %}{{ c.place|capfirst }} · {% endif %}{{ c.volume|num }} {{ c.unit }} × {{ c.price|money }} ₸{% if c.responsible %} · ПТО: {{ c.responsible }}{% endif %}</div></div>
   <div class="actions">
-    <a class="btn btn-accent" href="{% url 'worklog_create' %}?contract={{ c.pk }}">{% icon 'brick' 18 %}Выработка</a>
-    <a class="btn btn-ghost" href="{% url 'payment_create' %}?contract={{ c.pk }}">{% icon 'cash' 18 %}Платёж</a>
+    <a class="btn btn-accent" href="{% url 'object_new' c.construction_object_id 'output' %}?assignment={{ assignments.0.pk }}">{% icon 'brick' 18 %}Выработка</a>
+    <a class="btn btn-ghost" href="{% url 'object_new' c.construction_object_id 'payment' %}?contract={{ c.pk }}">{% icon 'cash' 18 %}Платёж</a>
     <a class="btn btn-ghost" href="{% url 'contract_edit' c.pk %}" aria-label="Изменить">{% icon 'edit' 18 %}</a>
   </div>
 </div>

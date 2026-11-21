@@ -1,64 +1,36 @@
 {% extends "base.html" %}{% load ui %}
 {% block content %}
 <div class="page-head">
-  <div class="titles"><h1>Дашборд компании</h1><div class="sub">Общая картина по объектам, объёмам и деньгам</div></div>
+  <div class="titles"><h1>Мои объекты</h1><div class="sub">Взяли объект — создайте его, и всё по нему ведите внутри</div></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'object_create' %}">{% icon 'plus' 18 %}Новый объект</a></div>
 </div>
 
-<div class="quick">
-  <a class="main" href="{% url 'worklog_create' %}"><span class="ico">{% icon 'brick' %}</span>Записать выработку</a>
-  <a href="{% url 'pto' %}"><span class="ico">{% icon 'check' %}</span>Проверка ПТО{% if s.pending %} <span class="badge paused">{{ s.pending|short }}</span>{% endif %}</a>
-  <a href="{% url 'report_create' %}"><span class="ico">{% icon 'clipboard' %}</span>Отчёт за день</a>
-  <a href="{% url 'remark_create' %}"><span class="ico">{% icon 'flag' %}</span>Замечание</a>
+<div class="strip">
+  <div><span>Объектов в работе</span><b>{{ working|length }}</b></div>
+  <div><span>Взяли работ на</span><b>{{ s.total|short }}</b></div>
+  <div><span>Принято · {{ s.progress }}%</span><b>{{ s.earned|short }}</b></div>
+  <div><span>Прибыль</span><b class="{% if s.profit >= 0 %}ok{% else %}bad{% endif %}">{{ s.profit|short }}</b></div>
 </div>
 
 {% if alerts %}
 <h2>Требует внимания <span class="count">{{ alerts|length }}</span></h2>
-<div class="list alerts">
-  {% for level, text, url in alerts|slice:":8" %}
+<div class="list">
+  {% for level, text, url in alerts|slice:":6" %}
   <a class="row" href="{{ url }}"><span class="ico {% if level == 'bad' %}out{% elif level == 'warn' %}warn{% endif %}">{% icon 'alert' 20 %}</span>
     <div class="body"><div class="title" style="font-weight:600">{{ text }}</div></div><span class="chev">{% icon 'chevron' 18 %}</span></a>
   {% endfor %}
 </div>
+{% if alerts|length > 6 %}<p class="muted small">Ещё {{ alerts|length|add:"-6" }} — откройте объект, там всё по нему.</p>{% endif %}
 {% endif %}
 
-<h2>Объёмы работ</h2>
-<div class="stats">
-  <div class="stat hero">
-    <div class="label">Общая сумма договоров</div>
-    <div class="value" title="{{ s.total|money }} ₸">{{ s.total|short }}</div>
-    <div class="bar"><span style="width:{{ s.progress }}%"></span></div>
-    <div class="hint" style="margin-top:8px">Принято {{ s.progress }}% · договоров: {{ s.count }}</div>
-  </div>
-  <div class="stat"><div class="label">Принято работ</div><div class="value" title="{{ s.earned|money }}">{{ s.earned|short }}</div><div class="hint">на проверке: {{ s.pending|short }}</div></div>
-  <div class="stat"><div class="label">Осталось сделать</div><div class="value" title="{{ s.remaining|money }}">{{ s.remaining|short }}</div><div class="hint">на эту сумму</div></div>
+<h2>В работе <span class="count">{{ working|length }}</span></h2>
+<div class="ogrid">
+  {% for c in working %}{% include "_object_card.html" %}{% endfor %}
+  <a class="ocard new" href="{% url 'object_create' %}"><span class="ico">{% icon 'plus' %}</span>Новый объект</a>
 </div>
 
-<h2>Деньги</h2>
-<div class="stats">
-  <div class="stat"><div class="label">Получено от заказчиков</div><div class="value ok" title="{{ s.received|money }}">{{ s.received|short }}</div><div class="hint">дебиторка: {{ s.client_due|short }}</div></div>
-  <div class="stat"><div class="label">Выплачено рабочим</div><div class="value" title="{{ s.paid_workers|money }}">{{ s.paid_workers|short }}</div><div class="hint">{% if s.workers_due > 0 %}<span class="bad">должны рабочим: {{ s.workers_due|short }}</span>{% else %}долгов нет{% endif %}</div></div>
-  <div class="stat"><div class="label">Материалы и прочее</div><div class="value" title="{{ s.materials|money }}">{{ s.materials|short }}</div></div>
-  <div class="stat"><div class="label">Фактическая прибыль</div><div class="value {% if s.profit >= 0 %}ok{% else %}bad{% endif %}" title="{{ s.profit|money }}">{{ s.profit|short }}</div><div class="hint">на руках: {{ s.cash|short }}</div></div>
-</div>
-
-<h2>Компания</h2>
-<div class="stats">
-  <a class="stat" href="{% url 'object_list' %}"><div class="label">Объекты</div><div class="value">{{ objects_count.working }}</div><div class="hint">в работе · приостановлено {{ objects_count.paused }} · завершено {{ objects_count.done }}</div></a>
-  <a class="stat" href="{% url 'warehouse_list' %}"><div class="label">Материалы на складе</div><div class="value">{{ stock_value|short }}</div><div class="hint {% if low_materials %}bad{% endif %}">дефицит: {{ low_materials|length }}</div></a>
-  <a class="stat" href="{% url 'task_list' %}?status=overdue"><div class="label">Задачи</div><div class="value {% if tasks_overdue %}bad{% endif %}">{{ tasks_overdue }}</div><div class="hint">просрочено · открыто {{ tasks_open }}</div></a>
-  <a class="stat" href="{% url 'remark_list' %}"><div class="label">Открытые замечания</div><div class="value {% if remarks_overdue %}bad{% endif %}">{{ remarks_open }}</div><div class="hint">просрочено {{ remarks_overdue }} · на проверке {{ remarks_review }}</div></a>
-  <a class="stat" href="{% url 'staff_list' %}"><div class="label">Рабочие · бригады</div><div class="value">{{ workers }} · {{ crews }}</div></a>
-</div>
-
-<h2>В работе <span class="count">{{ active_contracts|length }}</span><a class="more" href="{% url 'contract_list' %}">Все →</a></h2>
-{% if active_contracts %}
-<div class="cgrid">{% for c in active_contracts %}{% include "contracts/_card.html" %}{% endfor %}</div>
-{% else %}
-<div class="empty">Пока нет объёмов в работе.<br><a class="btn btn-primary" href="{% url 'contract_create' %}">{% icon 'plus' 18 %}Добавить объём работ</a></div>
+{% if others %}
+<h2>Остальные <span class="count">{{ others|length }}</span></h2>
+<div class="ogrid">{% for c in others %}{% include "_object_card.html" %}{% endfor %}</div>
 {% endif %}
-
-<h2>Последняя выработка<a class="more" href="{% url 'pto' %}">ПТО →</a></h2>
-{% if recent_logs %}<div class="list">
-{% for l in recent_logs %}{% include "contracts/_log_row.html" with c=l.assignment.contract show_contract=1 %}{% endfor %}</div>
-{% else %}<div class="empty">Выработки ещё нет</div>{% endif %}
 {% endblock %}

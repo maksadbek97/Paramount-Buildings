@@ -1,24 +1,38 @@
 {% extends "base.html" %}{% load ui %}
 {% block content %}
 <div class="page-head">
-  <div class="titles"><h1>Склад</h1><div class="sub">Остатки и движение материалов</div></div>
+  <div class="titles"><h1>Склад</h1><div class="sub">Склады, остатки, перемещения, инвентаризация</div></div>
   <div class="actions">
-    <a class="btn btn-primary" href="{% url 'movement_create' %}">{% icon 'plus' 18 %}Приход / расход</a>
-    <a class="btn btn-ghost" href="{% url 'material_create' %}">{% icon 'plus' 18 %}Материал</a>
+    <a class="btn btn-primary" href="{% url 'movement_create' %}">{% icon 'plus' 18 %}Операция</a>
+    <a class="btn btn-ghost" href="{% url 'purchase_list' %}">Заявки{% if open_requests %} <span class="badge paused">{{ open_requests }}</span>{% endif %}</a>
+    <a class="btn btn-ghost" href="{% url 'inventory_start' %}">Инвентаризация</a>
   </div>
 </div>
-<h2>Остатки</h2>
+<div class="stats">
+  <div class="stat"><div class="label">Стоимость материалов</div><div class="value">{{ total_value|short }}</div></div>
+  <div class="stat"><div class="label">Складов</div><div class="value">{{ warehouses|length }}</div></div>
+  <div class="stat"><div class="label">В пути (ждут приёмки)</div><div class="value {% if in_transit %}warn-t{% endif %}">{{ in_transit|length }}</div></div>
+</div>
+
+<h2>Склады<a class="more" href="{% url 'warehouse_create' %}">+ Склад</a></h2>
+<div class="list">{% for w in warehouses %}
+  <a class="row" href="{% url 'warehouse_detail' w.pk %}"><span class="ico">{% icon 'box' 20 %}</span>
+    <div class="body"><div class="title">{{ w.name }}</div><div class="meta">{{ w.get_kind_display }}{% if w.construction_object %} · {{ w.construction_object.name }}{% endif %}{% if w.keeper %} · {{ w.keeper }}{% endif %}</div></div>
+    <div class="side">{{ w.value|short }}</div><span class="chev">{% icon 'chevron' 18 %}</span></a>
+{% empty %}<div class="empty">Складов нет. <a href="{% url 'warehouse_create' %}">Создать</a></div>{% endfor %}</div>
+
+{% if in_transit %}<h2>В пути <span class="count">{{ in_transit|length }}</span></h2>
+<div class="list">{% for mv in in_transit %}{% include "warehouse/_mv_row.html" %}{% endfor %}</div>{% endif %}
+
+<h2>Материалы (всего по компании)<a class="more" href="{% url 'material_create' %}">+ Материал</a></h2>
 {% if materials %}<div class="list">{% for m in materials %}
   <div class="row"><span class="ico {% if m.is_low %}out{% endif %}">{% icon 'box' 20 %}</span>
-    <div class="body"><div class="title">{{ m.name }}</div><div class="meta">{{ m.price|money }} ₸/{{ m.unit }} · минимум {{ m.min_stock|num }}</div></div>
+    <div class="body"><div class="title">{% if m.code %}<span class="muted">{{ m.code }}</span> {% endif %}{{ m.name }}</div><div class="meta">{% if m.category %}{{ m.category }} · {% endif %}{{ m.price|money }} ₸/{{ m.unit }} · минимум {{ m.min_stock|num }}{% if m.in_transit %} · в пути {{ m.in_transit|num }}{% endif %}</div></div>
     <div class="side {% if m.is_low %}bad{% endif %}">{{ m.stock|num }} {{ m.unit }}{% if m.is_low %}<div class="meta bad">мало</div>{% endif %}</div></div>
 {% endfor %}</div>
 {% else %}<div class="empty">Материалов нет. <a href="{% url 'material_create' %}">Добавить</a></div>{% endif %}
-<h2>Последние движения</h2>
-{% if movements %}<div class="list">{% for mv in movements %}
-  <div class="row"><span class="ico {% if mv.kind == 'in' %}in{% else %}out{% endif %}">{% if mv.kind == 'in' %}+{% else %}−{% endif %}</span>
-    <div class="body"><div class="title">{{ mv.material }}</div><div class="meta">{{ mv.date|date:"d.m.Y" }} · {{ mv.supplier|default:mv.construction_object|default:"—" }}</div></div>
-    <div class="side">{% if mv.kind == 'in' %}+{% else %}−{% endif %}{{ mv.quantity|num }} {{ mv.material.unit }}</div></div>
-{% endfor %}</div>
-{% else %}<div class="empty">Движений нет</div>{% endif %}
+
+<h2>Последние операции</h2>
+{% if movements %}<div class="list">{% for mv in movements %}{% include "warehouse/_mv_row.html" %}{% endfor %}</div>
+{% else %}<div class="empty">Операций нет</div>{% endif %}
 {% endblock %}

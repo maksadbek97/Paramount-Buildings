@@ -75,3 +75,50 @@ def collect(contracts=None):
 
     order = {"bad": 0, "warn": 1, "info": 2}
     return sorted(items, key=lambda i: order[i[0]])
+
+
+def for_object(obj, contracts):
+    """Предупреждения по одному объекту — ссылки ведут во вкладки объекта."""
+    from quality.models import Remark
+
+    def tab(name):
+        return reverse("object_tab", args=[obj.pk, name])
+
+    items = []
+    for c in contracts:
+        if c.status != WorkContract.Status.ACTIVE:
+            continue
+        if c.is_overdue:
+            items.append(("bad", f"Просрочен срок: {c.work_type}, выполнено {c.progress}%",
+                          reverse("contract_detail", args=[c.pk])))
+        elif c.delay_risk_days:
+            items.append(("warn", f"Риск задержки ~{c.delay_risk_days} дн.: {c.work_type} — "
+                                  "при текущем темпе не успеваем", reverse("contract_detail", args=[c.pk])))
+        for row in c.material_plan_fact():
+            if row["need"] and row["pct"] > 5:
+                items.append(("warn", f"Перерасход {row['material'].name} на {row['pct']}%: {c.work_type}",
+                              tab("materials")))
+    pending = [log for log in pending_logs() if log.assignment.contract.construction_object_id == obj.pk]
+    if pending:
+        items.append(("info", f"Ждут проверки ПТО записи выработки: {len(pending)}", tab("output")))
+    if obj.budget:
+        spent = object_expenses(obj)
+        if spent > obj.budget:
+            items.append(("bad", f"Превышен бюджет: потрачено {_money(spent)} при бюджете {_money(obj.budget)}",
+                          tab("money")))
+    due = sum((c.workers_due for c in contracts), Decimal(0))
+    if due > 0:
+        items.append(("warn", f"Должны рабочим: {_money(due)}", tab("people")))
+    open_r = obj.remarks.exclude(status=Remark.Status.CLOSED)
+    late = open_r.filter(deadline__lt=date.today()).count()
+    if late:
+        items.append(("bad", f"Просроченные замечания: {late}", tab("remarks")))
+    for wh in obj.warehouses.all():
+        n = wh.pending_transfers().count()
+        if n:
+            items.append(("info", f"Пришёл материал, ждёт приёмки на «{wh.name}»: {n}", tab("materials")))
+    overdue = obj.tasks.exclude(status="done").filter(due_date__lt=date.today()).count()
+    if overdue:
+        items.append(("bad", f"Просроченные задачи: {overdue}", tab("remarks")))
+    order = {"bad": 0, "warn": 1, "info": 2}
+    return sorted(items, key=lambda i: order[i[0]])
