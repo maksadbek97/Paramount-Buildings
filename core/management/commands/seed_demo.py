@@ -1,5 +1,7 @@
 """Заполняет базу демонстрационными данными (Казахстан, суммы в тенге)."""
 from datetime import date, timedelta
+
+from django.core.files.base import ContentFile
 from decimal import Decimal
 
 from django.core.management.base import BaseCommand, CommandError
@@ -442,6 +444,27 @@ class Command(BaseCommand):
              "Ахметова", ""),
             (K.OTHER, "А-17", d(-345), "Договор аренды офиса в БЦ «Нурсая»", d(20), "Исаева", "Продлить заранее"),
         ]:
-            CompanyDocument.objects.create(kind=kind, number=number, date=date_, title=title, valid_until=valid,
-                                           responsible=emp[who], note=note)
+            doc = CompanyDocument.objects.create(kind=kind, number=number, date=date_, title=title,
+                                                 valid_until=valid, responsible=emp[who], note=note)
+            self._doc_file(doc, emp)
+
+    def _doc_file(self, doc, emp):
+        """Примерный PDF к документу, чтобы в демо его можно было открыть и скачать."""
+        from core.demo_pdf import document_pdf
+        company = Company.get()
+        lines = []
+        if doc.note:
+            lines.append(doc.note + ".")
+        if doc.valid_until:
+            lines.append(f"Документ действителен до {doc.valid_until:%d.%m.%Y}.")
+        if doc.responsible:
+            lines.append(f"Ответственный за документ: {doc.responsible}.")
+        lines.append("Текст документа приведён как образец. В рабочей версии здесь будет загруженный файл: "
+                     "скан или PDF с подписью и печатью.")
+        director = company.director
+        signer = f"{director.position or 'Директор'} {director.full_name}" if director else ""
+        kind = {"charter": "Учредительный документ", "decision": "Решение", "order": "Приказ",
+                "certificate": "Справка", "license": "Лицензия"}.get(doc.kind, "Документ")
+        pdf = document_pdf(company, doc.title, kind, doc.number, f"{doc.date:%d.%m.%Y}", lines, signer)
+        doc.file.save(f"doc-{doc.pk}-{doc.kind}.pdf", ContentFile(pdf), save=True)
 

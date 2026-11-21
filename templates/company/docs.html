@@ -6,15 +6,15 @@
   <header><h3>{% if kind %}{{ kind_label }}{% else %}Все документы{% endif %}</h3><span class="muted">{{ docs|length }}</span></header>
   {% if docs %}
   <table class="otable">
-    <thead><tr><th>Документ</th><th>Вид</th><th>Номер и дата</th><th>Ответственный</th><th>Срок действия</th><th></th></tr></thead>
+    <thead><tr><th>Документ</th><th>Номер и дата</th><th>Ответственный</th><th>Срок действия</th><th>Файл</th><th></th></tr></thead>
     <tbody>{% for d in docs %}{% with st=d.state %}
     <tr>
-      <td data-label="Документ"><div class="on"><span class="dic k-{{ d.kind }}">{% icon 'file' 18 %}</span><div><b>{{ d.title }}</b>{% if d.note %}<small>{{ d.note }}</small>{% endif %}</div></div></td>
-      <td data-label="Вид">{{ d.get_kind_display }}</td>
+      <td data-label="Документ"><div class="on"><span class="dic k-{{ d.kind }}">{% icon 'file' 18 %}</span><div>{% if d.file %}<a class="doclink" href="{{ d.file.url }}" target="_blank" rel="noopener" title="Открыть документ">{{ d.title }}</a>{% else %}<b>{{ d.title }}</b>{% endif %}<small>{{ d.get_kind_display }}{% if d.note %} · {{ d.note }}{% endif %}</small></div></div></td>
       <td data-label="Номер и дата" class="nowrap">{% if d.number %}№ {{ d.number }} · {% endif %}{{ d.date|date:"d.m.Y" }}</td>
       <td data-label="Ответственный">{{ d.responsible|default:"—" }}</td>
       <td data-label="Срок действия">{% if d.valid_until %}<span class="st st-{{ st.0 }}">{{ st.1 }}</span><small class="muted block">до {{ d.valid_until|date:"d.m.Y" }}</small>{% else %}<span class="muted">бессрочно</span>{% endif %}</td>
-      <td class="r nowrap">{% if d.file %}<a class="rowedit" href="{{ d.file.url }}" target="_blank" title="Открыть файл">{% icon 'file' 16 %}</a>{% endif %}<a class="rowedit" href="{% url 'company_doc_edit' d.pk %}" title="Изменить">{% icon 'edit' 16 %}</a></td>
+      <td data-label="Файл" class="dl">{% if d.file %}<a class="btn-dl" href="{{ d.file.url }}" download="{{ d.title }}.pdf">{% icon 'download' 16 %}Скачать</a>{% else %}<span class="muted small">нет файла</span>{% endif %}</td>
+      <td class="r nowrap"><a class="rowedit" href="{% url 'company_doc_edit' d.pk %}" title="Изменить">{% icon 'edit' 16 %}</a></td>
     </tr>{% endwith %}{% endfor %}</tbody>
   </table>
   {% else %}<div class="empty-s" style="margin:0 18px 14px">{% if kind == 'expiring' %}Истекающих документов нет.{% else %}Документов в этой группе пока нет.{% endif %} <a href="{% url 'company_doc_new' %}">Добавить документ</a></div>{% endif %}

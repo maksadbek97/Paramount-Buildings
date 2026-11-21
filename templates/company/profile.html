@@ -67,7 +67,7 @@
   <section class="card">
     <header><h3>Последние документы</h3><a class="hlink" href="{% url 'company_docs' %}">Все документы</a></header>
     {% if recent_docs %}<ul class="doclist">{% for d in recent_docs %}
-      <li><span class="dic k-{{ d.kind }}">{% icon 'file' 18 %}</span><span class="dt"><b>{{ d.title }}</b><small>{{ d.get_kind_display }}{% if d.number %} № {{ d.number }}{% endif %} · {{ d.date|date:"d.m.Y" }}</small></span></li>
+      <li><span class="dic k-{{ d.kind }}">{% icon 'file' 18 %}</span><span class="dt">{% if d.file %}<a class="doclink" href="{{ d.file.url }}" target="_blank" rel="noopener">{{ d.title }}</a>{% else %}<b>{{ d.title }}</b>{% endif %}<small>{{ d.get_kind_display }}{% if d.number %} № {{ d.number }}{% endif %} · {{ d.date|date:"d.m.Y" }}</small></span>{% if d.file %}<a class="rowedit" href="{{ d.file.url }}" download="{{ d.title }}.pdf" title="Скачать">{% icon 'download' 16 %}</a>{% endif %}</li>
     {% endfor %}</ul>
     {% else %}<div class="empty-s">Документов пока нет.</div>{% endif %}
   </section>
