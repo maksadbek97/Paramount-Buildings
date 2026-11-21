@@ -130,12 +130,98 @@ class ObjectHubTests(TestCase):
 
     def test_finished_objects_are_on_separate_tab_with_picture(self):
         done = ConstructionObject.objects.create(name="Логистический склад", status="done")
-        r = self.client.get(reverse("dashboard"))
+        r = self.client.get(reverse("object_list"))
         names = [c["o"].name for c in r.context["cards"]]
         self.assertIn("ЖК Атлант", names)
         self.assertNotIn(done.name, names)
         self.assertContains(r, "Завершённые (1)")
         self.assertContains(r, "img/objects/1.svg")  # заглушка, пока нет своего фото
-        r = self.client.get(reverse("dashboard") + "?status=done")
+        r = self.client.get(reverse("object_list") + "?status=done")
         self.assertEqual([c["o"].name for c in r.context["cards"]], [done.name])
         self.assertContains(r, "img/objects/4.svg")
+
+
+class DashboardTests(TestCase):
+    """ТЗ модуля «Главная»: период, фильтр объекта, KPI, задачи, быстрые действия."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from datetime import timedelta
+
+        from contracts.models import Payment, WorkContract
+        cls.user = get_user_model().objects.create_superuser("dir", password="x")
+        cls.a = ConstructionObject.objects.create(name="Атлант", status="in_progress")
+        cls.b = ConstructionObject.objects.create(name="Алатау", status="in_progress")
+        ca = WorkContract.objects.create(construction_object=cls.a, work_type="Кладка", volume=10, unit="м³", price=1000)
+        cb = WorkContract.objects.create(construction_object=cls.b, work_type="Штукатурка", volume=10, unit="м²", price=500)
+        today = date.today()
+        Payment.objects.create(contract=ca, kind="income", amount=7000, date=today)
+        Payment.objects.create(contract=cb, kind="income", amount=3000, date=today)
+        Payment.objects.create(contract=ca, kind="material", amount=2000, date=today - timedelta(days=400))
+        Transaction.objects.create(kind="expense", amount=500, date=today, construction_object=cls.b)
+        cls.emp = Employee.objects.create(full_name="Ерлан", user=cls.user)
+        cls.late = Task.objects.create(title="Сдать акт", assignee=cls.emp, construction_object=cls.a,
+                                       due_date=today - timedelta(days=2))
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_period_and_object_filters_change_flow_numbers(self):
+        r = self.client.get(reverse("dashboard"))
+        k = r.context["kpi"]
+        self.assertEqual((k["income"], k["expense"], k["result"]), (10000, 500, 9500))  # старый расход не в месяце
+        self.assertEqual(k["active"], 2)
+        self.assertEqual(k["contracts"], 15000)
+        k = self.client.get(reverse("dashboard") + "?period=all").context["kpi"]
+        self.assertEqual(k["expense"], 2500)
+        k = self.client.get(reverse("dashboard") + f"?period=all&object={self.a.pk}").context["kpi"]
+        self.assertEqual((k["income"], k["expense"], k["active"]), (7000, 2000, 1))
+
+    def test_bad_custom_period_is_rejected(self):
+        r = self.client.get(reverse("dashboard") + "?period=custom&from=2026-05-10&to=2026-05-01")
+        self.assertTrue(r.context["bad_period"])
+        self.assertContains(r, "не может быть позже")
+
+    def test_period_ranges(self):
+        from core.dashboard import period_range
+        t = date(2026, 11, 21)  # суббота
+        self.assertEqual(period_range("week", today=t)[:2], (date(2026, 11, 16), t))
+        self.assertEqual(period_range("last_week", today=t)[:2], (date(2026, 11, 9), date(2026, 11, 15)))
+        self.assertEqual(period_range("last_month", today=t)[:2], (date(2026, 10, 1), date(2026, 10, 31)))
+        self.assertEqual(period_range("quarter", today=t)[:2], (date(2026, 10, 1), t))
+        self.assertEqual(period_range("all", today=t)[:2], (None, None))
+
+    def test_task_done_and_postpone(self):
+        r = self.client.get(reverse("dashboard"))
+        self.assertEqual(r.context["kpi"]["tasks_overdue"], 1)
+        self.assertContains(r, "Сдать акт")
+        r = self.client.post(reverse("task_postpone", args=[self.late.pk]), {"due_date": "2026-12-01", "reason": ""})
+        self.assertContains(r, "Обязательное поле")
+        self.client.post(reverse("task_postpone", args=[self.late.pk]),
+                         {"due_date": "2026-12-01", "reason": "Ждём подпись"})
+        self.late.refresh_from_db()
+        self.assertEqual(self.late.due_date, date(2026, 12, 1))
+        self.client.post(reverse("task_done", args=[self.late.pk]), {"next": reverse("dashboard")})
+        self.late.refresh_from_db()
+        self.assertEqual(self.late.status, "done")
+        self.assertIsNotNone(self.late.done_at)
+        r = self.client.get(reverse("dashboard"))
+        self.assertEqual(r.context["tasks"]["done_count"], 1)
+
+    def test_quick_actions_require_object_and_links_work(self):
+        r = self.client.get(reverse("add_for", args=["purchase"]))
+        self.assertContains(r, reverse("object_new", args=[self.a.pk, "purchase"]))
+        for url in (reverse("finance_list") + "?kind=income", reverse("finance_list") + "?kind=debtors",
+                    reverse("finance_list") + "?kind=creditors", reverse("notifications"),
+                    reverse("search") + "?q=Атл", reverse("task_list") + "?status=today",
+                    reverse("purchase_list") + "?status=overdue"):
+            self.assertEqual(self.client.get(url).status_code, 200, url)
+        self.assertContains(self.client.get(reverse("search") + "?q=Атл"), "Атлант")
+        self.assertContains(self.client.get(reverse("search") + "?q=zzzz"), "Ничего не найдено")
+
+    def test_money_hidden_without_permission(self):
+        u = get_user_model().objects.create_user("worker", password="x")
+        self.client.force_login(u)
+        r = self.client.get(reverse("dashboard"))
+        self.assertNotContains(r, "Сумма договоров")
+        self.assertContains(r, "Просроченные задачи")

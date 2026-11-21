@@ -261,8 +261,17 @@ def object_add(request, pk):
     return render(request, "object/add.html", {"obj": obj, "cur_obj": obj})
 
 
+CHOOSE_TITLES = {
+    "purchase": "Заявка на закупку", "payment": "Финансовая операция", "report": "Ежедневный отчёт",
+    "doc": "Документ", "task": "Задача по объекту", "output": "Выработка", "remark": "Замечание",
+}
+
+
 @login_required
-def add_choose(request):
-    """Экран «+» вне объекта: выбрать объект или создать новый."""
+def add_choose(request, what=None):
+    """Экран «+» вне объекта: сначала выбрать объект (объектные операции без объекта не создаются)."""
+    if what is not None and what not in NEW:
+        raise Http404
     objects = [o for o in ConstructionObject.objects.all() if o.is_working] or list(ConstructionObject.objects.all())
-    return render(request, "object/choose.html", {"objects": objects})
+    return render(request, "object/choose.html", {
+        "objects": objects, "what": what, "what_title": CHOOSE_TITLES.get(what, NEW[what][1] if what else "")})

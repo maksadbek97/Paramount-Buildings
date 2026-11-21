@@ -243,13 +243,15 @@ class DemoBuildTests(TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             call_command("build_static", out=tmp, stdout=open("/dev/null", "w"))
             home = (Path(tmp) / "index.html").read_text()
-            self.assertIn("Мои объекты", home)
-            self.assertIn("Требует внимания", home)
+            self.assertIn("Главная", home)
+            self.assertIn("Сумма договоров", home)
             self.assertIn("₸", home)
             self.assertIn("static/img/logo-white.png", home)
             self.assertNotIn('href="/', home)
             self.assertNotIn("url('/", home)
-            self.assertTrue((Path(tmp) / "status/done/index.html").exists())
+            for page in ("objects/status/done", "period/year", "finance/kind/debtors", "add/purchase",
+                         "notifications", "search"):
+                self.assertTrue((Path(tmp) / page / "index.html").exists(), page)
             for page in ("contracts/status/done", "worklog/new", "pto", "history", "objects/1/money",
                          "objects/1/new/output", "purchases/status/open", "add"):
                 self.assertTrue((Path(tmp) / page / "index.html").exists(), page)

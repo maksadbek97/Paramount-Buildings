@@ -1,38 +1,187 @@
-{% extends "base.html" %}{% load ui %}
+{% extends "base.html" %}{% load ui l10n %}
+{% block title %}Главная · Paramount Buildings{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div class="titles"><h1>Мои объекты</h1><div class="sub">Взяли объект — создайте его, и всё по нему ведите внутри</div></div>
-  <div class="actions"><a class="btn btn-primary" href="{% url 'object_create' %}">{% icon 'plus' 18 %}Новый объект</a></div>
+  <div class="titles"><h1>Главная</h1><div class="sub">ТОО «PARAMOUNT BUILDINGS» · {{ period_label }}{% if selected %} · {{ selected.name }}{% endif %}</div></div>
+  <div class="actions">
+    <a class="btn btn-ghost" href="{{ request.get_full_path }}" title="Обновить данные">{% icon 'refresh' 18 %}Обновить</a>
+  </div>
 </div>
+<div class="updated">Обновлено в {{ updated|time:"H:i" }}{% if not DEMO %} · автообновление каждые 2 минуты{% endif %}</div>
 
-<nav class="utabs">
-  <a href="{% url 'dashboard' %}" class="{% if view == 'active' %}active{% endif %}">В работе ({{ active_count }})</a>
-  <a href="?status=done" class="{% if view == 'done' %}active{% endif %}">Завершённые ({{ done_count }})</a>
-</nav>
+{# ---------- Фильтры ---------- #}
+<details class="filters" {% if filtered %}open{% endif %}>
+  <summary>{% icon 'menu' 18 %}Фильтры: <b>{{ period_label }}</b> · <b>{% if selected %}{{ selected.name }}{% else %}все объекты{% endif %}</b></summary>
+  <div class="fbody">
+    <div class="flabel">Период</div>
+    <div class="chips">{% for k, label, link in periods %}<a href="{{ link }}" class="{% if period == k %}active{% endif %}">{{ label }}</a>{% endfor %}</div>
+    <form method="get" class="custom-period">
+      {% if selected %}<input type="hidden" name="object" value="{{ selected.pk }}">{% endif %}
+      <input type="hidden" name="period" value="custom">
+      <label>с <input type="date" name="from" value="{% if period == 'custom' %}{{ a|date:'Y-m-d' }}{% endif %}" required class="{% if bad_period %}invalid{% endif %}"></label>
+      <label>по <input type="date" name="to" value="{% if period == 'custom' %}{{ b|date:'Y-m-d' }}{% endif %}" required class="{% if bad_period %}invalid{% endif %}"></label>
+      <button class="btn btn-ghost">Показать</button>
+      {% if bad_period %}<span class="err">Дата начала не может быть позже даты окончания</span>{% endif %}
+    </form>
+    <div class="flabel">Объект</div>
+    <div class="chips">
+      <a href="{{ all_objects_link }}" class="{% if not selected %}active{% endif %}">Все доступные объекты</a>
+      {% for o, link in object_links %}<a href="{{ link }}" class="{% if selected.pk == o.pk %}active{% endif %}">{{ o.name }}</a>{% endfor %}
+    </div>
+    {% if filtered %}<a class="reset" href="{% url 'dashboard' %}">✕ Сбросить фильтры</a>{% endif %}
+    <div class="muted small">Период влияет на поступления, расходы и выполненные задачи. Объекты, долги и остатки — на сегодня.</div>
+  </div>
+</details>
 
-{% if view == 'active' %}
-<div class="strip">
-  <div><span>Объектов в работе</span><b>{{ working_count }}</b></div>
-  <div><span>Взяли работ на</span><b>{{ s.total|short }}</b></div>
-  <div><span>Принято · {{ s.progress }}%</span><b>{{ s.earned|short }}</b></div>
-  <div><span>Прибыль</span><b class="{% if s.profit >= 0 %}ok{% else %}bad{% endif %}">{{ s.profit|short }}</b></div>
-</div>
-{% endif %}
-
-<div class="ogrid" style="margin-top:18px">
-  {% for c in cards %}{% include "_object_card.html" %}{% endfor %}
-  {% if view == 'active' %}<a class="ocard new" href="{% url 'object_create' %}"><span class="ico">{% icon 'plus' %}</span>Новый объект<small>Взяли объект — добавьте его сюда</small></a>
-  {% elif not cards %}<div class="empty" style="grid-column:1/-1">Завершённых объектов пока нет</div>{% endif %}
+{# ---------- KPI ---------- #}
+<div class="kpis">
+  <a class="kpi" href="{% url 'object_list' %}"><span>Активные объекты</span><b>{{ kpi.active }}</b><small>на текущий момент</small></a>
+  {% if can_money %}
+  <a class="kpi" href="{% url 'contract_list' %}?status=active"><span>Сумма договоров</span><b>{{ kpi.contracts|short }}</b><small>в работе: {{ kpi.contracts_count }}</small></a>
+  <a class="kpi" href="{% url 'finance_list' %}?kind=income"><span>Поступления</span><b class="ok">{% if has_ops %}{{ kpi.income|short }}{% else %}Нет данных{% endif %}</b><small>{{ period_label|lower }}</small></a>
+  <a class="kpi" href="{% url 'finance_list' %}?kind=expense"><span>Расходы</span><b>{% if has_ops %}{{ kpi.expense|short }}{% else %}Нет данных{% endif %}</b><small>{{ period_label|lower }}</small></a>
+  <a class="kpi" href="{% url 'finance_list' %}"><span>Денежный результат</span><b class="{% if kpi.result >= 0 %}ok{% else %}bad{% endif %}">{% if has_ops %}{{ kpi.result|short }}{% else %}Нет данных{% endif %}</b><small>поступления − расходы</small></a>
+  <a class="kpi" href="{% url 'finance_list' %}?kind=debtors"><span>Дебиторская задолженность</span><b>{{ kpi.receivable|short }}</b><small>нам должны генподрядчики</small></a>
+  <a class="kpi" href="{% url 'finance_list' %}?kind=creditors"><span>Кредиторская задолженность</span><b class="{% if kpi.payable > 0 %}bad{% endif %}">{{ kpi.payable|short }}</b><small>мы должны рабочим</small></a>
+  {% endif %}
+  <a class="kpi" href="{% url 'task_list' %}?status=overdue"><span>Просроченные задачи</span><b class="{% if kpi.tasks_overdue %}bad{% endif %}">{{ kpi.tasks_overdue }}</b><small>на текущий момент</small></a>
 </div>
 
 {% if alerts %}
-<h2>Требует внимания <span class="count">{{ alerts|length }}</span></h2>
-<div class="list">
-  {% for level, text, url in alerts|slice:":6" %}
-  <a class="row" href="{{ url }}"><span class="ico {% if level == 'bad' %}out{% elif level == 'warn' %}warn{% endif %}">{% icon 'alert' 20 %}</span>
-    <div class="body"><div class="title" style="font-weight:600">{{ text }}</div></div><span class="chev">{% icon 'chevron' 18 %}</span></a>
-  {% endfor %}
-</div>
-{% if alerts|length > 6 %}<p class="muted small">Ещё {{ alerts|length|add:"-6" }} — откройте объект, там всё по нему.</p>{% endif %}
+<div class="list alerts-mini">{% for level, text, url in alerts %}
+  <a class="row" href="{{ url }}"><span class="ico {% if level == 'bad' %}out{% elif level == 'warn' %}warn{% endif %}">{% icon 'alert' 18 %}</span><div class="body"><div class="title" style="font-weight:600">{{ text }}</div></div><span class="chev">{% icon 'chevron' 16 %}</span></a>
+{% endfor %}</div>
 {% endif %}
+
+{# ---------- Объекты ---------- #}
+<h2>Объекты <span class="count">{{ cards_total }}</span><a class="more" href="{% url 'object_list' %}">Все объекты →</a></h2>
+{% if cards %}
+<div class="ogrid">{% for c in cards %}{% include "_object_card.html" with links=1 %}{% endfor %}</div>
+{% else %}<div class="empty">По выбранным фильтрам объектов нет. <a href="{% url 'dashboard' %}">Сбросить фильтры</a></div>{% endif %}
+
+<div class="dgrid">
+  {# ---------- Финансы ---------- #}
+  {% if can_money %}
+  <section class="panel wide">
+    <h3>{% icon 'wallet' 20 %}Финансы <small>{{ period_label }}</small></h3>
+    <div class="fin-sum">
+      <div><span>Поступления</span><b class="ok">{{ kpi.income|money }} ₸</b></div>
+      <div><span>Расходы</span><b>{{ kpi.expense|money }} ₸</b></div>
+      <div><span>Разница</span><b class="{% if kpi.result >= 0 %}ok{% else %}bad{% endif %}">{{ kpi.result|money }} ₸</b></div>
+      <div><span>Дебиторка</span><b>{{ kpi.receivable|money }} ₸</b></div>
+      <div><span>Кредиторка</span><b>{{ kpi.payable|money }} ₸</b></div>
+    </div>
+    {% if chart %}
+    <div class="legend"><span class="li in"></span>Поступления <span class="li ex"></span>Расходы <span class="muted small">· по {% if chart.step == 'day' %}дням{% elif chart.step == 'week' %}неделям{% else %}месяцам{% endif %}</span></div>
+    {% localize off %}<svg class="chart" viewBox="0 0 {{ chart.W }} {{ chart.H }}" role="img" aria-label="График поступлений и расходов">
+      <line x1="0" x2="{{ chart.W }}" y1="{{ chart.base }}" y2="{{ chart.base }}" class="axis"/>
+      {% for bar in chart.bars %}
+      <a href="{% url 'finance_list' %}">
+        <rect x="{{ bar.x1 }}" y="{{ bar.yi }}" width="{{ bar.w }}" height="{{ bar.hi }}" rx="2" class="bi"><title>{{ bar.label }} — поступления {{ bar.inc|money }} ₸</title></rect>
+        <rect x="{{ bar.x2 }}" y="{{ bar.ye }}" width="{{ bar.w }}" height="{{ bar.he }}" rx="2" class="be"><title>{{ bar.label }} — расходы {{ bar.exp|money }} ₸</title></rect>
+      </a>
+      {% if bar.show_label %}<text x="{{ bar.lx }}" y="{{ chart.H|add:'-8' }}" text-anchor="middle">{{ bar.label }}</text>{% endif %}
+      {% endfor %}
+    </svg>{% endlocalize %}
+    {% else %}<div class="empty">За выбранный период операций нет</div>{% endif %}
+    <div class="links">
+      <a href="{% url 'finance_list' %}?kind=income">Все поступления</a><a href="{% url 'finance_list' %}?kind=expense">Все расходы</a>
+      <a href="{% url 'finance_list' %}?kind=debtors">Дебиторская задолженность</a><a href="{% url 'finance_list' %}?kind=creditors">Кредиторская задолженность</a>
+      <a href="{% url 'finance_list' %}">Финансовый отчёт</a>
+    </div>
+  </section>
+  {% endif %}
+
+  {# ---------- Работы ---------- #}
+  <section class="panel">
+    <h3>{% icon 'brick' 20 %}Работы и выполнение</h3>
+    {% if works.rows %}
+    <div class="big-progress"><b>{% if works.pct is not None %}{{ works.pct }}%{% else %}Не рассчитано{% endif %}</b><div class="bar"><span style="width:{% if works.pct and works.pct > 100 %}100{% else %}{{ works.pct|default:0 }}{% endif %}%"></span></div></div>
+    <div class="muted small">Выполнено {{ works.done|short }} из {{ works.plan|short }} · осталось {{ works.left|short }}</div>
+    <div class="mini-list">{% for r in works.rows %}
+      <a href="{% url 'object_tab' r.o.pk 'work' %}"><span class="t">{{ r.o.name }}{% if r.lag %} <i class="bad">отставание</i>{% endif %}</span>
+        <span class="v {% if r.pct and r.pct > 100 %}warn-t{% endif %}">{% if r.pct is not None %}{{ r.pct }}%{% if r.pct > 100 %} ↑{% endif %}{% else %}Не рассчитано{% endif %}</span></a>
+    {% endfor %}</div>
+    {% if works.no_report %}<div class="note">{% icon 'clipboard' 16 %}Нет отчёта прораба за вчера и сегодня: {% for o in works.no_report %}<a href="{% url 'object_tab' o.pk 'reports' %}">{{ o.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+    {% else %}<div class="empty">Плановые объёмы ещё не заведены</div>{% endif %}
+  </section>
+
+  {# ---------- Закупки ---------- #}
+  <section class="panel">
+    <h3>{% icon 'cash' 20 %}Закупки<a class="more" href="{% url 'purchase_list' %}">Все →</a></h3>
+    <div class="counters">
+      <a href="{% url 'purchase_list' %}?status=new"><b>{{ purchases.new }}</b>Новые, ждут согласования</a>
+      <a href="{% url 'purchase_list' %}?status=approved"><b>{{ purchases.approved }}</b>Одобрено, ждут закупки</a>
+      <a href="{% url 'purchase_list' %}?status=ordered"><b>{{ purchases.ordered }}</b>Заказано, ожидается поставка</a>
+      <a href="{% url 'purchase_list' %}?status=overdue" class="{% if purchases.overdue %}hot{% endif %}"><b>{{ purchases.overdue }}</b>Просрочена поставка</a>
+    </div>
+    {% for p in purchases.late %}<div class="note bad-t"><a href="{% url 'purchase_detail' p.pk %}">{{ p.number }}</a> · {{ p.material }} · {{ p.construction_object.name }} · нужно было к {{ p.needed_by|date:"d.m" }}</div>{% endfor %}
+  </section>
+
+  {# ---------- Материалы ---------- #}
+  <section class="panel">
+    <h3>{% icon 'box' 20 %}Материалы и остатки<a class="more" href="{% url 'warehouse_list' %}">Склады →</a></h3>
+    {% if materials.negative %}<div class="note bad-t">{% icon 'alert' 16 %}Ошибка учёта — отрицательный остаток: {% for w, r in materials.negative %}{{ r.material.name }} на «{{ w.name }}»{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+    <div class="flabel">Ниже минимального остатка</div>
+    {% if materials.low %}<div class="mini-list">{% for m in materials.low %}
+      <a href="{% url 'warehouse_list' %}"><span class="t">{{ m.name }}</span><span class="v bad">{{ m.stock|num }} / мин. {{ m.min_stock|num }} {{ m.unit }}</span></a>{% endfor %}</div>
+    {% else %}<div class="muted small">Дефицита нет</div>{% endif %}
+    <div class="flabel">Ожидаемые поступления</div>
+    {% if materials.expected or materials.ordered %}<div class="mini-list">
+      {% for mv in materials.expected %}<a href="{% if mv.to_warehouse.construction_object_id %}{% url 'object_tab' mv.to_warehouse.construction_object_id 'materials' %}{% else %}{% url 'warehouse_detail' mv.to_warehouse_id %}{% endif %}"><span class="t">{{ mv.material }} → {{ mv.to_warehouse }}</span><span class="v">{{ mv.quantity|num }} {{ mv.material.unit }}</span></a>{% endfor %}
+      {% for p in materials.ordered %}<a href="{% url 'purchase_detail' p.pk %}"><span class="t">{{ p.material }} · {{ p.construction_object.name }}</span><span class="v">{{ p.quantity|num }} {{ p.material.unit }}</span></a>{% endfor %}
+    </div>{% else %}<div class="muted small">Поступлений не ожидается</div>{% endif %}
+  </section>
+
+  {# ---------- Задачи ---------- #}
+  <section class="panel">
+    <h3>{% icon 'task' 20 %}{% if tasks.personal %}Мои задачи{% else %}Задачи{% endif %}<a class="more" href="{% url 'task_list' %}">Все задачи →</a></h3>
+    <div class="counters three">
+      <a href="{% url 'task_list' %}?status=today"><b>{{ tasks.today|length }}</b>Сегодня</a>
+      <a href="{% url 'task_list' %}?status=overdue" class="{% if tasks.overdue %}hot{% endif %}"><b>{{ tasks.overdue|length }}</b>Просрочено</a>
+      <a href="{% url 'task_list' %}?status=week"><b>{{ tasks.week|length }}</b>Ближайшие 7 дней</a>
+    </div>
+    {% for t in tasks.overdue|slice:":4" %}{% include "_task_row.html" %}{% endfor %}
+    {% for t in tasks.today|slice:":3" %}{% include "_task_row.html" %}{% endfor %}
+    {% if not tasks.overdue and not tasks.today %}{% for t in tasks.week|slice:":3" %}{% include "_task_row.html" %}{% endfor %}{% endif %}
+    <div class="muted small" style="margin-top:8px">Открыто: {{ tasks.open_count }} · выполнено за период: {{ tasks.done_count }}</div>
+    <a class="btn btn-ghost btn-block" style="margin-top:10px;min-height:42px" href="{% url 'task_create' %}">{% icon 'plus' 18 %}Создать задачу</a>
+  </section>
+
+  {# ---------- Документы ---------- #}
+  <section class="panel">
+    <h3>{% icon 'clipboard' 20 %}Документы</h3>
+    <div class="counters nodata">
+      <span><b>—</b>Входящие</span><span><b>—</b>Исходящие</span><span><b>—</b>На согласовании</span><span><b>—</b>На исполнении</span><span><b>—</b>Просроченные</span>
+    </div>
+    <div class="muted small">Нет данных: документооборот (входящие, исходящие, согласование) будет в разделе «Документы».</div>
+    <div class="flabel">Последние документы объектов</div>
+    {% if documents %}<div class="mini-list">{% for d in documents %}<a href="{% url 'object_tab' d.construction_object_id 'docs' %}"><span class="t">{{ d.title }}</span><span class="v muted">{{ d.construction_object.name }} · {{ d.uploaded_at|date:"d.m" }}</span></a>{% endfor %}</div>
+    {% else %}<div class="muted small">Документов пока нет</div>{% endif %}
+  </section>
+
+  {# ---------- Последние операции ---------- #}
+  <section class="panel">
+    <h3>{% icon 'history' 20 %}Последние операции<a class="more" href="{% url 'history' %}">Журнал →</a></h3>
+    {% if activity %}<div class="mini-list ops">{% for e, url in activity %}
+      <a href="{{ url }}"><span class="t">{{ e.get_action_display }}: {{ e.object_repr|truncatechars:60 }}<small>{{ e.created_at|date:"d.m H:i" }} · {{ e.user|default:"система" }} · {{ e.module }}{% if e.construction_object %} · {{ e.construction_object.name }}{% endif %}</small></span></a>
+    {% endfor %}</div>{% else %}<div class="empty">Операций пока нет</div>{% endif %}
+  </section>
+
+  {# ---------- Быстрые действия ---------- #}
+  <section class="panel">
+    <h3>{% icon 'plus' 20 %}Быстрые действия</h3>
+    <div class="actgrid compact">
+      <a class="main" href="{% url 'object_create' %}"><span class="ico">{% icon 'building' %}</span><span>Создать объект</span></a>
+      <a href="{% url 'task_create' %}"><span class="ico">{% icon 'task' %}</span><span>Создать задачу</span></a>
+      <a href="{% url 'add_for' 'doc' %}"><span class="ico">{% icon 'clipboard' %}</span><span>Создать документ</span></a>
+      <a href="{% url 'add_for' 'purchase' %}"><span class="ico">{% icon 'box' %}</span><span>Заявка на закупку</span></a>
+      <a href="{% url 'add_for' 'payment' %}"><span class="ico">{% icon 'cash' %}</span><span>Финансовая операция</span></a>
+      <a href="{% url 'add_for' 'report' %}"><span class="ico">{% icon 'clipboard' %}</span><span>Ежедневный отчёт</span></a>
+      <a href="{% url 'employee_create' %}"><span class="ico">{% icon 'users' %}</span><span>Добавить сотрудника</span></a>
+    </div>
+    <div class="muted small" style="margin-top:8px">Заявки, платежи, отчёты и документы сначала просят выбрать объект — без объекта они не создаются.</div>
+  </section>
+</div>
+{% if not DEMO %}<script>setTimeout(function () { location.reload(); }, 120000);</script>{% endif %}
 {% endblock %}

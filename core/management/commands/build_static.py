@@ -28,16 +28,29 @@ STATIC_PAGES = [
     "/warehouse/new/", "/warehouse/inventory/new/", "/purchases/", "/purchases/new/", "/purchases/suppliers/new/",
 ]
 STATUS_FILTERS = {
-    "/": ["done"],
     "/remarks/": ["open", "overdue", "review", "closed", "all"],
-    "/tasks/": ["active", "overdue", "review", "done", "all"],
-    "/purchases/": ["open"] + [v for v, _ in PurchaseRequest.Status.choices] + ["all"],
+    "/tasks/": ["active", "today", "week", "overdue", "review", "done", "all"],
+    "/purchases/": ["open", "overdue"] + [v for v, _ in PurchaseRequest.Status.choices] + ["all"],
+    "/objects/": ["done", "active"],
 }
 
 
 def page_list():
     """Адрес файла -> адрес в Django."""
+    from core.dashboard import PERIODS
+    from core.object_views import CHOOSE_TITLES
+    from core.views import FIN_VIEWS
     pages = {p: p for p in STATIC_PAGES}
+    for key, _ in PERIODS:
+        pages[f"/period/{key}/"] = f"/?period={key}"
+    for pk in ConstructionObject.objects.values_list("pk", flat=True):
+        pages[f"/object/{pk}/"] = f"/?object={pk}"
+    for key, _ in FIN_VIEWS:
+        pages[f"/finance/kind/{key}/"] = f"/finance/?kind={key}"
+    for what in CHOOSE_TITLES:
+        pages[f"/add/{what}/"] = f"/add/{what}/"
+    pages["/search/"] = "/search/"
+    pages["/notifications/"] = "/notifications/"
     for value, _ in ConstructionObject.Status.choices:
         pages[f"/objects/status/{value}/"] = f"/objects/?status={value}"
     for value, _ in WorkContract.Status.choices:
@@ -67,6 +80,9 @@ def page_list():
     for pk in WorkContract.objects.values_list("pk", flat=True):
         for suffix in ("", "edit/", "assign/", "norm/"):
             pages[f"/contracts/{pk}/{suffix}"] = f"/contracts/{pk}/{suffix}"
+    from staff.models import Task
+    for pk in Task.objects.exclude(status="done").values_list("pk", flat=True):
+        pages[f"/tasks/{pk}/postpone/"] = f"/tasks/{pk}/postpone/"
     for pk in WorkLog.objects.filter(status=WorkLog.Status.SUBMITTED).values_list("pk", flat=True):
         pages[f"/worklog/{pk}/review/"] = f"/worklog/{pk}/review/"
     for pk in Employee.objects.values_list("pk", flat=True):
@@ -116,7 +132,8 @@ class Command(BaseCommand):
     @staticmethod
     def make_static(html, target, base):
         # Фильтр по статусу: ?status=x -> отдельная страница раздела.
-        html = re.sub(r'href="\?status=([\w-]+)"', lambda m: f'href="{base}status/{m.group(1)}/"', html)
+        html = re.sub(r'href="\?(status|kind|period|object)=([\w-]+)"',
+                      lambda m: f'href="{base}{m.group(1)}/{m.group(2)}/"', html)
         # Прочие параметры (?contract=3) в статике не работают: ведём на общую форму.
         html = re.sub(r'href="(/[^"?#]*)\?[^"#]*"', r'href="\1"', html)
         # Абсолютные ссылки -> относительные, чтобы сайт работал в подпапке GitHub Pages.

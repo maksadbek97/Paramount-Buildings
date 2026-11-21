@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<div class="page-head"><div class="titles"><h1>Уведомления <span class="count" style="font-size:16px">{{ items|length }}</span></h1><div class="sub">Задачи, согласования, поставки, приёмка материалов и контрольные события</div></div></div>
+{% if items %}<div class="list">{% for level, kind, text, url in items %}
+  <a class="row" href="{{ url }}"><span class="ico {% if level == 'bad' %}out{% elif level == 'warn' %}warn{% endif %}">{% icon 'alert' 20 %}</span>
+    <div class="body"><div class="meta" style="margin:0 0 2px;font-weight:700">{{ kind }}</div><div class="title" style="font-weight:600">{{ text }}</div></div><span class="chev">{% icon 'chevron' 18 %}</span></a>
+{% endfor %}</div>{% else %}<div class="empty">Новых уведомлений нет</div>{% endif %}
+{% endblock %}

@@ -108,6 +108,9 @@ def purchase_list(request):
     f = request.GET.get("status", "open")
     if f == "open":
         qs = qs.filter(status__in=PurchaseRequest.OPEN)
+    elif f == "overdue":
+        from datetime import date
+        qs = qs.filter(status__in=["approved", "ordered"], needed_by__lt=date.today())
     elif f in PurchaseRequest.Status.values:
         qs = qs.filter(status=f)
     return render(request, "warehouse/purchase_list.html", {"requests": qs, "current": f})

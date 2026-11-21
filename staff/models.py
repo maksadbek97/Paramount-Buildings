@@ -89,6 +89,7 @@ class Task(models.Model):
     file = models.FileField("Файл", upload_to="tasks/%Y/%m/", blank=True)
     comment = models.TextField("Комментарий", blank=True)
     created_at = models.DateTimeField("Создана", auto_now_add=True)
+    done_at = models.DateTimeField("Выполнена", null=True, blank=True)
 
     class Meta:
         verbose_name = "Задача"

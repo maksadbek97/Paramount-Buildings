@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from contracts.models import Crew, WorkContract, WorkLog, summary
 from finance.models import Estimate, Transaction
@@ -40,35 +41,104 @@ def form_page(request, form_class, title, success_url, instance=None, form_kwarg
     })
 
 
-@login_required
-def dashboard(request):
-    """Главная: мои объекты и что требует внимания. Всё остальное — внутри объекта."""
-    contracts = list(WorkContract.objects.select_related("construction_object").prefetch_related(
-        "assignments__crew", "assignments__employee"))
+def _object_cards(contracts):
+    """Карточки объектов: деньги, прогресс, просрочки, открытые задачи и заявки."""
+    from warehouse.models import PurchaseRequest
     by_obj = {}
     for c in contracts:
         by_obj.setdefault(c.construction_object_id, []).append(c)
     open_remarks = dict(Remark.objects.exclude(status=Remark.Status.CLOSED).values_list(
+        "construction_object").annotate(n=Count("id")))
+    open_tasks = dict(Task.objects.exclude(status="done").values_list("construction_object").annotate(n=Count("id")))
+    late_tasks = dict(Task.objects.exclude(status="done").filter(due_date__lt=date.today()).values_list(
+        "construction_object").annotate(n=Count("id")))
+    open_req = dict(PurchaseRequest.objects.filter(status__in=PurchaseRequest.OPEN).values_list(
         "construction_object").annotate(n=Count("id")))
     pending = {}
     for log in WorkLog.objects.filter(status=WorkLog.Status.SUBMITTED).select_related("assignment__contract"):
         oid = log.assignment.contract.construction_object_id
         pending[oid] = pending.get(oid, 0) + 1
     cards = []
-    for o in ConstructionObject.objects.select_related("client", "foreman"):
+    for o in ConstructionObject.objects.select_related("client", "foreman", "manager"):
         cs = by_obj.get(o.pk, [])
+        late = late_tasks.get(o.pk, 0) + sum(c.status == "active" and c.is_overdue for c in cs)
         cards.append({"o": o, "s": summary(cs), "remarks": open_remarks.get(o.pk, 0),
-                      "pending": pending.get(o.pk, 0),
-                      "active": sum(c.status == WorkContract.Status.ACTIVE for c in cs)})
-    view = "done" if request.GET.get("status") == "done" else "active"
-    active = sorted((c for c in cards if not c["o"].is_closed), key=lambda c: (not c["o"].is_working, -c["s"]["total"]))
-    done = [c for c in cards if c["o"].is_closed]
+                      "pending": pending.get(o.pk, 0), "tasks": open_tasks.get(o.pk, 0),
+                      "requests": open_req.get(o.pk, 0), "late": late,
+                      "overdue": bool(o.end_date and o.end_date < date.today() and not o.is_closed)})
+    return cards, by_obj
+
+
+def _can_money(user):
+    return user.is_superuser or user.has_perm("finance.view_transaction")
+
+
+@login_required
+def dashboard(request):
+    """Главная: обзор компании по ТЗ модуля «Главная / Dashboard»."""
+    from objects.models import ObjectDocument
+    from warehouse.models import PurchaseRequest
+
+    from . import dashboard as dash
+    a, b, period, period_label = dash.period_range(request.GET.get("period", dash.DEFAULT_PERIOD),
+                                                   request.GET.get("from"), request.GET.get("to"))
+    bad_period = request.GET.get("period") == "custom" and period != "custom"
+    all_objects = list(ConstructionObject.objects.all())
+    obj_id = request.GET.get("object", "")
+    selected = next((o for o in all_objects if obj_id.isdigit() and o.pk == int(obj_id)), None)
+    objects = [selected] if selected else all_objects
+
+    contracts = [c for c in WorkContract.objects.select_related("construction_object").prefetch_related(
+        "assignments__crew", "assignments__employee") if c.construction_object in objects]
+    cards, by_obj = _object_cards(contracts)
+    cards = [c for c in cards if c["o"] in objects]
+    order = lambda c: (not (c["late"] or c["overdue"]), not c["o"].is_working,  # noqa: E731
+                       c["o"].end_date or date.max)
+    active_cards = sorted((c for c in cards if not c["o"].is_closed), key=order)
+
+    ops = dash.operations(objects if selected else None, a, b)
+    income = sum((o["amount"] for o in ops if o["income"]), 0)
+    expense = sum((o["amount"] for o in ops if not o["income"]), 0)
+    receivable, payable, _, _ = dash.debts(contracts)
+    requests = PurchaseRequest.objects.filter(construction_object__in=objects)
+    tasks = dash.tasks_block(request.user, objects, a, b)
+
+    def q(**kw):  # ссылки фильтров: без значений по умолчанию, чтобы работали и в демо
+        params = {"period": period if period != dash.DEFAULT_PERIOD else "", "object": obj_id}
+        params.update(kw)
+        if params.get("period") == "custom":
+            params.update({"from": a.isoformat(), "to": b.isoformat()})
+        if not any(params.values()):
+            return reverse("dashboard")
+        return "?" + "&".join(f"{k}={v}" for k, v in params.items() if v)
+
     return render(request, "dashboard.html", {
-        "s": summary([c for c in contracts if not c.construction_object.is_closed]),
-        "alerts": alerts.collect(contracts) if view == "active" else [],
-        "view": view, "cards": done if view == "done" else active,
-        "active_count": len(active), "done_count": len(done),
-        "working_count": sum(c["o"].is_working for c in cards),
+        "period": period, "period_label": period_label, "a": a, "b": b, "bad_period": bad_period,
+        "periods": [(k, label, q(period=k if k != dash.DEFAULT_PERIOD else "")) for k, label in dash.PERIODS],
+        "objects_all": all_objects, "selected": selected,
+        "object_links": [(o, q(object=o.pk)) for o in all_objects], "all_objects_link": q(object=""),
+        "filtered": bool(selected or period != dash.DEFAULT_PERIOD),
+        "can_money": _can_money(request.user),
+        "kpi": {
+            "active": sum(o.is_working for o in objects),
+            "contracts": sum((c.total for c in contracts if c.status == WorkContract.Status.ACTIVE), 0),
+            "contracts_count": sum(c.status == WorkContract.Status.ACTIVE for c in contracts),
+            "income": income, "expense": expense, "result": income - expense,
+            "receivable": receivable, "payable": payable,
+            "tasks_overdue": len(tasks["overdue"]),
+        },
+        "has_ops": bool(ops),
+        "cards": active_cards[:6], "cards_total": len(active_cards),
+        "chart": dash.chart(ops, a, b),
+        "works": dash.work_progress(objects, by_obj),
+        "purchases": dash.purchase_counts(requests),
+        "materials": dash.materials_block(objects),
+        "documents": ObjectDocument.objects.filter(construction_object__in=objects).select_related(
+            "construction_object").order_by("-uploaded_at")[:5],
+        "tasks": tasks,
+        "activity": dash.activity(objects),
+        "alerts": alerts.collect(contracts)[:5],
+        "updated": timezone.localtime(),
     })
 
 
@@ -79,20 +149,27 @@ def menu(request):
 
 @login_required
 def object_list(request):
-    qs = ConstructionObject.objects.select_related("client", "manager").annotate(
-        task_count=Count("tasks", distinct=True), contract_count=Count("contracts", distinct=True))
-    status = request.GET.get("status")
-    if status:
-        qs = qs.filter(status=status)
+    """Мои объекты: плитки с фото; завершённые — на отдельной вкладке."""
+    contracts = list(WorkContract.objects.select_related("construction_object").prefetch_related(
+        "assignments__crew", "assignments__employee"))
+    cards, _ = _object_cards(contracts)
+    status = request.GET.get("status", "")
+    view = "done" if status == "done" else "active"
+    active = sorted((c for c in cards if not c["o"].is_closed), key=lambda c: (not c["o"].is_working,
+                                                                               -c["s"]["total"]))
+    done = [c for c in cards if c["o"].is_closed]
+    shown = done if view == "done" else active
+    if status and status not in ("done", "active"):
+        shown = [c for c in cards if c["o"].status == status]
     return render(request, "object_list.html", {
-        "objects": qs, "statuses": ConstructionObject.Status.choices, "current": status,
+        "view": view, "cards": shown, "active_count": len(active), "done_count": len(done),
     })
 
 
 @login_required
 def object_create(request):
     return form_page(request, forms.ObjectForm, "Новый объект",
-                     lambda o: reverse("object_detail", args=[o.pk]), back=reverse("dashboard"),
+                     lambda o: reverse("object_detail", args=[o.pk]), back=reverse("object_list"),
                      subtitle="Взяли объект — создайте его здесь. Дальше объёмы, рабочие, материалы, деньги "
                               "и документы ведутся внутри объекта.", submit="Создать объект")
 
@@ -161,14 +238,32 @@ def movement_create(request):
                      back=reverse("warehouse_list"))
 
 
+FIN_VIEWS = [("all", "Все операции"), ("income", "Поступления"), ("expense", "Расходы"),
+             ("debtors", "Дебиторская задолженность"), ("creditors", "Кредиторская задолженность")]
+
+
 @login_required
 def finance_list(request):
-    income = Transaction.objects.filter(kind="income").aggregate(s=Sum("amount"))["s"] or 0
-    expense = Transaction.objects.filter(kind="expense").aggregate(s=Sum("amount"))["s"] or 0
+    """Финансы компании: все поступления и расходы (по объёмам и прочие), задолженности."""
+    from . import dashboard as dash
+    kind = request.GET.get("kind", "all")
+    a, b, period, period_label = dash.period_range(request.GET.get("period", "all"),
+                                                   request.GET.get("from"), request.GET.get("to"))
+    ops = dash.operations(None, a, b)
+    income = sum((o["amount"] for o in ops if o["income"]), 0)
+    expense = sum((o["amount"] for o in ops if not o["income"]), 0)
+    contracts = list(WorkContract.objects.select_related("construction_object").prefetch_related(
+        "assignments__crew", "assignments__employee"))
+    receivable, payable, rec_rows, pay_rows = dash.debts(contracts)
+    if kind == "income":
+        ops = [o for o in ops if o["income"]]
+    elif kind == "expense":
+        ops = [o for o in ops if not o["income"]]
     return render(request, "finance_list.html", {
+        "kind": kind, "views": FIN_VIEWS, "period_label": period_label, "period": period,
+        "ops": ops[:100], "income": income, "expense": expense, "balance": income - expense,
+        "receivable": receivable, "payable": payable, "rec_rows": rec_rows, "pay_rows": pay_rows,
         "estimates": Estimate.objects.select_related("construction_object").prefetch_related("items"),
-        "transactions": Transaction.objects.select_related("construction_object")[:50],
-        "income": income, "expense": expense, "balance": income - expense,
     })
 
 
@@ -185,3 +280,74 @@ def history(request):
     if obj and obj.isdigit():
         qs = qs.filter(construction_object_id=obj)
     return render(request, "history.html", {"entries": qs[:200]})
+
+
+@login_required
+def search(request):
+    """Глобальный поиск: объекты, сотрудники, контрагенты, документы, договоры, материалы."""
+    from django.db.models import Q
+
+    from objects.models import Client, ObjectDocument
+    from warehouse.models import Material, Supplier
+    q = request.GET.get("q", "").strip()
+    groups = []
+    if len(q) >= 2:
+        def add(title, items):
+            if items:
+                groups.append((title, items))
+        add("Объекты", [(o.name, f"{o.code} · {o.city} · {o.address}".strip(" ·"), reverse("object_detail", args=[o.pk]))
+                        for o in ConstructionObject.objects.filter(Q(name__icontains=q) | Q(code__icontains=q) |
+                                                                   Q(address__icontains=q) | Q(city__icontains=q))[:10]])
+        add("Сотрудники", [(e.full_name, " · ".join(filter(None, [str(e.position or ""), e.phone])),
+                            reverse("employee_edit", args=[e.pk]))
+                           for e in Employee.objects.select_related("position").filter(
+                               Q(full_name__icontains=q) | Q(phone__icontains=q) | Q(position__name__icontains=q))[:10]])
+        add("Контрагенты", [(c.name, f"БИН {c.bin}" if c.bin else "Заказчик", reverse("object_list"))
+                            for c in Client.objects.filter(Q(name__icontains=q) | Q(bin__icontains=q))[:10]] +
+            [(s.name, "Поставщик" + (f" · {s.phone}" if s.phone else ""), reverse("purchase_list"))
+             for s in Supplier.objects.filter(Q(name__icontains=q) | Q(phone__icontains=q))[:10]])
+        add("Договоры и объёмы", [(c.work_type, str(c.construction_object), reverse("contract_detail", args=[c.pk]))
+                                  for c in WorkContract.objects.select_related("construction_object").filter(
+                                      Q(work_type__icontains=q) | Q(construction_object__name__icontains=q) |
+                                      Q(construction_object__contract_number__icontains=q))[:10]])
+        add("Документы", [(d.title, str(d.construction_object), reverse("object_tab", args=[d.construction_object_id, "docs"]))
+                          for d in ObjectDocument.objects.select_related("construction_object").filter(
+                              Q(title__icontains=q) | Q(construction_object__name__icontains=q))[:10]])
+        add("Материалы", [(m.name, " · ".join(filter(None, [m.code, m.unit])), reverse("warehouse_list"))
+                          for m in Material.objects.filter(Q(name__icontains=q) | Q(code__icontains=q))[:10]])
+    return render(request, "search.html", {"q": q, "groups": groups})
+
+
+def notifications_for(user):
+    """Уведомления пользователя: назначенные и просроченные задачи, согласования, приёмки, контрольные события."""
+    from warehouse.models import PurchaseRequest, StockMovement
+    items = []
+    employee = getattr(user, "employee", None)
+    today = date.today()
+    tasks = Task.objects.exclude(status="done").select_related("construction_object")
+    if employee:
+        for t in tasks.filter(assignee=employee):
+            late = t.due_date and t.due_date < today
+            items.append(("bad" if late else "info", "Задача просрочена" if late else "Вам назначена задача",
+                          t.title + (f" · до {t.due_date:%d.%m}" if t.due_date else ""), reverse("task_list")))
+    if user.has_perm("warehouse.approve_purchase"):
+        for p in PurchaseRequest.objects.filter(status="new").select_related("material", "construction_object"):
+            items.append(("warn", "Заявка ждёт согласования", f"{p.number}: {p.material} · {p.construction_object.name}",
+                          reverse("purchase_detail", args=[p.pk])))
+    for p in PurchaseRequest.objects.filter(status__in=["approved", "ordered"], needed_by__lt=today).select_related(
+            "material", "construction_object"):
+        items.append(("bad", "Поставка просрочена", f"{p.number}: {p.material} · {p.construction_object.name}",
+                      reverse("purchase_detail", args=[p.pk])))
+    for mv in StockMovement.objects.filter(kind="transfer", received=False).select_related("material", "to_warehouse"):
+        items.append(("info", "Материал ждёт приёмки", f"{mv.material} {mv.quantity.normalize():f} → {mv.to_warehouse}",
+                      reverse("warehouse_detail", args=[mv.to_warehouse_id])))
+    if user.is_superuser:
+        for level, text, url in alerts.collect():
+            items.append((level, "Контроль", text, url))
+    order = {"bad": 0, "warn": 1, "info": 2}
+    return sorted(items, key=lambda i: order[i[0]])
+
+
+@login_required
+def notifications(request):
+    return render(request, "notifications.html", {"items": notifications_for(request.user)})
