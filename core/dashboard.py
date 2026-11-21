@@ -142,7 +142,7 @@ def chart(ops, a, b):
     if not any(v[0] or v[1] for v in data.values()):
         return None
     top = max(max(v) for v in data.values()) or 1
-    W, H, pad = 720, 200, 26
+    W, H, pad = 720, 290, 26
     n = len(keys)
     slot = (W - 10) / n
     bw = max(min(slot * 0.36, 26), 2)

@@ -310,4 +310,44 @@ class Command(BaseCommand):
         AuditLog.objects.create(action="create", module="Объекты", object_id=str(o1.pk), object_repr=str(o1),
                                 construction_object=o1, changes='[["Статус", "", "Активный"]]',
                                 reason="Подписан договор субподряда")
+        self._activity_feed()
         self.stdout.write(self.style.SUCCESS("Демо-данные созданы."))
+
+    def _activity_feed(self):
+        """Журнал действий для «Последних операций» на Главной — по уже созданным записям."""
+        from datetime import datetime, time, timedelta
+
+        from django.contrib.auth import get_user_model
+        from django.utils import timezone
+
+        from contracts.models import Payment, WorkLog
+        from quality.models import DailyReport, Remark
+        from warehouse.models import PurchaseRequest, StockMovement
+        users = {name: get_user_model().objects.get_or_create(username=name, defaults={"first_name": name})[0]
+                 for name in ("Нурланова А.", "Сейтказиев Б.", "Ким С.", "Омарова Д.")}
+        events = []
+        for log in WorkLog.objects.filter(status="accepted").select_related("assignment__contract__construction_object")[:4]:
+            c = log.assignment.contract
+            events.append((log.date, 17, "accept", "Выработка по дням", log, c.construction_object, users["Нурланова А."],
+                           f"Принято ПТО: {c.work_type}, {log.accepted_volume.normalize():f} {c.unit}"))
+        for pay in Payment.objects.select_related("contract__construction_object")[:4]:
+            events.append((pay.date, 11, "create", "Платежи по договорам", pay, pay.contract.construction_object,
+                           users["Омарова Д."], f"{pay.get_kind_display()}: {int(pay.amount):,} ₸".replace(",", " ")))
+        for pr in PurchaseRequest.objects.select_related("construction_object", "material")[:4]:
+            events.append((pr.created_at.date() - timedelta(days=pr.pk % 4), 10, "create", "Заявки и закупки", pr,
+                           pr.construction_object, users["Сейтказиев Б."], f"Заявка {pr.number}: {pr.material}"))
+        for mv in StockMovement.objects.filter(kind="transfer").select_related("material", "to_warehouse")[:2]:
+            events.append((mv.date, 9, "create", "Движения материалов", mv, mv.construction_object,
+                           users["Сейтказиев Б."], f"Перемещение: {mv.material} → {mv.to_warehouse}"))
+        for r in Remark.objects.select_related("construction_object")[:3]:
+            events.append((r.created_at.date() - timedelta(days=r.pk % 5), 15, "create", "Замечания", r,
+                           r.construction_object, users["Ким С."], f"Замечание {r.number}: {r.description[:50]}"))
+        for rep in DailyReport.objects.select_related("construction_object")[:2]:
+            events.append((rep.date, 19, "create", "Ежедневные отчёты", rep, rep.construction_object,
+                           users["Сейтказиев Б."], f"Отчёт прораба за {rep.date:%d.%m}"))
+        tz = timezone.get_current_timezone()
+        for i, (day, hour, action, module, inst, obj, user, text) in enumerate(events):
+            e = AuditLog.objects.create(action=action, module=module, object_id=str(inst.pk), object_repr=text,
+                                        construction_object=obj, user=user)
+            AuditLog.objects.filter(pk=e.pk).update(
+                created_at=timezone.make_aware(datetime.combine(day, time(hour, (i * 7) % 60)), tz))

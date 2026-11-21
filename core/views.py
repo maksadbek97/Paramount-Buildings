@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -99,6 +99,20 @@ def dashboard(request):
     ops = dash.operations(objects if selected else None, a, b)
     income = sum((o["amount"] for o in ops if o["income"]), 0)
     expense = sum((o["amount"] for o in ops if not o["income"]), 0)
+    # Динамика к предыдущему периоду такой же длины (ТЗ п. 6)
+    delta = {}
+    if a and b:
+        days = (b - a).days + 1
+        pa, pb = a - timedelta(days=days), a - timedelta(days=1)
+        prev = dash.operations(objects if selected else None, pa, pb)
+        p_inc = sum((o["amount"] for o in prev if o["income"]), 0)
+        p_exp = sum((o["amount"] for o in prev if not o["income"]), 0)
+
+        def pct(cur, old):
+            return None if not old else int(round((cur - old) * 100 / old))
+        delta = {"income": pct(income, p_inc), "expense": pct(expense, p_exp),
+                 "result": pct(income - expense, p_inc - p_exp) if (p_inc - p_exp) > 0 else None,
+                 "label": f"{pa:%d.%m}–{pb:%d.%m}"}
     receivable, payable, _, _ = dash.debts(contracts)
     requests = PurchaseRequest.objects.filter(construction_object__in=objects)
     tasks = dash.tasks_block(request.user, objects, a, b)
@@ -137,7 +151,9 @@ def dashboard(request):
             "construction_object").order_by("-uploaded_at")[:5],
         "tasks": tasks,
         "activity": dash.activity(objects),
-        "alerts": alerts.collect(contracts)[:5],
+        "alerts": alerts.collect(contracts),
+        "delta": delta,
+        "rows": sorted(cards, key=order),
         "updated": timezone.localtime(),
     })
 
