@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<a class="back" href="{% url 'object_detail' obj.pk %}">{% icon 'back' 18 %}{{ obj.name }}</a>
+<div class="page-head"><div class="titles"><h1>Что добавить?</h1><div class="sub">{{ obj.name }}</div></div></div>
+<div class="actgrid">
+  <a class="main" href="{% url 'object_new' obj.pk 'output' %}"><span class="ico">{% icon 'brick' %}</span><span>Выработка<small>Сколько сделали</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'report' %}"><span class="ico">{% icon 'clipboard' %}</span><span>Отчёт за день<small>Прорабу</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'purchase' %}"><span class="ico">{% icon 'box' %}</span><span>Заявка на материал<small>Нужно привезти</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'movement' %}"><span class="ico">{% icon 'box' %}</span><span>Приход / расход<small>Материал на объекте</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'remark' %}"><span class="ico">{% icon 'flag' %}</span><span>Замечание<small>Что исправить</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'task' %}"><span class="ico">{% icon 'task' %}</span><span>Задача<small>Кому и к какому сроку</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'payment' %}"><span class="ico">{% icon 'cash' %}</span><span>Платёж<small>Получили или выплатили</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'expense' %}"><span class="ico">{% icon 'wallet' %}</span><span>Прочий расход<small>Техника, доставка</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'work' %}"><span class="ico">{% icon 'contract' %}</span><span>Объём работ<small>Взяли у генподрядчика</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'doc' %}"><span class="ico">{% icon 'clipboard' %}</span><span>Документ<small>Договор, акт, фото</small></span></a>
+</div>
+{% endblock %}

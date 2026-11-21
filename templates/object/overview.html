@@ -1,0 +1,49 @@
+{% extends "object/_base.html" %}{% load ui %}
+{% block tab %}
+<div class="actgrid">
+  <a class="main" href="{% url 'object_new' obj.pk 'output' %}"><span class="ico">{% icon 'brick' %}</span><span>Записать выработку<small>Сколько сделали сегодня</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'report' %}"><span class="ico">{% icon 'clipboard' %}</span><span>Отчёт за день<small>Люди, погода, работы</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'purchase' %}"><span class="ico">{% icon 'box' %}</span><span>Заявка на материал<small>Нужно привезти</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'remark' %}"><span class="ico">{% icon 'flag' %}</span><span>Замечание<small>Что исправить</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'payment' %}"><span class="ico">{% icon 'cash' %}</span><span>Платёж<small>Получили или выплатили</small></span></a>
+  <a href="{% url 'object_new' obj.pk 'work' %}"><span class="ico">{% icon 'contract' %}</span><span>Новый объём работ<small>Взяли у генподрядчика</small></span></a>
+</div>
+
+{% if alerts %}
+<h2>Требует внимания <span class="count">{{ alerts|length }}</span></h2>
+<div class="list">
+  {% for level, text, url in alerts %}
+  <a class="row" href="{{ url }}"><span class="ico {% if level == 'bad' %}out{% elif level == 'warn' %}warn{% endif %}">{% icon 'alert' 20 %}</span>
+    <div class="body"><div class="title" style="font-weight:600">{{ text }}</div></div><span class="chev">{% icon 'chevron' 18 %}</span></a>
+  {% endfor %}
+</div>
+{% else %}
+<h2>Требует внимания</h2><div class="empty">{% icon 'check' 20 %} Всё в порядке, срочных вопросов нет</div>
+{% endif %}
+
+<h2>Главные цифры</h2>
+<div class="stats">
+  <a class="stat" href="{% url 'object_tab' obj.pk 'work' %}"><div class="label">Принято работ</div><div class="value" title="{{ s.earned|money }} ₸">{{ s.earned|short }}</div><div class="hint">осталось на {{ s.remaining|short }}</div></a>
+  <a class="stat" href="{% url 'object_tab' obj.pk 'money' %}"><div class="label">Получили от генподрядчика</div><div class="value ok">{{ s.received|short }}</div><div class="hint">должны нам: {{ s.client_due|short }}</div></a>
+  <a class="stat" href="{% url 'object_tab' obj.pk 'people' %}"><div class="label">Выплачено рабочим</div><div class="value">{{ s.paid_workers|short }}</div><div class="hint">{% if s.workers_due > 0 %}<span class="bad">должны: {{ s.workers_due|short }}</span>{% else %}долгов нет{% endif %}</div></a>
+  <a class="stat" href="{% url 'object_tab' obj.pk 'money' %}"><div class="label">Прибыль</div><div class="value {% if s.profit >= 0 %}ok{% else %}bad{% endif %}">{{ s.profit|short }}</div><div class="hint">на руках: {{ s.cash|short }}</div></a>
+</div>
+
+<h2>Об объекте</h2>
+<div class="kv">
+  <div><span>Генподрядчик</span><b>{{ obj.general_contractor|default:"—" }}</b></div>
+  <div><span>Заказчик</span><b>{{ obj.client|default:"—" }}</b></div>
+  <div><span>Договор</span><b>{{ obj.contract_number|default:"—" }}</b></div>
+  <div><span>Сумма договора</span><b>{% if obj.contract_amount %}{{ obj.contract_amount|money }} ₸{% else %}—{% endif %}</b></div>
+  <div><span>Сроки</span><b>{{ obj.start_date|date:"d.m.Y"|default:"—" }} – {{ obj.end_date|date:"d.m.Y"|default:"—" }}</b></div>
+  <div><span>Руководитель</span><b>{{ obj.manager|default:"—" }}</b></div>
+  <div><span>Прораб</span><b>{{ obj.foreman|default:"—" }}</b></div>
+  <div><span>ПТО</span><b>{{ obj.pto|default:"—" }}</b></div>
+  <div><span>Адрес</span><b>{{ obj.address|default:"—" }}</b></div>
+  {% if obj.budget %}<div><span>Бюджет / потрачено</span><b class="{% if spent > obj.budget %}bad{% endif %}">{{ obj.budget|short }} / {{ spent|short }}</b></div>{% endif %}
+</div>
+{% if obj.description %}<p class="muted">{{ obj.description }}</p>{% endif %}
+
+<h2>Последние действия<a class="more" href="{% url 'object_tab' obj.pk 'docs' %}">Весь журнал →</a></h2>
+{% include "_history.html" with entries=history hide_object=1 %}
+{% endblock %}

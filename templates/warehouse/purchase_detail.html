@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load ui %}
 {% block content %}
-<a class="back" href="{% url 'purchase_list' %}">{% icon 'back' 18 %}Заявки</a>
+{% if p.construction_object_id %}<a class="back" href="{% url 'object_tab' p.construction_object_id 'materials' %}">{% icon 'back' 18 %}{{ p.construction_object }} · Материалы</a>{% else %}<a class="back" href="{% url 'purchase_list' %}">{% icon 'back' 18 %}Заявки</a>{% endif %}
 <div class="page-head"><div class="titles"><h1>{{ p.number }} <span class="badge {% if p.status == 'received' %}done{% elif p.status == 'new' %}paused{% elif p.status != 'rejected' %}active{% endif %}">{{ p.get_status_display }}</span></h1>
   <div class="sub">{{ p.material }} — {{ p.quantity|num }} {{ p.material.unit }} · {{ p.construction_object }}</div></div>
   <div class="actions"><a class="btn btn-ghost" href="{% url 'purchase_edit' p.pk %}">{% icon 'edit' 18 %}Изменить</a></div></div>

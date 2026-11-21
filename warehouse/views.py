@@ -1,3 +1,4 @@
+from django.utils.http import url_has_allowed_host_and_scheme
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -52,6 +53,9 @@ def transfer_accept(request, pk):
     else:
         audit.log(request, mv, AuditLog.Action.ACCEPT, before=before)
         messages.success(request, f"Принято: {mv.material} {mv.quantity.normalize():f} {mv.material.unit}")
+    nxt = request.POST.get("next", "")
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
+        return redirect(nxt)
     return redirect("warehouse_detail", mv.to_warehouse_id)
 
 
@@ -125,7 +129,7 @@ def purchase_detail(request, pk):
     prices = StockMovement.objects.filter(material=p.material, kind="in", price__isnull=False).select_related(
         "supplier")[:6]
     return render(request, "warehouse/purchase_detail.html", {
-        "p": p, "a": p.analysis(), "history": history, "prices": prices,
+        "p": p, "cur_obj": p.construction_object, "a": p.analysis(), "history": history, "prices": prices,
         "can_approve": request.user.has_perm("warehouse.approve_purchase")})
 
 

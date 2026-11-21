@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load ui %}
 {% block title %}{{ r.number }} · Paramount Buildings{% endblock %}
 {% block content %}
-<a class="back" href="{% url 'remark_list' %}">{% icon 'back' 18 %}Замечания</a>
+<a class="back" href="{% url 'object_tab' r.construction_object_id 'remarks' %}">{% icon 'back' 18 %}{{ r.construction_object }} · Замечания</a>
 <div class="page-head"><div class="titles"><h1>{{ r.number }} <span class="badge {% if r.is_closed %}done{% elif r.status == 'review' %}active{% elif r.status == 'returned' %}paused{% endif %}">{{ r.get_status_display }}</span></h1>
   <div class="sub">{{ r.construction_object }}{% if r.location %} · {{ r.location }}{% endif %}</div></div></div>
 

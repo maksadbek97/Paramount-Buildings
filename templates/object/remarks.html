@@ -1,0 +1,15 @@
+{% extends "object/_base.html" %}{% load ui %}
+{% block tab %}
+<div class="tabbar-act">
+  <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'remark' %}">{% icon 'plus' 18 %}Замечание</a>
+  <a class="btn btn-ghost" href="{% url 'object_new' obj.pk 'task' %}">Задача</a>
+</div>
+<h2 style="margin-top:4px">Открытые замечания <span class="count">{{ open|length }}</span></h2>
+{% if open %}<div class="list">{% for r in open %}{% include "quality/_remark_row.html" %}{% endfor %}</div>{% else %}<div class="empty">Открытых замечаний нет</div>{% endif %}
+<h2>Задачи по объекту <span class="count">{{ tasks|length }}</span></h2>
+{% if tasks %}<div class="list">{% for t in tasks %}
+  <div class="row"><span class="ico {% if t.is_overdue %}out{% endif %}">{% icon 'task' 20 %}</span><div class="body"><div class="title">{{ t.title }}</div><div class="meta">{{ t.assignee|default:"без исполнителя" }}{% if t.due_date %} · до {{ t.due_date|date:"d.m" }}{% endif %}{% if t.is_overdue %} · <span class="bad">просрочено</span>{% endif %}</div></div>
+    <div class="side"><span class="badge {% if t.status == 'in_progress' %}in_progress{% elif t.status == 'review' %}paused{% endif %}">{{ t.get_status_display }}</span></div></div>
+{% endfor %}</div>{% else %}<div class="empty">Открытых задач нет</div>{% endif %}
+{% if closed %}<h2>Закрытые недавно</h2><div class="list">{% for r in closed %}{% include "quality/_remark_row.html" %}{% endfor %}</div>{% endif %}
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "object/_base.html" %}{% load ui %}
+{% block tab %}
+<div class="tabbar-act">
+  <a class="btn btn-primary" href="{% url 'object_new' obj.pk 'report' %}">{% icon 'plus' 18 %}Отчёт за день</a>
+</div>
+{% if reports %}<div class="list">{% for rep in reports %}
+  <a class="row" href="{% url 'report_detail' rep.pk %}"><span class="ico {% if rep.confirmed %}in{% else %}warn{% endif %}">{% icon 'clipboard' 20 %}</span>
+    <div class="body"><div class="title">{{ rep.date|date:"d E, l" }}</div><div class="meta">{{ rep.workers_count }} чел. · {{ rep.get_weather_display }}{% if rep.author %} · {{ rep.author }}{% endif %}{% if rep.problems %} · <span class="bad">есть проблемы</span>{% endif %}</div></div>
+    <div class="side"><span class="badge {% if rep.confirmed %}done{% else %}paused{% endif %}">{% if rep.confirmed %}Подтверждён{% else %}Ждёт подтверждения{% endif %}</span></div>
+    <span class="chev">{% icon 'chevron' 18 %}</span></a>
+{% endfor %}</div>
+{% else %}<div class="empty">Отчётов пока нет. Прораб пишет короткий отчёт в конце дня.<br><a class="btn btn-primary" href="{% url 'object_new' obj.pk 'report' %}">Написать отчёт</a></div>{% endif %}
+{% endblock %}

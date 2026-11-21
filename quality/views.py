@@ -68,7 +68,7 @@ def remark_detail(request, pk):
     can_review = request.user.has_perm("quality.review_remark")
     actions = [(to, label) for to, label, needs in Remark.ACTIONS.get(r.status, []) if can_review or not needs]
     return render(request, "quality/remark_detail.html", {
-        "r": r, "history": history, "actions": actions, "repeats": r.repeats()[:5],
+        "r": r, "cur_obj": r.construction_object, "history": history, "actions": actions, "repeats": r.repeats()[:5],
         "workers": Employee.objects.filter(is_active=True),
     })
 
@@ -166,7 +166,7 @@ def report_detail(request, pk):
     rep = get_object_or_404(DailyReport.objects.select_related("construction_object", "author"), pk=pk)
     remarks = Remark.objects.filter(construction_object=rep.construction_object, created_at__date=rep.date)
     return render(request, "quality/report_detail.html", {
-        "rep": rep, "logs": rep.worklogs(), "materials_out": rep.material_out(), "remarks": remarks})
+        "rep": rep, "cur_obj": rep.construction_object, "logs": rep.worklogs(), "materials_out": rep.material_out(), "remarks": remarks})
 
 
 @login_required

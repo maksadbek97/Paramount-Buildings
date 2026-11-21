@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% load ui %}
 {% block content %}
-<a class="back" href="{% url 'report_list' %}">{% icon 'back' 18 %}Отчёты</a>
+<a class="back" href="{% url 'object_tab' rep.construction_object_id 'reports' %}">{% icon 'back' 18 %}{{ rep.construction_object }} · Отчёты</a>
 <div class="page-head"><div class="titles"><h1>Отчёт за {{ rep.date|date:"d E Y" }}</h1>
   <div class="sub">{{ rep.construction_object }} · {{ rep.author|default:"" }}</div></div>
   <div class="actions">{% if rep.confirmed %}<span class="badge done" style="padding:10px 14px">Подтверждён {{ rep.confirmed_at|date:"d.m H:i" }}</span>{% else %}

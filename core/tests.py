@@ -77,3 +77,53 @@ class SystemTests(TestCase):
         r = self.client.get(reverse("login"))
         self.assertContains(r, "img/logo-white.png")
         self.assertContains(r, "Manrope")
+
+
+class ObjectHubTests(TestCase):
+    """Всё по объекту — внутри объекта: вкладки и формы, привязанные к объекту."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from contracts.models import Assignment, WorkContract
+        from staff.models import Employee
+        cls.user = get_user_model().objects.create_superuser("boss", password="x")
+        cls.obj = ConstructionObject.objects.create(name="ЖК Атлант", status="in_progress")
+        cls.other = ConstructionObject.objects.create(name="Другой", status="in_progress")
+        cls.c = WorkContract.objects.create(construction_object=cls.obj, work_type="Кладка", volume=100,
+                                            unit="м³", price=9500)
+        cls.c2 = WorkContract.objects.create(construction_object=cls.other, work_type="Штукатурка", volume=50,
+                                             unit="м²", price=2000)
+        w = Employee.objects.create(full_name="Ерлан")
+        cls.a = Assignment.objects.create(contract=cls.c, employee=w, pay_type="per_volume", rate=4000)
+        Assignment.objects.create(contract=cls.c2, employee=w, pay_type="per_volume", rate=1000)
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_home_lists_objects_and_all_tabs_open(self):
+        r = self.client.get(reverse("dashboard"))
+        self.assertContains(r, "Мои объекты")
+        self.assertContains(r, "ЖК Атлант")
+        self.assertEqual(self.client.get(reverse("object_detail", args=[self.obj.pk])).status_code, 200)
+        from core.object_views import NEW, TABS
+        for tab, _, _ in TABS[1:]:
+            self.assertEqual(self.client.get(reverse("object_tab", args=[self.obj.pk, tab])).status_code, 200, tab)
+        for what in NEW:
+            self.assertEqual(self.client.get(reverse("object_new", args=[self.obj.pk, what])).status_code, 200, what)
+        self.assertEqual(self.client.get(reverse("object_tab", args=[self.obj.pk, "nope"])).status_code, 404)
+
+    def test_form_inside_object_is_scoped_and_returns_to_object(self):
+        url = reverse("object_new", args=[self.obj.pk, "output"])
+        r = self.client.get(url)
+        form = r.context["form"]
+        self.assertEqual(list(form.fields["assignment"].queryset), [self.a])  # только исполнители этого объекта
+        r = self.client.post(url, {"assignment": self.a.pk, "date": "2026-11-20", "volume": "5", "people": "2"})
+        self.assertRedirects(r, reverse("object_tab", args=[self.obj.pk, "output"]))
+
+    def test_contract_created_inside_object_belongs_to_it(self):
+        from contracts.models import WorkContract
+        r = self.client.post(reverse("object_new", args=[self.obj.pk, "work"]), {
+            "construction_object": self.obj.pk, "work_type": "Монолит", "volume": "10", "unit": "м³",
+            "price": "50000", "status": "active"})
+        self.assertRedirects(r, reverse("object_tab", args=[self.obj.pk, "work"]))
+        self.assertEqual(WorkContract.objects.get(work_type="Монолит").construction_object, self.obj)

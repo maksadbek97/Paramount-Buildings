@@ -4,6 +4,7 @@ from contracts import views as cv
 from quality import views as qv
 from warehouse import views as wv
 
+from . import object_views as ov
 from . import views
 
 urlpatterns = [
@@ -11,8 +12,12 @@ urlpatterns = [
     path("menu/", views.menu, name="menu"),
     path("objects/", views.object_list, name="object_list"),
     path("objects/new/", views.object_create, name="object_create"),
-    path("objects/<int:pk>/", views.object_detail, name="object_detail"),
+    path("objects/<int:pk>/", ov.object_detail, name="object_detail"),
     path("objects/<int:pk>/edit/", views.object_edit, name="object_edit"),
+    path("objects/<int:pk>/add/", ov.object_add, name="object_add"),
+    path("objects/<int:pk>/new/<slug:what>/", ov.object_new, name="object_new"),
+    path("objects/<int:pk>/<slug:tab>/", ov.object_detail, name="object_tab"),
+    path("add/", ov.add_choose, name="add_choose"),
     path("contracts/", cv.contract_list, name="contract_list"),
     path("contracts/new/", cv.contract_create, name="contract_create"),
     path("contracts/<int:pk>/", cv.contract_detail, name="contract_detail"),
