@@ -42,8 +42,28 @@ class SystemTests(TestCase):
     def test_pages_render(self):
         self.client.login(username="admin", password="pass12345")
         for name, args in [("dashboard", []), ("object_list", []), ("object_detail", [self.obj.pk]),
-                           ("staff_list", []), ("warehouse_list", []), ("finance_list", [])]:
+                           ("staff_list", []), ("warehouse_list", []), ("finance_list", []), ("menu", []),
+                           ("contract_list", []), ("object_create", []), ("object_edit", [self.obj.pk]),
+                           ("employee_create", []), ("task_create", []), ("material_create", []),
+                           ("movement_create", []), ("transaction_create", []), ("worklog_create", []),
+                           ("payment_create", []), ("contract_create", []), ("crew_create", [])]:
             r = self.client.get(reverse(name, args=args))
             self.assertEqual(r.status_code, 200, name)
         r = self.client.get(reverse("object_list") + "?status=done")
         self.assertEqual(r.status_code, 200)
+
+    def test_quick_forms_save(self):
+        self.client.login(username="admin", password="pass12345")
+        r = self.client.post(reverse("movement_create"), {
+            "kind": "out", "material": self.mat.pk, "quantity": "5", "date": "2026-11-20"})
+        self.assertRedirects(r, reverse("warehouse_list"))
+        self.assertEqual(self.mat.stock, 25)
+        self.client.post(reverse("transaction_create"), {"kind": "income", "amount": "50", "date": "2026-11-20"})
+        self.assertEqual(Transaction.objects.count(), 3)
+
+    def test_money_filters(self):
+        from core.templatetags.ui import money, num, short
+        self.assertEqual(num("1234567.50"), "1\u00a0234\u00a0567,5")
+        self.assertEqual(money(-2500), "−2\u00a0500")
+        self.assertEqual(short(3700000000), "3,7\u00a0млрд")
+        self.assertEqual(short(250000000), "250\u00a0млн")

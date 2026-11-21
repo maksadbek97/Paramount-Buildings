@@ -1,0 +1,13 @@
+{% load ui %}<a class="ccard" href="{% url 'contract_detail' c.pk %}">
+  <div class="top">
+    <div><div class="work">{{ c.work_type }}</div><div class="obj">{{ c.construction_object }}</div></div>
+    <span class="badge {{ c.status }}">{{ c.get_status_display }}</span>
+  </div>
+  <div class="nums">
+    <div>Сделано<b>{{ c.done_volume|num }} {{ c.unit }}</b></div>
+    <div style="text-align:center">Осталось<b>{{ c.remaining_volume|num }}</b></div>
+    <div style="text-align:right">Всего<b>{{ c.volume|num }} {{ c.unit }}</b></div>
+  </div>
+  <div class="bar"><span style="width:{{ c.progress }}%"></span></div>
+  <div class="foot"><span>{{ c.progress }}% · {{ c.price|money }} сум/{{ c.unit }}</span><span>Прибыль <b class="{% if c.profit >= 0 %}ok{% else %}bad{% endif %}">{{ c.profit|short }}</b></span></div>
+</a>

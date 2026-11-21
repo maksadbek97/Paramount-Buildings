@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<a class="back" href="{{ back }}">{% icon 'back' 18 %}Назад</a>
+<div class="page-head"><div class="titles"><h1>{{ title }}</h1>{% if subtitle %}<div class="sub">{{ subtitle }}</div>{% endif %}</div></div>
+<form method="post" class="form-card" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="errors">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
+  {% for f in form.hidden_fields %}{{ f }}{% endfor %}
+  {% for f in form.visible_fields %}
+  {% with t=f.widget_type %}
+  <div class="field{% if t == 'radioselect' %} choice{% elif t == 'checkboxselectmultiple' %} multi{% elif t == 'checkbox' %} check{% endif %}">
+    {% if t == 'checkbox' %}
+      <label>{{ f }} {{ f.label }}</label>
+    {% elif t == 'radioselect' or t == 'checkboxselectmultiple' %}
+      <span class="lbl">{{ f.label }}{% if f.field.required %} <span class="req">*</span>{% endif %}</span>
+      <div>{% for opt in f %}<label>{{ opt.tag }} {{ opt.choice_label }}</label>{% endfor %}</div>
+    {% else %}
+      <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %} <span class="req">*</span>{% endif %}</label>
+      {{ f }}
+    {% endif %}
+    {% if f.help_text %}<div class="help">{{ f.help_text }}</div>{% endif %}
+    {% for e in f.errors %}<div class="err">{{ e }}</div>{% endfor %}
+  </div>
+  {% endwith %}
+  {% endfor %}
+  <div class="form-actions">
+    <a class="btn btn-ghost btn-lg" href="{{ back }}">Отмена</a>
+    <button class="btn btn-primary btn-lg" type="submit">{{ submit }}</button>
+  </div>
+</form>
+<script>
+// Поле «Кому» показываем только для выплаты рабочим.
+(function () {
+  var who = document.getElementById('id_assignment');
+  var kinds = document.querySelectorAll('input[name=kind]');
+  if (!who || !kinds.length) return;
+  var box = who.closest('.field');
+  function sync() {
+    var k = document.querySelector('input[name=kind]:checked');
+    box.style.display = (k && k.value === 'worker') ? '' : 'none';
+  }
+  kinds.forEach(function (r) { r.addEventListener('change', sync); });
+  sync();
+})();
+</script>
+{% endblock %}
