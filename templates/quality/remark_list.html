@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% load ui %}
+{% block content %}
+<div class="page-head">
+  <div class="titles"><h1>Обходы и замечания</h1><div class="sub">Замечание → задача прорабу → исправление с фото → проверка → закрытие</div></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'remark_create' %}">{% icon 'plus' 18 %}Замечание</a></div>
+</div>
+<div class="stats" style="margin-bottom:16px">
+  <div class="stat"><div class="label">Открыто</div><div class="value">{{ counts.open }}</div></div>
+  <div class="stat"><div class="label">Просрочено</div><div class="value {% if counts.overdue %}bad{% endif %}">{{ counts.overdue }}</div></div>
+  <div class="stat"><div class="label">Ждут проверки</div><div class="value">{{ counts.review }}</div></div>
+</div>
+<div class="chips">
+  {% for v, label in "open:Открытые,overdue:Просроченные,review:На проверке,closed:Закрытые,all:Все"|pairs %}
+  <a href="?status={{ v }}" class="{% if current == v %}active{% endif %}">{{ label }}</a>{% endfor %}
+</div>
+{% if remarks %}<div class="list">{% for r in remarks %}{% include "quality/_remark_row.html" %}{% endfor %}</div>
+{% else %}<div class="empty">Замечаний нет</div>{% endif %}
+{% endblock %}

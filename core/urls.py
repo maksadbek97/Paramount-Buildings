@@ -1,6 +1,7 @@
 from django.urls import path
 
 from contracts import views as cv
+from quality import views as qv
 
 from . import views
 
@@ -27,7 +28,17 @@ urlpatterns = [
     path("staff/<int:pk>/edit/", views.employee_edit, name="employee_edit"),
     path("crews/new/", cv.crew_create, name="crew_create"),
     path("crews/<int:pk>/edit/", cv.crew_edit, name="crew_edit"),
+    path("tasks/", qv.task_list, name="task_list"),
     path("tasks/new/", views.task_create, name="task_create"),
+    path("tasks/<int:pk>/next/", qv.task_next, name="task_next"),
+    path("remarks/", qv.remark_list, name="remark_list"),
+    path("remarks/new/", qv.remark_create, name="remark_create"),
+    path("remarks/<int:pk>/", qv.remark_detail, name="remark_detail"),
+    path("remarks/<int:pk>/act/", qv.remark_act, name="remark_act"),
+    path("reports/", qv.report_list, name="report_list"),
+    path("reports/new/", qv.report_create, name="report_create"),
+    path("reports/<int:pk>/", qv.report_detail, name="report_detail"),
+    path("reports/<int:pk>/confirm/", qv.report_confirm, name="report_confirm"),
     path("warehouse/", views.warehouse_list, name="warehouse_list"),
     path("warehouse/materials/new/", views.material_create, name="material_create"),
     path("warehouse/movements/new/", views.movement_create, name="movement_create"),

@@ -1,5 +1,12 @@
 {% extends "base.html" %}{% load ui %}
-{% block title %}{{ obj.name }} · Paramount Buildings<h2>История операций<a class="more" href="{% url 'history' %}?object={{ obj.pk }}">Вся →</a></h2>
+{% block title %}{{ obj.name }} · Paramount Buildings<div class="grid2">
+  <div><h2>Открытые замечания <span class="count">{{ remarks|length }}</span><a class="more" href="{% url 'remark_create' %}?construction_object={{ obj.pk }}">+ Замечание</a></h2>
+    {% if remarks %}<div class="list">{% for r in remarks %}{% include "quality/_remark_row.html" %}{% endfor %}</div>{% else %}<div class="empty">Нет открытых замечаний</div>{% endif %}</div>
+  <div><h2>Ежедневные отчёты<a class="more" href="{% url 'report_create' %}?construction_object={{ obj.pk }}">+ Отчёт</a></h2>
+    {% if reports %}<div class="list">{% for rep in reports %}<a class="row" href="{% url 'report_detail' rep.pk %}"><span class="ico {% if rep.confirmed %}in{% else %}warn{% endif %}">{% icon 'clipboard' 20 %}</span><div class="body"><div class="title">{{ rep.date|date:"d E" }}</div><div class="meta">{{ rep.workers_count }} чел. · {{ rep.get_weather_display }}</div></div></a>{% endfor %}</div>{% else %}<div class="empty">Отчётов нет</div>{% endif %}</div>
+</div>
+
+<h2>История операций<a class="more" href="{% url 'history' %}?object={{ obj.pk }}">Вся →</a></h2>
 {% include "_history.html" with entries=history hide_object=1 %}
 {% endblock %}
 {% block content %}
@@ -57,6 +64,13 @@
     {% if documents %}<h2>Документы</h2><div class="list">{% for d in documents %}<a class="row" href="{{ d.file.url }}"><div class="body"><div class="title">{{ d.title }}</div><div class="meta">{{ d.uploaded_at|date:"d.m.Y" }}</div></div></a>{% endfor %}</div>{% endif %}
   </div>
 </div>
+<div class="grid2">
+  <div><h2>Открытые замечания <span class="count">{{ remarks|length }}</span><a class="more" href="{% url 'remark_create' %}?construction_object={{ obj.pk }}">+ Замечание</a></h2>
+    {% if remarks %}<div class="list">{% for r in remarks %}{% include "quality/_remark_row.html" %}{% endfor %}</div>{% else %}<div class="empty">Нет открытых замечаний</div>{% endif %}</div>
+  <div><h2>Ежедневные отчёты<a class="more" href="{% url 'report_create' %}?construction_object={{ obj.pk }}">+ Отчёт</a></h2>
+    {% if reports %}<div class="list">{% for rep in reports %}<a class="row" href="{% url 'report_detail' rep.pk %}"><span class="ico {% if rep.confirmed %}in{% else %}warn{% endif %}">{% icon 'clipboard' 20 %}</span><div class="body"><div class="title">{{ rep.date|date:"d E" }}</div><div class="meta">{{ rep.workers_count }} чел. · {{ rep.get_weather_display }}</div></div></a>{% endfor %}</div>{% else %}<div class="empty">Отчётов нет</div>{% endif %}</div>
+</div>
+
 <h2>История операций<a class="more" href="{% url 'history' %}?object={{ obj.pk }}">Вся →</a></h2>
 {% include "_history.html" with entries=history hide_object=1 %}
 {% endblock %}

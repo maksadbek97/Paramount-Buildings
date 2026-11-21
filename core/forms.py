@@ -83,7 +83,14 @@ class EmployeeForm(StyledMixin, forms.ModelForm):
 class TaskForm(StyledMixin, forms.ModelForm):
     class Meta:
         model = Task
-        fields = ["title", "construction_object", "assignee", "priority", "status", "due_date", "description"]
+        fields = ["title", "construction_object", "assignee", "source", "priority", "due_date", "description",
+                  "file", "comment"]
+        labels = {"assignee": "Ответственный / исполнитель"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["assignee"].required = True  # ТЗ п. 30.4: у задачи должен быть ответственный
+        self.fields["assignee"].widget.attrs["required"] = True
 
 
 class MaterialForm(StyledMixin, forms.ModelForm):

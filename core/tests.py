@@ -46,7 +46,9 @@ class SystemTests(TestCase):
                            ("contract_list", []), ("object_create", []), ("object_edit", [self.obj.pk]),
                            ("employee_create", []), ("task_create", []), ("material_create", []),
                            ("movement_create", []), ("transaction_create", []), ("worklog_create", []),
-                           ("payment_create", []), ("contract_create", []), ("crew_create", [])]:
+                           ("payment_create", []), ("contract_create", []), ("crew_create", []),
+                           ("pto", []), ("history", []), ("remark_list", []), ("remark_create", []),
+                           ("report_list", []), ("report_create", []), ("task_list", [])]:
             r = self.client.get(reverse(name, args=args))
             self.assertEqual(r.status_code, 200, name)
         r = self.client.get(reverse("object_list") + "?status=done")

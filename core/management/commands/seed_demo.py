@@ -7,6 +7,7 @@ from django.db import transaction
 
 from contracts.models import Assignment, Crew, MaterialNorm, Payment, WorkContract, WorkLog
 from core.models import AuditLog
+from quality.models import DailyReport, Remark
 from finance.models import Estimate, EstimateItem, Transaction
 from objects.models import Client, ConstructionObject
 from staff.models import Employee, Position, Task
@@ -197,16 +198,17 @@ class Command(BaseCommand):
                                          supplier=sup, construction_object=obj, contract=k)
 
         # --- задачи, сметы, общие финансы ---
-        for title, obj, who, status, prio, due in [
-            ("Принять газоблок на объект", o1, "Тулегенов", "in_progress", 3, d(1)),
-            ("Проверить кладку 7-го этажа", o1, "Нурланова", "new", 2, d(3)),
-            ("Подготовить акт за ноябрь", o1, "Нурланова", "new", 3, d(-2)),
-            ("Закрыть замечания по откосам", o2, "Оспанов", "in_progress", 3, d(-1)),
-            ("Согласовать фасад с заказчиком", o4, "Ким", "new", 1, d(30)),
-            ("Обследование здания школы", o3, "Ахметова", "new", 2, d(25)),
+        for title, obj, who, status, prio, due, src in [
+            ("Принять газоблок на объект", o1, "Тулегенов", "in_progress", 3, d(1), "supply"),
+            ("Проверить кладку 7-го этажа", o1, "Нурланова", "accepted", 2, d(3), "pto"),
+            ("Подготовить акт за ноябрь", o1, "Нурланова", "new", 3, d(-2), "pto"),
+            ("Заявка на штукатурную смесь", o1, "Сейтказиев", "review", 2, d(2), "foreman"),
+            ("Согласовать фасад с заказчиком", o4, "Ким", "new", 1, d(30), "management"),
+            ("Обследование здания школы", o3, "Ахметова", "new", 2, d(25), "management"),
+            ("Сдать исполнительную документацию", o5, "Нурланова", "done", 2, d(-130), "pto"),
         ]:
             Task.objects.create(title=title, construction_object=obj, assignee=emp[who], status=status,
-                                priority=prio, due_date=due)
+                                priority=prio, due_date=due, source=src)
         est = Estimate.objects.create(construction_object=o1, title="Смета субподряда, блок B")
         for name, unit, qty, price in [("Кладка газоблока D500", "м³", "3200", "14500"),
                                        ("Штукатурка стен", "м²", "10000", "2500")]:
@@ -221,6 +223,41 @@ class Command(BaseCommand):
         ]:
             Transaction.objects.create(construction_object=obj, kind=kind, amount=D(amount), date=d(days),
                                        category=category)
+
+        # --- обходы и замечания ---
+        status_to_task = {"open": "new", "in_work": "in_progress", "review": "review", "returned": "in_progress",
+                          "closed": "done"}
+        for obj, sec, fl, place, text, prio, who, days, status, fix in [
+            (o1, "B", "5", "кв. 18, оконный проём", "Кладка не по уровню, отклонение 12 мм", 3, "Сейтказиев", 2, "in_work", ""),
+            (o1, "B", "4", "лестничная клетка", "Не заполнены вертикальные швы", 2, "Сейтказиев", -1, "open", ""),
+            (o1, "B", "3", "кв. 9", "Трещина в штукатурке у откоса", 2, "Сейтказиев", 3, "review", "Перештукатурили откос, сетка"),
+            (o1, "B", "2", "техэтаж", "Мусор на этаже, нет ограждения проёма", 4, "Сейтказиев", -3, "returned", ""),
+            (o2, "1", "2", "офис 204", "Перегородка не перевязана с несущей стеной", 3, "Оспанов", 1, "open", ""),
+            (o2, "1", "1", "холл", "Сколы газоблока у входа", 1, "Оспанов", -10, "closed", "Заменили блоки"),
+            (o1, "B", "3", "кв. 9", "Повторно: трещина у откоса после высыхания", 3, "Сейтказиев", 4, "open", ""),
+        ]:
+            r = Remark.objects.create(
+                construction_object=obj, section=sec, floor=fl, place=place, description=text, priority=prio,
+                responsible=emp[who], deadline=d(days), status=status, fix_comment=fix,
+                executor=workers["Ибраев"] if status != "open" else None)
+            r.task = Task.objects.create(title=f"Устранить замечание {r.number}", construction_object=obj,
+                                         assignee=emp[who], due_date=d(days), priority=min(prio, 3),
+                                         status=status_to_task[status], source="inspection", description=text)
+            r.save()
+
+        # --- ежедневные отчёты прораба ---
+        for i, (weather, temp, people, problems, plan) in enumerate([
+            ("cloud", -4, 9, "", "Кладка 6-го этажа, приёмка газоблока"),
+            ("snow", -9, 7, "Снег, кладку начали в 10:00. Не хватает клея — 2 дня запаса.", "Очистить перекрытие, кладка 5-го этажа"),
+            ("sun", -2, 9, "", "Штукатурка 2-го этажа"),
+            ("wind", -6, 6, "Ветер, кран не работал 3 часа", "Догнать план по кладке"),
+        ]):
+            rep = DailyReport.objects.create(
+                construction_object=o1, date=d(-i - 1), weather=weather, temperature=temp, workers_count=people,
+                works="Кладка газоблока — секция B; штукатурка стен — секция B, 1 этаж",
+                equipment="Башенный кран, подъёмник" if i % 2 == 0 else "Подъёмник", problems=problems,
+                plan_next=plan, confirmed=i > 0)
+            rep.crews.set([crew1, crew2, crew3] if i % 2 == 0 else [crew1, crew3])
 
         AuditLog.objects.create(action="create", module="Объекты", object_id=str(o1.pk), object_repr=str(o1),
                                 construction_object=o1, changes='[["Статус", "", "Активный"]]',

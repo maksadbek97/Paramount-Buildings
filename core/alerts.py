@@ -60,9 +60,18 @@ def collect(contracts=None):
             items.append(("bad", f"Превышен бюджет: {obj.name} — потрачено {_money(spent)} "
                                  f"при бюджете {_money(obj.budget)}", reverse("object_detail", args=[obj.pk])))
 
+    from quality.models import Remark
+    open_r = Remark.objects.exclude(status=Remark.Status.CLOSED)
+    late = open_r.filter(deadline__lt=date.today()).count()
+    if late:
+        items.append(("bad", f"Просроченные замечания: {late}", reverse("remark_list") + "?status=overdue"))
+    soon = [r for r in open_r.filter(deadline__gte=date.today()) if r.due_soon]
+    if soon:
+        items.append(("warn", f"Скоро срок по замечаниям (2 дня): {len(soon)}", reverse("remark_list")))
+
     overdue = Task.objects.exclude(status="done").filter(due_date__lt=date.today()).count()
     if overdue:
-        items.append(("bad", f"Просроченные задачи: {overdue}", reverse("staff_list") + "#tasks"))
+        items.append(("bad", f"Просроченные задачи: {overdue}", reverse("task_list") + "?status=overdue"))
 
     order = {"bad": 0, "warn": 1, "info": 2}
     return sorted(items, key=lambda i: order[i[0]])
