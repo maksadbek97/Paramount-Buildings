@@ -153,7 +153,7 @@ class Command(BaseCommand):
         # Фильтры разделов: /company/docs/?kind=x или ?kind=x на самой странице -> /company/docs/kind/x/.
         html = re.sub(r'href="(/[^"?#]*)\?(kind|dept)=([\w-]+)"', r'href="\1\2/\3/"', html)
         # Прочие параметры (?contract=3) в статике не работают: ведём на общую форму.
-        html = re.sub(r'href="(/[^"?#]*)\?[^"#]*"', r'href="\1"', html)
+        html = re.sub(r'href="(/(?!static/)[^"?#]*)\?[^"#]*"', r'href="\1"', html)
         # Абсолютные ссылки -> относительные, чтобы сайт работал в подпапке GitHub Pages.
         prefix = "../" * target.strip("/").count("/") + ("../" if target.strip("/") else "")
         html = re.sub(r"url\('/(?!/)([^']*)'\)", lambda m: f"url('{prefix + m.group(1)}')", html)

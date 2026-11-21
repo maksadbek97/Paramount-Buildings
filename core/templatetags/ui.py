@@ -1,6 +1,11 @@
 from decimal import Decimal, InvalidOperation
 
+import hashlib
+from functools import lru_cache
+
 from django import template
+from django.contrib.staticfiles import finders
+from django.templatetags.static import static
 from django.utils.safestring import mark_safe
 
 register = template.Library()
@@ -134,3 +139,23 @@ def groups(form):
     from core.views import form_groups
     return form_groups(form)
 
+
+
+@lru_cache(maxsize=None)
+def _asset_version(path, mtime):
+    found = finders.find(path)
+    if not found:
+        return ""
+    with open(found, "rb") as fh:
+        return hashlib.md5(fh.read()).hexdigest()[:10]
+
+
+@register.simple_tag
+def asset(path):
+    """Ссылка на CSS/JS с версией по содержимому файла: после выкладки браузер сразу берёт новый файл, а не старый из кэша."""
+    import os
+    found = finders.find(path)
+    mtime = os.path.getmtime(found) if found else 0
+    ver = _asset_version(path, mtime)
+    url = static(path)
+    return f"{url}?v={ver}" if ver else url
