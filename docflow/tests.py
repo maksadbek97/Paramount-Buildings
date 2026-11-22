@@ -274,3 +274,110 @@ class ObjectPickerTests(TestCase):
         from core.management.commands.build_static import Command
         html = Command.make_static('<a href="/documents/?object=3">x</a>', "/documents/", "/documents/")
         self.assertIn('href="../documents/object/3/"', html)
+
+
+@override_settings(MEDIA_ROOT=MEDIA)
+class SamplesAndNumberingTests(TestCase):
+    """Образцы подписи и печати (PNG с прозрачным фоном), номер бланка и регистрация каждого документа."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from pathlib import Path
+
+        from django.core.files.base import ContentFile
+        cls.user = get_user_model().objects.create_superuser("boss3", password="pass12345")
+        cls.director = Employee.objects.create(full_name="Балтаев Нурбек Шарипжанұлы",
+                                               position=Position.objects.create(name="Директор"))
+        cls.company = Company.objects.create(name="ТОО «Paramount Buildings»", bin="210540017144",
+                                             director=cls.director)
+        Journal.objects.create(name="Приказы", kind="order", suffix="ОД", use_year=False, digits=1)
+        Journal.objects.create(name="Исходящие", kind="outgoing", prefix="ИСХ", digits=4)
+        blanks = Path(__file__).resolve().parent / "blanks"
+        cls.letter_tpl = Template.objects.create(name="Бланк письма", code="BLANK-MAIN", category="letter",
+                                                 is_letterhead=True)
+        cls.letter_tpl.file.save("p.docx", ContentFile((blanks / "paramount-blank-pismo.docx").read_bytes()))
+        cls.order_tpl = Template.objects.create(name="Бланк приказа", code="BLANK-ORD", category="order",
+                                                is_letterhead=True)
+        cls.order_tpl.file.save("o.docx", ContentFile((blanks / "paramount-blank-prikaz.docx").read_bytes()))
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    @staticmethod
+    def png(transparent=True, fmt="PNG"):
+        import io
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        img = Image.new("RGBA" if transparent else "RGB", (60, 30), (0, 0, 0, 0) if transparent else "white")
+        img.paste((36, 74, 170, 255) if transparent else (36, 74, 170), (10, 10, 50, 20))
+        buf = io.BytesIO()
+        img.save(buf, fmt)
+        return SimpleUploadedFile("s." + fmt.lower(), buf.getvalue(), content_type="image/" + fmt.lower())
+
+    def upload(self, kind, f, owner=None, pk=None):
+        url = reverse("docflow_seal_edit", args=[pk]) if pk else reverse("docflow_seal_new")
+        return self.client.post(url, {"name": f"Образец {kind}", "kind": kind, "owner": owner.pk if owner else "",
+                                      "is_active": "on", "image": f})
+
+    def test_only_transparent_png_is_accepted(self):
+        r = self.upload("seal", self.png(transparent=False))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("прозрачн", r.content.decode())
+        r = self.upload("seal", self.png(transparent=False, fmt="JPEG"))
+        self.assertIn("Нужен файл PNG", r.content.decode())
+        self.assertFalse(Seal.objects.exists())
+        r = self.upload("seal", self.png())
+        self.assertEqual(r.status_code, 302)
+        seal = Seal.objects.get()
+        self.assertEqual(seal.image_version, 1)
+        r = self.upload("seal", self.png(), pk=seal.pk)  # замена образца
+        seal.refresh_from_db()
+        self.assertEqual(seal.image_version, 2)
+        self.assertEqual(SealUsage.objects.filter(seal=seal, action="update").count(), 2)
+
+    def test_letter_gets_blank_number_and_samples_in_pdf_and_docx(self):
+        import io
+        import zipfile
+        self.upload("signature", self.png(), owner=self.director)
+        self.upload("seal", self.png())
+        seal = Seal.objects.get(kind="seal")
+        r = self.client.post(reverse("docflow_letter"), {
+            "template": self.letter_tpl.pk, "addressee": "Директору ТОО «Тест»", "subject": "О проверке",
+            "body": "Текст", "sign_mode": "both", "seal": seal.pk, "signer": self.director.pk})
+        self.assertEqual(r.status_code, 302)
+        doc = Document.objects.get(kind="outgoing")
+        self.assertEqual(doc.blank_number, "000001")
+        self.assertTrue(doc.number.startswith("ИСХ-"))
+        docx = doc.files.get(name__endswith=".docx")
+        z = zipfile.ZipFile(io.BytesIO(docx.file.read()))
+        self.assertIn("word/media/pb-sign.png", z.namelist())
+        self.assertIn("word/media/pb-seal.png", z.namelist())
+        xml = z.read("word/document.xml").decode()
+        self.assertIn("000001", xml)
+        self.assertIn('r:embed="rIdPbSign"', xml)
+        self.assertIn("pb-sign.png", z.read("word/_rels/document.xml.rels").decode())
+        self.assertTrue(SealUsage.objects.filter(document=doc, seal__kind="signature").exists())
+
+    def test_order_is_registered_on_create_and_signed_with_samples(self):
+        self.upload("signature", self.png(), owner=self.director)
+        self.upload("seal", self.png())
+        self.client.post(reverse("docflow_new", args=["order"]), {
+            "title": "Первый", "doc_date": "2026-11-22", "summary": "1. Пункт.", "priority": "normal",
+            "signer": self.director.pk})
+        self.client.post(reverse("docflow_new", args=["order"]), {
+            "title": "Второй", "doc_date": "2026-11-22", "summary": "1. Пункт.", "priority": "normal",
+            "signer": self.director.pk})
+        first, second = Document.objects.filter(kind="order").order_by("pk")
+        self.assertEqual((first.number, second.number), ("1-ОД", "2-ОД"))
+        self.assertEqual((first.blank_number, second.blank_number), ("000001", "000002"))
+        self.assertFalse(SealUsage.objects.filter(document=first).exists())  # до подписи образцов нет
+        for code in ("to_approval", "approve", "sign"):  # маршрут: согласование -> подпись
+            self.client.post(reverse("docflow_action", args=[first.pk]), {"action": code})
+        first.refresh_from_db()
+        self.assertEqual(first.blank_number, "000001")  # перевыпуск — на том же бланке
+        self.assertEqual(SealUsage.objects.filter(document=first, action="use").count(), 2)
+        blank_j = Journal.objects.get(kind="blank")
+        html = self.client.get(reverse("docflow_journal", args=[blank_j.pk])).content.decode()
+        self.assertIn("000002", html)
+        self.assertIn("1-ОД", html)

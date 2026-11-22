@@ -10,7 +10,7 @@
   <table class="otable df-jtable">
     <thead><tr><th>Номер</th><th>Дата рег.</th><th>Документ</th><th>{% if j.kind == 'incoming' %}Отправитель{% elif j.kind == 'outgoing' %}Адресат{% else %}Контрагент / объект{% endif %}</th><th>{% if j.kind == 'outgoing' %}Автор · подписант{% else %}Ответственный{% endif %}</th><th>Срок</th><th>Статус</th><th>PDF</th></tr></thead>
     <tbody>{% for d in entries %}<tr>
-      <td data-label="Номер" class="nowrap"><a class="df-num" href="{% url 'docflow_detail' d.pk %}">{{ d.number }}</a></td>
+      <td data-label="Номер" class="nowrap"><a class="df-num" href="{% url 'docflow_detail' d.pk %}">{% if j.kind == 'blank' %}{{ d.blank_number }}{% else %}{{ d.number }}{% endif %}</a>{% if j.kind == 'blank' and d.number %}<small class="block muted">{{ d.number }}</small>{% endif %}</td>
       <td data-label="Дата рег." class="nowrap">{{ d.reg_date|date:"d.m.Y" }}</td>
       <td data-label="Документ"><div><a class="doclink" href="{% url 'docflow_detail' d.pk %}">{{ d.title }}</a>{% if d.sender_number %}<small class="muted block">исх. {{ d.sender_number }} от {{ d.doc_date|date:"d.m.Y" }}</small>{% endif %}</div></td>
       <td data-label="{% if j.kind == 'incoming' %}Отправитель{% else %}Адресат{% endif %}">{% firstof d.counterparty d.construction_object "—" %}</td>

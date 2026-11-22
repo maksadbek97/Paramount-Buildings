@@ -124,6 +124,78 @@ def _signature(d, x, y):
     d.line([(x + 40, y + 26), (x + 230, y - 8)], fill=SEAL, width=3)
 
 
+def _open_png(src):
+    """Образец подписи или печати (PNG с прозрачным фоном): путь, файл или байты -> RGBA."""
+    if src is None:
+        return None
+    if isinstance(src, Image.Image):
+        return src.convert("RGBA")
+    try:
+        if hasattr(src, "open"):  # FieldFile
+            with src.open("rb") as f:
+                return Image.open(io.BytesIO(f.read())).convert("RGBA")
+        if isinstance(src, (bytes, bytearray)):
+            return Image.open(io.BytesIO(src)).convert("RGBA")
+        return Image.open(src).convert("RGBA")
+    except (OSError, ValueError):
+        return None
+
+
+# Где на листе стоят образцы (центр и наибольший размер, точки при 150 dpi) — так же в blank.js и blank_docx.py
+SEAL_BOX = (330, 10, 250, 250)      # от левого поля и строки подписи
+SIGN_BOX = (-445, 0, 300, 130)      # от правого края текста и строки подписи
+
+
+def _paste_fit(img, mark, cx, cy, max_w, max_h):
+    k = min(max_w / mark.width, max_h / mark.height)
+    mark = mark.resize((max(1, int(mark.width * k)), max(1, int(mark.height * k))), Image.LANCZOS)
+    img.paste(mark, (int(cx - mark.width / 2), int(cy - mark.height / 2)), mark)
+
+
+def _sign_and_seal(img, d, x_seal, y, company, sign, seal, sign_img=None, seal_img=None):
+    """Подпись и печать в своих местах: загруженный образец (PNG) или, если его нет, условный рисунок."""
+    if seal:
+        mark = _open_png(seal_img)
+        if mark:
+            _paste_fit(img, mark, x_seal + SEAL_BOX[0], y + SEAL_BOX[1], SEAL_BOX[2], SEAL_BOX[3])
+        else:
+            _seal(img, x_seal + SEAL_BOX[0], y + SEAL_BOX[1], company)
+    if sign:
+        mark = _open_png(sign_img)
+        if mark:
+            _paste_fit(img, mark, W - M + SIGN_BOX[0], y + SIGN_BOX[1], SIGN_BOX[2], SIGN_BOX[3])
+        else:
+            _signature(d, W - M - 560, y + 6)
+
+
+def sample_seal_png(company):
+    """Примерный образец печати (PNG с прозрачным фоном) — для демо, пока компания не загрузила свой."""
+    img = Image.new("RGBA", (260, 260), (0, 0, 0, 0))
+    _seal(img, 130, 130, company)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def sample_signature_png(seed=0):
+    """Примерный образец подписи (PNG с прозрачным фоном) — для демо."""
+    img = Image.new("RGBA", (300, 120), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    pts = [(25 + t / 59 * 230, 64 + (24 + seed * 4) * math.sin(t / 59 * (9 + seed)) * (1 - t / 59 * .6) - t / 59 * 22)
+           for t in range(60)]
+    d.line(pts, fill=SEAL + (255,), width=5, joint="curve")
+    d.line([(70, 92), (270, 52)], fill=SEAL + (255,), width=4)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def _blank_number(d, number):
+    """Регистрационный номер бланка — внизу справа, как 000001 на утверждённом бланке."""
+    if number:
+        d.text((W - M, H - 112), number, font=font(PT), fill=INK, anchor="ra")
+
+
 def _seal(img, cx, cy, company):
     r = 118
     layer = Image.new("RGBA", (r * 2 + 10, r * 2 + 10), (0, 0, 0, 0))
@@ -198,7 +270,8 @@ def _number_line(d, x, y, number, date_text):
 
 
 def letter_pdf(company, number, date_text, addressee, subject, paragraphs, signer_pos="", signer_name="",
-               sign=False, seal=False, attachments=(), executor="", executor_phone=""):
+               sign=False, seal=False, attachments=(), executor="", executor_phone="", sign_img=None, seal_img=None,
+               blank_number=""):
     """Исходящее письмо на фирменном бланке Paramount (как «бланк для ПИСЬМА»)."""
     img = Image.new("RGB", (W, H), "white")
     d = ImageDraw.Draw(img)
@@ -225,16 +298,15 @@ def letter_pdf(company, number, date_text, addressee, subject, paragraphs, signe
     y = max(y + 50, H - 450)
     d.text((M, y), signer_pos, font=font(PT, True), fill=INK)
     d.text((W - M, y), signer_name, font=font(PT, True), fill=INK, anchor="ra")
-    if seal:
-        _seal(img, M + 330, y + 10, company)
-    if sign:
-        _signature(d, W - M - 560, y + 6)
+    _sign_and_seal(img, d, M, y, company, sign, seal, sign_img, seal_img)
     _executor(d, executor, executor_phone)
+    _blank_number(d, blank_number)
     _blank_note(d, "Изображение подписи и печати не является ЭЦП" if (sign or seal) else "")
     return _save(img)
 
 
-def order_pdf(company, number, date_text, title, basis, points, signer_pos, signer_name, sign=True, seal=False):
+def order_pdf(company, number, date_text, title, basis, points, signer_pos, signer_name, sign=True, seal=False,
+              sign_img=None, seal_img=None, blank_number=""):
     """Приказ на фирменном бланке Paramount (как «бланк для ПРИКАЗА»): БҰЙРЫҚ — ПРИКАЗ."""
     img = Image.new("RGB", (W, H), "white")
     d = ImageDraw.Draw(img)
@@ -251,10 +323,8 @@ def order_pdf(company, number, date_text, title, basis, points, signer_pos, sign
     y = max(y + 60, H - 430)
     d.text((M + 60, y), signer_pos, font=font(PT, True), fill=INK)
     d.text((W - M, y), signer_name, font=font(PT, True), fill=INK, anchor="ra")
-    if sign:
-        _signature(d, W - M - 560, y + 6)
-    if seal:
-        _seal(img, M + 330, y + 10, company)
+    _sign_and_seal(img, d, M, y, company, sign, seal, sign_img, seal_img)
+    _blank_number(d, blank_number)
     _blank_note(d, "Изображение подписи и печати не является ЭЦП" if (sign or seal) else "")
     return _save(img)
 

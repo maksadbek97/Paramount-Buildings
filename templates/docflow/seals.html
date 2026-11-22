@@ -1,17 +1,18 @@
 {% extends "docflow/_base.html" %}{% load ui %}
-{% block ptitle %}Подпись и печать{% endblock %}
+{% block ptitle %}Образцы подписи и печати{% endblock %}
 {% block tab %}
 <div class="tabhead df-th">
-  <div><h2>Подпись и печать</h2><p class="muted">Реестр печатей, штампов и утверждённых образов подписи. Каждая выдача, возврат и использование фиксируются. Изображение подписи или печати на PDF — не ЭЦП; юридически значимая подпись — через ЭЦП НУЦ РК.</p></div>
-  <div class="tabhead-act"><a class="btn btn-ghost" href="{% url 'docflow_seal_new' %}">{% icon 'plus' 18 %}Добавить</a></div>
+  <div><h2>Образцы подписи и печати</h2><p class="muted">Загрузите свои образцы в PNG с прозрачным фоном — система сама поставит подпись у фамилии подписанта, а печать у должности на фирменном бланке (предпросмотр, PDF и Word). Заменить или обновить образец можно в любое время. Изображение подписи или печати — не ЭЦП; юридически значимая подпись — через ЭЦП НУЦ РК.</p></div>
+  <div class="tabhead-act"><a class="btn btn-ghost" href="{% url 'docflow_seal_new' %}">{% icon 'plus' 18 %}Загрузить образец</a></div>
 </div>
 <div class="df-sgrid">
   {% for s in seals %}<article class="df-scard{% if not s.is_active %} dim{% endif %}">
-    <div class="df-simg k-{{ s.kind }}">{% if s.kind == 'signature' %}<svg viewBox="0 0 120 50" width="120" height="50"><path d="M5 35 C20 5, 30 45, 45 25 S70 10, 80 30 S100 40, 115 12" fill="none" stroke="#244AAA" stroke-width="3" stroke-linecap="round"/></svg>{% else %}<span class="ring"><span>{% if s.kind == 'stamp' %}ВХОДЯЩИЙ{% else %}PARAMOUNT<br>BUILDINGS{% endif %}</span></span>{% endif %}</div>
+    <div class="df-simg k-{{ s.kind }}">{% if s.image %}<img class="df-sample" src="{{ s.image.url }}" alt="Образец: {{ s.name }}">{% elif s.kind == 'signature' %}<svg viewBox="0 0 120 50" width="120" height="50"><path d="M5 35 C20 5, 30 45, 45 25 S70 10, 80 30 S100 40, 115 12" fill="none" stroke="#244AAA" stroke-width="3" stroke-linecap="round"/></svg>{% else %}<span class="ring"><span>{% if s.kind == 'stamp' %}ВХОДЯЩИЙ{% else %}PARAMOUNT<br>BUILDINGS{% endif %}</span></span>{% endif %}</div>
     <div class="dt"><b>{{ s.name }}</b><small>{{ s.get_kind_display }} · хранит {{ s.owner.full_name|default:"—" }}</small>
       <small>{{ s.location }}</small>
       <div class="tags">{% if s.issued_to %}<span class="t-bad">выдана: {{ s.issued_to.full_name }}</span>{% elif s.is_active %}<span class="t-ok">на месте</span>{% else %}<span>не действует</span>{% endif %}<span>использований {{ s.n }}</span></div>
       <small class="muted">Доступ: {{ s.access|default:"—" }}</small>
+      <small>{% if s.image %}Образец PNG · версия {{ s.image_version }}{% if s.image_updated_at %} · {{ s.image_updated_at|date:"d.m.Y" }}{% endif %} · <a href="{% url 'docflow_seal_edit' s.pk %}">заменить</a>{% else %}<a href="{% url 'docflow_seal_edit' s.pk %}">Загрузить образец PNG</a> — пока на бланке условный рисунок{% endif %}</small>
     </div>
     <a class="rowedit" href="{% url 'docflow_seal_edit' s.pk %}" title="Изменить">{% icon 'edit' 16 %}</a>
   </article>{% endfor %}

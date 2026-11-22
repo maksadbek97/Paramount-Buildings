@@ -75,7 +75,7 @@
     <fieldset data-step="7" hidden>
       <legend>Шаг 7. Сформировать и зарегистрировать</legend>
       <ul class="df-check" id="gCheck"></ul>
-      <div class="obnote">{% icon 'table' 18 %}<span>Номер по журналу исходящих: <b>{{ next_number }}</b> (предварительно). Номер расходуется только при успешной регистрации; запись в журнал появится сама.</span></div>
+      <div class="obnote">{% icon 'table' 18 %}<span>Номер по журналу исходящих: <b>{{ next_number }}</b>, номер бланка: <b>{{ blank_data.blank_number }}</b> (предварительно). Номер расходуется только при успешной регистрации; запись в журнал появится сама.</span></div>
       <button class="btn btn-primary btn-lg btn-block" type="submit" id="gGo">{% icon 'check' 20 %}Сформировать и зарегистрировать</button>
     </fieldset>
 

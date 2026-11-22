@@ -12,7 +12,7 @@ from core.demo_pdf import document_pdf
 from objects.models import ConstructionObject
 from staff.models import Employee
 
-from . import pdf
+from . import pdf, services
 from .models import (Approval, ArchiveRecord, CaseFile, DocEvent, DocTask, Document, DocumentFile, Journal,
                      Recipient, Seal, SealUsage, Template)
 
@@ -155,6 +155,14 @@ def seed():
                                    location="Изъята, акт № 2 от 15.01.2026", access="Не используется",
                                    is_active=False),
     }
+    # Образцы для бланка (PNG с прозрачным фоном): в рабочей системе компания загружает свои
+    for key, data in (("seal", pdf.sample_seal_png(company)), ("sigB", pdf.sample_signature_png(0)),
+                      ("sigA", pdf.sample_signature_png(1))):
+        S[key].image.save(f"{key.lower()}.png", ContentFile(data), save=False)
+        S[key].image_version, S[key].image_updated_at = 1, at(d(-9), 10, 0)
+        S[key].save()
+        SealUsage.objects.create(seal=S[key], employee=A, action="update", purpose="Образец, версия 1",
+                                 at=at(d(-9), 10, 0))
 
     docs = {}
 
@@ -480,9 +488,12 @@ def seed():
             continue
         dt = f"{doc.doc_date:%d.%m.%Y}"
         if doc.kind == "order":
+            signed = bool(doc.number)
+            blank_no = services.assign_blank_number(doc) if signed else ""
             content = pdf.order_pdf(company, doc.number, dt, doc.title, "В целях организации работы компании",
-                                    getattr(doc, "_points", []), signer_pos, short(B),
-                                    sign=bool(doc.number), seal=False)
+                                    getattr(doc, "_points", []), signer_pos, short(B), sign=signed, seal=signed,
+                                    sign_img=services.png_bytes(S["sigB"]), seal_img=services.png_bytes(S["seal"]),
+                                    blank_number=blank_no)
         elif doc.kind == "contract":
             amount_text = (f"Цена договора — {int(doc.amount):,} тенге".replace(",", " ")
                            + (", в том числе НДС 12%." if doc.vat else "."))

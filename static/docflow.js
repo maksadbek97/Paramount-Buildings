@@ -220,7 +220,8 @@
       attachments: val('attachments').split('\n').map(function (x) { return x.trim(); }).filter(Boolean),
       signerPos: o ? (o.dataset.pos || 'Директор') : 'Директор', signerName: o && window.PBBlank ? window.PBBlank.shortName(o.dataset.name) : '',
       sign: mode === 'sign' || mode === 'both', seal: (mode === 'seal' || mode === 'both') && !!(sealSel && sealSel.options.length),
-      executor: d.executor || '', executorPhone: d.executor_phone || ''};
+      executor: d.executor || '', executorPhone: d.executor_phone || '', blankNumber: d.blank_number || '',
+      signerId: o ? o.value : '', sealId: sealSel ? sealSel.value : ''};
   }
   var drawing = 0;
   function render() {

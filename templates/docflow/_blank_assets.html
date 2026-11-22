@@ -1,4 +1,4 @@
 {% load static ui %}{{ blank_data|json_script:"pbBlankData" }}
-<div hidden id="pbAssets" data-docx-src="{{ blank_data.docx|default:'' }}"><img id="pbLogo" src="{% static 'img/blank/header-logo.png' %}" alt=""><img id="pbMark" src="{% static 'img/blank/watermark.png' %}" alt=""></div>
+<div hidden id="pbAssets" data-docx-src="{{ blank_data.docx|default:'' }}"><img id="pbLogo" src="{% static 'img/blank/header-logo.png' %}" alt=""><img id="pbMark" src="{% static 'img/blank/watermark.png' %}" alt="">{% for pk, url in blank_data.sign_images %}<img data-sign-for="{{ pk }}" src="{{ url }}" alt="">{% endfor %}{% for pk, url in blank_data.seal_images %}<img data-seal-for="{{ pk }}" src="{{ url }}" alt="">{% endfor %}{% if blank_data.seal_default %}<img data-seal-default src="{{ blank_data.seal_default }}" alt="">{% endif %}</div>
 <script src="{% static 'vendor/jszip.min.js' %}" defer></script>
 <script src="{% asset 'blank.js' %}" defer></script>

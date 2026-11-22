@@ -67,19 +67,87 @@ def _p(lines=("",), bold=False, size=24, jc=None, left=-851, first=None, tab_rig
     return f"<w:p>{ppr}{''.join(runs)}</w:p>"
 
 
-def _rebuild(blank_bytes, build):
-    """Пересобрать DOCX: build(paragraphs) -> новое тело (без sectPr)."""
+EMU = 6096  # одна точка листа при 150 dpi (914400 EMU в дюйме)
+PAGE_W = 1240
+# Центр и наибольший размер образцов, точки при 150 dpi — как в pdf.py (SEAL_BOX, SIGN_BOX)
+PLACES = {"seal": (88 + 330, 10, 250, 250), "sign": (PAGE_W - 88 - 445, 0, 300, 130)}
+
+
+def _png_size(data):
+    from PIL import Image
+    with Image.open(io.BytesIO(data)) as im:
+        return im.size
+
+
+def _anchor(key, rid, size, n):
+    """Образец (PNG) поверх текста: по горизонтали от края листа, по вертикали от строки подписи."""
+    cx, cy, max_w, max_h = PLACES[key]
+    k = min(max_w / size[0], max_h / size[1])
+    w, h = size[0] * k, size[1] * k
+    x, y = int((cx - w / 2) * EMU), int((cy - h / 2) * EMU)
+    w, h = int(w * EMU), int(h * EMU)
+    return (f'<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" '
+            f'relativeHeight="{251700000 + n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">'
+            f'<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>{x}</wp:posOffset>'
+            f'</wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>{y}</wp:posOffset></wp:positionV>'
+            f'<wp:extent cx="{w}" cy="{h}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>'
+            f'<wp:docPr id="{9100 + n}" name="pb-{key}"/><wp:cNvGraphicFramePr/>'
+            f'<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            f'<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            f'<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr>'
+            f'<pic:cNvPr id="{9100 + n}" name="pb-{key}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill>'
+            f'<a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm>'
+            f'<a:off x="0" y="0"/><a:ext cx="{w}" cy="{h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/>'
+            f'</a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>')
+
+
+def _with_marks(paragraph, marks):
+    """Вставить образцы подписи и печати в абзац строки подписи."""
+    if not marks:
+        return paragraph
+    i = paragraph.index("</w:pPr>") + len("</w:pPr>")
+    return paragraph[:i] + marks + paragraph[i:]
+
+
+def _blank_no(number):
+    """Регистрационный номер бланка внизу справа (рамка текста, привязанная к листу)."""
+    if not number:
+        return ""
+    return (f'<w:p><w:pPr><w:framePr w:w="2268" w:h="397" w:hRule="exact" w:hAnchor="page" w:vAnchor="page" '
+            f'w:x="{11906 - 850 - 2268}" w:y="{16838 - 1134 + 120}"/><w:jc w:val="right"/></w:pPr>'
+            f'{_run(number)}</w:p>')
+
+
+def _rebuild(blank_bytes, build, images=None):
+    """Пересобрать DOCX: build(paragraphs, marks) -> новое тело (без sectPr).
+    images: {"sign": png, "seal": png} — образцы, marks: готовые вставки для строки подписи."""
     src = zipfile.ZipFile(io.BytesIO(blank_bytes))
     xml = src.read("word/document.xml").decode("utf-8")
+    rels = src.read("word/_rels/document.xml.rels").decode("utf-8")
+    types = src.read("[Content_Types].xml").decode("utf-8")
+    extra, marks = {}, ""
+    for n, (key, data) in enumerate((k, v) for k, v in (images or {}).items() if v):
+        rid, target = f"rIdPb{key.title()}", f"media/pb-{key}.png"
+        rels = rels.replace("</Relationships>", f'<Relationship Id="{rid}" Type="http://schemas.openxmlformats.org/'
+                                                f'officeDocument/2006/relationships/image" Target="{target}"/>'
+                                                "</Relationships>")
+        extra["word/" + target] = data
+        marks += _anchor(key, rid, _png_size(data), n)
+    if extra and 'Extension="png"' not in types:
+        i = types.index(">", types.index("<Types")) + 1
+        types = types[:i] + '<Default Extension="png" ContentType="image/png"/>' + types[i:]
     b0 = xml.index("<w:body>") + len("<w:body>")
     sect = xml.rindex("<w:sectPr")
-    body = build(_top_paragraphs(xml[b0:sect]))
+    body = build(_top_paragraphs(xml[b0:sect]), marks)
     xml = xml[:b0] + body + xml[sect:]
+    changed = {"word/document.xml": xml, "word/_rels/document.xml.rels": rels, "[Content_Types].xml": types}
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
         for item in src.infolist():
-            data = xml.encode("utf-8") if item.filename == "word/document.xml" else src.read(item.filename)
+            data = changed[item.filename].encode("utf-8") if item.filename in changed else src.read(item.filename)
             dst.writestr(item, data)
+        for name, data in extra.items():
+            dst.writestr(name, data)
     return out.getvalue()
 
 
@@ -93,12 +161,12 @@ def _number_date(number, date_text, size=24):
                date_words(date_text) if date_text else "«___» ___________ 20__ г."], size=size)
 
 
-def _executor(xml, executor, phone):
-    """В надписи «Исп: … Тел: …» подставляем исполнителя письма."""
+def _executor(xml, executor, phone, blank_number=""):
+    """В надписи «Исп: … Тел: …» подставляем исполнителя письма, в надпись «000001» — номер бланка."""
     def repl(m):
         t = m.group(2)
-        if re.fullmatch(r"\s*\d{4,}\s*", t):  # типографский номер бланка — не для сформированных писем
-            t = ""
+        if re.fullmatch(r"\s*\d{4,}\s*", t):  # типографский номер бланка -> регистрационный номер этого бланка
+            t = blank_number
         elif t.startswith("Исп:"):
             t = f"Исп: {executor}" if executor else "Исп:"
         elif t.startswith("Тел:"):
@@ -114,9 +182,9 @@ def _pt12(xml):
 
 
 def letter_docx(blank_bytes, *, number, date_text, addressee, subject, paragraphs, signer_pos="", signer_name="",
-                attachments=(), executor="", executor_phone=""):
-    def build(paras):
-        keep = [_executor(x, executor, executor_phone) for x in _anchored(paras)]
+                attachments=(), executor="", executor_phone="", sign_png=None, seal_png=None, blank_number=""):
+    def build(paras, marks):
+        keep = [_executor(x, executor, executor_phone, blank_number) for x in _anchored(paras)]
         # надпись «Исп.» привязана к абзацу под номером — ставим её туда же, как на бланке
         out = [_number_date(number, date_text), *keep, _p()]
         out.append(_p(addressee.split("\n"), bold=True, left=4600))
@@ -125,13 +193,16 @@ def letter_docx(blank_bytes, *, number, date_text, addressee, subject, paragraph
         if attachments:
             out += [_p(), _p("Приложения:", bold=True)]
             out += [_p(f"{i}. {a}") for i, a in enumerate(attachments, 1)]
-        out += [_p(), _p(), _p(f"{signer_pos}\t{signer_name}", bold=True, tab_right=True)]
+        out += [_p(), _p(), _with_marks(_p(f"{signer_pos}\t{signer_name}", bold=True, tab_right=True), marks)]
+        if blank_number and not any(re.search(r">\s*\d{4,}\s*<", x) for x in _anchored(paras)):
+            out.append(_blank_no(blank_number))
         return "".join(out)
-    return _rebuild(blank_bytes, build)
+    return _rebuild(blank_bytes, build, {"sign": sign_png, "seal": seal_png})
 
 
-def order_docx(blank_bytes, *, number, date_text, title, basis, points, signer_pos="", signer_name=""):
-    def build(paras):
+def order_docx(blank_bytes, *, number, date_text, title, basis, points, signer_pos="", signer_name="",
+               sign_png=None, seal_png=None, blank_number=""):
+    def build(paras, marks):
         out = [_p(), _p("БҰЙРЫҚ\tПРИКАЗ", bold=True, tab_right=True), _number_date(number, date_text), _p()]
         out.append(_p(title.split("\n"), bold=True, left=-142))
         out.append(_p())
@@ -139,6 +210,8 @@ def order_docx(blank_bytes, *, number, date_text, title, basis, points, signer_p
             out.append(_p(basis, jc="both", first=709))
         out.append(_p("ПРИКАЗЫВАЮ:", bold=True, first=709))
         out += [_p(f"{i}. {t}", jc="both", first=709) for i, t in enumerate(points, 1)]
-        out += [_p(), _p(), _p(f"{signer_pos}\t{signer_name}", bold=True, left=-142, tab_right=True)]
+        out += [_p(), _p(), _with_marks(_p(f"{signer_pos}\t{signer_name}", bold=True, left=-142, tab_right=True),
+                                        marks)]
+        out.append(_blank_no(blank_number))
         return "".join(out)
-    return _rebuild(blank_bytes, build)
+    return _rebuild(blank_bytes, build, {"sign": sign_png, "seal": seal_png})

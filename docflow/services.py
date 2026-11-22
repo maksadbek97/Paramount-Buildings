@@ -6,7 +6,7 @@ from django.utils import timezone
 
 from staff.models import Employee
 
-from .models import Approval, ArchiveRecord, DocEvent, Document, Journal
+from .models import Approval, ArchiveRecord, DocEvent, Document, Journal, Seal
 
 JOURNAL_FOR = {"incoming": "incoming", "outgoing": "outgoing", "order": "order", "contract": "contract",
                "internal": "internal"}
@@ -56,6 +56,51 @@ def register(doc, user=None):
         doc.save(update_fields=["journal", "number", "reg_date"])
     log(doc, "register", f"Зарегистрирован в журнале «{journal}» под № {doc.number}", user, new=doc.number)
     return doc.number
+
+
+def blank_journal():
+    """Журнал фирменных бланков: сквозной номер 000001, 000002… для каждого документа на бланке."""
+    j = Journal.objects.filter(kind="blank").first()
+    if not j:
+        j = Journal.objects.create(name="Журнал фирменных бланков", kind="blank", digits=6, use_year=False,
+                                   reset_yearly=False)
+    return j
+
+
+def assign_blank_number(doc, user=None):
+    """Регистрационный номер бланка. Уже есть — не меняем (перевыпуск PDF идёт на том же бланке)."""
+    if doc.blank_number:
+        return doc.blank_number
+    doc.blank_number = blank_journal().next_number()
+    doc.save(update_fields=["blank_number"])
+    log(doc, "register", f"Фирменный бланк № {doc.blank_number}", user, new=doc.blank_number)
+    return doc.blank_number
+
+
+def signature_sample(employee):
+    """Загруженный образец подписи сотрудника (PNG) или None."""
+    if not employee:
+        return None
+    return Seal.objects.filter(kind="signature", is_active=True, owner=employee).exclude(image="").order_by(
+        "-image_updated_at", "-id").first()
+
+
+def seal_sample(seal=None):
+    """Образец печати (PNG): выбранная печать, если у неё есть образец, иначе основная действующая."""
+    if seal and seal.image:
+        return seal
+    return Seal.objects.filter(kind="seal", is_active=True).exclude(image="").order_by("-image_updated_at",
+                                                                                       "-id").first()
+
+
+def png_bytes(sample):
+    if not sample or not sample.image:
+        return None
+    try:
+        with sample.image.open("rb") as f:
+            return f.read()
+    except (OSError, ValueError):
+        return None
 
 
 def set_status(doc, status, user=None, reason="", text=""):

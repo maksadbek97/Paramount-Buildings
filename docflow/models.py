@@ -21,6 +21,7 @@ class Journal(models.Model):
         CONTRACT = "contract", "Договоры"
         INTERNAL = "internal", "Внутренние"
         CUSTOM = "custom", "Пользовательский"
+        BLANK = "blank", "Бланки"
 
     name = models.CharField("Название", max_length=150)
     kind = models.CharField("Вид", max_length=10, choices=Kind.choices, default=Kind.CUSTOM)
@@ -149,6 +150,32 @@ class Template(models.Model):
         return self.preview or self.file
 
 
+def validate_transparent_png(f):
+    """Образец подписи или печати: только PNG с прозрачным фоном."""
+    from django.core.exceptions import ValidationError
+    from PIL import Image
+    if f.size > 5 * 1024 * 1024:
+        raise ValidationError("Файл больше 5 МБ.")
+    try:
+        f.seek(0)
+        img = Image.open(f)
+        img.load()
+    except Exception:
+        raise ValidationError("Это не изображение. Загрузите PNG с прозрачным фоном.")
+    finally:
+        f.seek(0)
+    if img.format != "PNG":
+        raise ValidationError("Нужен файл PNG (сейчас: %s)." % (img.format or "неизвестный формат"))
+    if img.mode not in ("RGBA", "LA", "PA") and "transparency" not in img.info:
+        raise ValidationError("У PNG нет прозрачного фона. Сохраните образец с прозрачностью (без белого фона).")
+    alpha = img.convert("RGBA").getchannel("A")
+    lo, hi = alpha.getextrema()
+    if lo == 255:
+        raise ValidationError("Фон не прозрачный. Сохраните образец с прозрачным фоном.")
+    if hi == 0:
+        raise ValidationError("Изображение полностью прозрачное — на нём нет подписи или печати.")
+
+
 class Seal(models.Model):
     """Печать, штамп или утверждённое изображение подписи (ТЗ п. 16, 35.3)."""
 
@@ -166,6 +193,12 @@ class Seal(models.Model):
     is_active = models.BooleanField("Действует", default=True)
     issued_to = models.ForeignKey("staff.Employee", verbose_name="Сейчас выдана", null=True, blank=True,
                                   on_delete=models.SET_NULL, related_name="+")
+    image = models.FileField("Образец (PNG с прозрачным фоном)", upload_to="docflow/seals/", blank=True,
+                             validators=[validate_transparent_png],
+                             help_text="Только PNG с прозрачным фоном. Система сама ставит образец на бланк: "
+                                       "подпись — у фамилии подписанта, печать — у должности.")
+    image_version = models.PositiveSmallIntegerField("Версия образца", default=0)
+    image_updated_at = models.DateTimeField("Образец обновлён", null=True, blank=True)
 
     class Meta:
         verbose_name = "Печать / подпись"
@@ -237,6 +270,8 @@ class Document(models.Model):
                                help_text="Например: организационный, претензия, служебная записка")
     title = models.CharField("Название / тема", max_length=255)
     number = models.CharField("Рег. номер", max_length=40, blank=True)
+    blank_number = models.CharField("Рег. номер бланка", max_length=20, blank=True,
+                                    help_text="Сквозной номер фирменного бланка (как 000001 внизу бланка)")
     doc_date = models.DateField("Дата документа", default=date.today)
     reg_date = models.DateField("Дата регистрации", null=True, blank=True)
     direction = models.CharField("Направление", max_length=8, choices=Direction.choices, default=Direction.INTERNAL)
@@ -614,6 +649,7 @@ class SealUsage(models.Model):
 
     class Action(models.TextChoices):
         USE = "use", "Проставлена на документ"
+        UPDATE = "update", "Образец загружен / заменён"
         ISSUE = "issue", "Выдана"
         RETURN = "return", "Возвращена"
 

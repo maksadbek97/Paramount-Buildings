@@ -54,16 +54,32 @@
   }
 
   /* ---------- Картинки бланка ---------- */
-  var cache = {};
-  function img(id) {
-    var el = document.getElementById(id);
+  function loaded(el) {
     if (!el) return Promise.resolve(null);
-    if (!cache[id]) cache[id] = new Promise(function (ok) {
-      if (el.complete && el.naturalWidth) return ok(el);
+    if (!el._pbReady) el._pbReady = new Promise(function (ok) {
+      if (el.complete) return ok(el.naturalWidth ? el : null);
       el.addEventListener('load', function () { ok(el); });
       el.addEventListener('error', function () { ok(null); });
     });
-    return cache[id];
+    return el._pbReady;
+  }
+  function img(id) { return loaded(document.getElementById(id)); }
+  // Образцы подписи и печати (PNG с прозрачным фоном) из «Образцов подписи и печати»
+  function signImg(doc) {
+    var el = doc.sign && doc.signerId ? document.querySelector('[data-sign-for="' + doc.signerId + '"]') : null;
+    return loaded(el);
+  }
+  function sealImg(doc) {
+    if (!doc.seal) return Promise.resolve(null);
+    var el = (doc.sealId && document.querySelector('[data-seal-for="' + doc.sealId + '"]')) || document.querySelector('[data-seal-default]');
+    return loaded(el);
+  }
+  // Центр и наибольший размер образцов на листе — как SEAL_BOX / SIGN_BOX в pdf.py
+  var PLACES = {seal: [M + 330, 10, 250, 250], sign: [W - M - 445, 0, 300, 130]};
+  function fit(el, key) {
+    var b = PLACES[key], k = Math.min(b[2] / el.naturalWidth, b[3] / el.naturalHeight);
+    var w = el.naturalWidth * k, h = el.naturalHeight * k;
+    return {x: b[0] - w / 2, dy: b[1] - h / 2, w: w, h: h};
   }
   function fontsReady() { return document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve(); }
 
@@ -123,6 +139,17 @@
     ctx.font = font(18, true); ctx.fillText('PARAMOUNT', 0, -12); ctx.fillText('BUILDINGS', 0, 12);
     ctx.restore(); ctx.textBaseline = 'top';
   }
+  function signAndSeal(ctx, d, y, doc) {
+    if (doc.seal) {
+      if (doc._sealImg) { var f = fit(doc._sealImg, 'seal'); ctx.drawImage(doc._sealImg, f.x, y + f.dy, f.w, f.h); }
+      else seal(ctx, M + 330, y + 10, d);
+    }
+    if (doc.sign) {
+      if (doc._signImg) { var g = fit(doc._signImg, 'sign'); ctx.drawImage(doc._signImg, g.x, y + g.dy, g.w, g.h); }
+      else signature(ctx, W - M - 560, y + 6);
+    }
+  }
+  function blankNo(ctx, doc) { if (doc.blankNumber) text(ctx, doc.blankNumber, W - M, H - 112, PT, false, 'right'); }
   function note(ctx, on) { if (on) text(ctx, 'Изображение подписи и печати не является ЭЦП', W - M, H - 66, PT, false, 'right', GRAY); }
 
   function drawLetter(ctx, d, doc) {
@@ -140,8 +167,8 @@
     y = Math.max(y + 50, H - 450);
     text(ctx, doc.signerPos || '', M, y, PT, true);
     text(ctx, doc.signerName || '', W - M, y, PT, true, 'right');
-    if (doc.seal) seal(ctx, M + 330, y + 10, d);
-    if (doc.sign) signature(ctx, W - M - 560, y + 6);
+    signAndSeal(ctx, d, y, doc);
+    blankNo(ctx, doc);
     if (doc.executor) text(ctx, 'Исп: ' + doc.executor, M, H - 150, PT);
     if (doc.executorPhone) text(ctx, 'Тел: ' + doc.executorPhone.replace(/[\s-]/g, ''), M, H - 112, PT);
     note(ctx, doc.sign || doc.seal);
@@ -157,20 +184,20 @@
     y = Math.max(y + 60, H - 430);
     text(ctx, doc.signerPos || '', M + 60, y, PT, true);
     text(ctx, doc.signerName || '', W - M, y, PT, true, 'right');
-    if (doc.sign) signature(ctx, W - M - 560, y + 6);
-    if (doc.seal) seal(ctx, M + 330, y + 10, d);
+    signAndSeal(ctx, d, y, doc);
+    blankNo(ctx, doc);
     note(ctx, doc.sign || doc.seal);
   }
 
   function draw(canvas, doc, scale) {
     var d = data();
     scale = scale || 1;
-    return Promise.all([img('pbLogo'), img('pbMark'), fontsReady()]).then(function (r) {
+    return Promise.all([img('pbLogo'), img('pbMark'), fontsReady(), signImg(doc), sealImg(doc)]).then(function (r) {
       canvas.width = W * scale; canvas.height = H * scale;
       var ctx = canvas.getContext('2d');
       ctx.setTransform(scale, 0, 0, scale, 0, 0);
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H); ctx.textBaseline = 'top';
-      doc._logo = r[0]; doc._mark = r[1];
+      doc._logo = r[0]; doc._mark = r[1]; doc._signImg = r[3]; doc._sealImg = r[4];
       (doc.kind === 'order' ? drawOrder : drawLetter)(ctx, d, doc);
       return canvas;
     });
@@ -232,47 +259,85 @@
     return '<w:p>' + ppr + lines.map(function (l, i) { return (i ? '<w:r><w:br/></w:r>' : '') + run(l, o.bold); }).join('') + '</w:p>';
   }
   function numberDate(doc) { return p(['№ ' + (doc.number || '___________________'), doc.date ? dateWords(doc.date) : '«___» ___________ 20__ г.']); }
-  function executorBox(xml, ex, ph) {
+  var EMU = 6096;
+  function anchor(key, rid, el, n) {
+    var f = fit(el, key), x = Math.round(f.x * EMU), y = Math.round(f.dy * EMU), w = Math.round(f.w * EMU), h = Math.round(f.h * EMU);
+    return '<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="' + (251700000 + n) + '" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">' +
+      '<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>' + x + '</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>' + y + '</wp:posOffset></wp:positionV>' +
+      '<wp:extent cx="' + w + '" cy="' + h + '"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/><wp:docPr id="' + (9100 + n) + '" name="pb-' + key + '"/><wp:cNvGraphicFramePr/>' +
+      '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+      '<pic:nvPicPr><pic:cNvPr id="' + (9100 + n) + '" name="pb-' + key + '.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="' + rid + '"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
+      '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + w + '" cy="' + h + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>';
+  }
+  function withMarks(par, marks) { if (!marks) return par; var i = par.indexOf('</w:pPr>') + 8; return par.slice(0, i) + marks + par.slice(i); }
+  function blankNoPara(num) {
+    if (!num) return '';
+    return '<w:p><w:pPr><w:framePr w:w="2268" w:h="397" w:hRule="exact" w:hAnchor="page" w:vAnchor="page" w:x="' + (11906 - 850 - 2268) + '" w:y="' + (16838 - 1134 + 120) + '"/><w:jc w:val="right"/></w:pPr>' + run(num) + '</w:p>';
+  }
+  function executorBox(xml, ex, ph, num) {
     xml = xml.replace(/(<w:t(?:\s[^>]*)?>)([^<]*)(<\/w:t>)/g, function (all, a, t, b) {
-      if (/^\s*\d{4,}\s*$/.test(t)) t = '';
+      if (/^\s*\d{4,}\s*$/.test(t)) t = num || '';
       else if (t.indexOf('Исп:') === 0) t = ex ? 'Исп: ' + ex : 'Исп:';
       else if (t.indexOf('Тел:') === 0) t = ph ? 'Тел: ' + ph : 'Тел:';
       return a + xesc(t) + b;
     });
     return xml.indexOf('Исп:') >= 0 ? xml.replace(/(<w:sz(?:Cs)? w:val=")\d+(")/g, '$124$2') : xml;
   }
-  function letterBody(paras, doc) {
-    var keep = paras.filter(function (x) { return /<w:drawing|<w:pict|<mc:AlternateContent/.test(x); })
-      .map(function (x) { return executorBox(x, doc.executor, (doc.executorPhone || '').replace(/[\s-]/g, '')); });
+  function letterBody(paras, doc, marks) {
+    var anchored = paras.filter(function (x) { return /<w:drawing|<w:pict|<mc:AlternateContent/.test(x); });
+    var keep = anchored.map(function (x) { return executorBox(x, doc.executor, (doc.executorPhone || '').replace(/[\s-]/g, ''), doc.blankNumber); });
     var out = [numberDate(doc)].concat(keep, [p(), p(String(doc.addressee || '').split('\n'), {bold: true, left: 4600}), p(), p(doc.subject || '', {bold: true, after: 120})]);
     (doc.paragraphs || []).forEach(function (t) { if (t.trim()) out.push(p(t, {jc: 'both', first: 709, after: 60})); });
     if ((doc.attachments || []).length) {
       out.push(p(), p('Приложения:', {bold: true}));
       doc.attachments.forEach(function (a, i) { out.push(p((i + 1) + '. ' + a)); });
     }
-    out.push(p(), p(), p((doc.signerPos || '') + '\t' + (doc.signerName || ''), {bold: true, tab: true}));
+    out.push(p(), p(), withMarks(p((doc.signerPos || '') + '\t' + (doc.signerName || ''), {bold: true, tab: true}), marks));
+    if (doc.blankNumber && !anchored.some(function (x) { return />\s*\d{4,}\s*</.test(x); })) out.push(blankNoPara(doc.blankNumber));
     return out.join('');
   }
-  function orderBody(paras, doc) {
+  function orderBody(paras, doc, marks) {
     var out = [p(), p('БҰЙРЫҚ\tПРИКАЗ', {bold: true, tab: true}), numberDate(doc), p(), p(String(doc.title || '').split('\n'), {bold: true, left: -142}), p()];
     if (doc.basis) out.push(p(doc.basis, {jc: 'both', first: 709}));
     out.push(p('ПРИКАЗЫВАЮ:', {bold: true, first: 709}));
     (doc.points || []).forEach(function (t, i) { out.push(p((i + 1) + '. ' + t, {jc: 'both', first: 709})); });
-    out.push(p(), p(), p((doc.signerPos || '') + '\t' + (doc.signerName || ''), {bold: true, left: -142, tab: true}));
+    out.push(p(), p(), withMarks(p((doc.signerPos || '') + '\t' + (doc.signerName || ''), {bold: true, left: -142, tab: true}), marks));
+    out.push(blankNoPara(doc.blankNumber));
     return out.join('');
   }
   function docxBlob(doc, url) {
     if (!url) return Promise.reject(new Error('Нет файла бланка (DOCX)'));
     if (!window.JSZip) return Promise.reject(new Error('Не загрузилась библиотека DOCX'));
-    var zip;
-    return fetch(url).then(function (r) { if (!r.ok) throw new Error('Бланк не найден'); return r.arrayBuffer(); })
+    var zip, imgs = [];
+    function bytes(el) { return el ? fetch(el.src).then(function (r) { return r.ok ? r.arrayBuffer() : null; }).catch(function () { return null; }) : Promise.resolve(null); }
+    return Promise.all([signImg(doc), sealImg(doc)]).then(function (els) {
+      return Promise.all([bytes(els[0]), bytes(els[1])]).then(function (b) {
+        if (b[0]) imgs.push(['sign', els[0], b[0]]);
+        if (b[1]) imgs.push(['seal', els[1], b[1]]);
+      });
+    }).then(function () { return fetch(url); })
+      .then(function (r) { if (!r.ok) throw new Error('Бланк не найден'); return r.arrayBuffer(); })
       .then(function (buf) { return window.JSZip.loadAsync(buf); })
-      .then(function (z) { zip = z; return z.file('word/document.xml').async('string'); })
-      .then(function (xml) {
+      .then(function (z) {
+        zip = z;
+        return Promise.all(['word/document.xml', 'word/_rels/document.xml.rels', '[Content_Types].xml'].map(function (n) { return z.file(n).async('string'); }));
+      })
+      .then(function (t) {
+        var xml = t[0], rels = t[1], types = t[2], marks = '';
+        imgs.forEach(function (m, n) {
+          var key = m[0], rid = 'rIdPb' + key[0].toUpperCase() + key.slice(1), target = 'media/pb-' + key + '.png';
+          rels = rels.replace('</Relationships>', '<Relationship Id="' + rid + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="' + target + '"/></Relationships>');
+          zip.file('word/' + target, m[2]);
+          marks += anchor(key, rid, m[1], n);
+        });
+        if (imgs.length && types.indexOf('Extension="png"') < 0) {
+          var i = types.indexOf('>', types.indexOf('<Types')) + 1;
+          types = types.slice(0, i) + '<Default Extension="png" ContentType="image/png"/>' + types.slice(i);
+        }
         var b0 = xml.indexOf('<w:body>') + 8, sect = xml.lastIndexOf('<w:sectPr');
         var paras = topParagraphs(xml.slice(b0, sect));
-        xml = xml.slice(0, b0) + (doc.kind === 'order' ? orderBody : letterBody)(paras, doc) + xml.slice(sect);
-        zip.file('word/document.xml', xml);
+        xml = xml.slice(0, b0) + (doc.kind === 'order' ? orderBody : letterBody)(paras, doc, marks) + xml.slice(sect);
+        zip.file('word/document.xml', xml); zip.file('word/_rels/document.xml.rels', rels); zip.file('[Content_Types].xml', types);
         return zip.generateAsync({type: 'blob', compression: 'DEFLATE', mimeType: DOCX_MIME});
       });
   }
@@ -289,8 +354,8 @@
   function orderDoc() {
     var d = data(), t = orderText(field('summary')), s = d.signers && d.signers[field('signer')] || d.director || ['Директор', ''];
     var iso = field('doc_date'), dt = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('.') : iso;
-    return {kind: 'order', number: '', date: dt, title: field('title').trim(), basis: t.basis, points: t.points,
-            signerPos: s[0], signerName: s[1]};
+    return {kind: 'order', number: d.number || '', blankNumber: d.blank_number || '', date: dt, title: field('title').trim(),
+            basis: t.basis, points: t.points, signerPos: s[0], signerName: s[1]};
   }
   function link(id, blob, name) {
     var a = document.getElementById(id); if (!a) return;
