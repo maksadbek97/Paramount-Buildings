@@ -2,7 +2,7 @@ from django import forms
 
 from staff.models import Employee
 
-from .models import CaseFile, DocTask, Document, Journal, Seal, Template
+from .models import CaseFile, DocTask, Document, Journal, Seal, SealUsage, Template
 
 DATE = forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")
 
@@ -186,13 +186,30 @@ class TemplateForm(StaffMixin, forms.ModelForm):
 
 
 class SealForm(StaffMixin, forms.ModelForm):
-    fieldsets = [("Печать или подпись", "", ["name", "kind", "owner", "location", "access", "is_active"])]
-    wide = {"access"}
+    fieldsets = [("Печать или подпись", "Для подписи укажите владельца — его образец встанет под документами, "
+                  "которые он подписывает.", ["name", "kind", "owner", "location", "access", "is_active"]),
+                 ("Образец для документов", "PNG с прозрачным фоном. Загрузить, заменить или обновить образец можно "
+                  "в любое время — новые документы сразу пойдут с ним, уже созданные не меняются.", ["image"])]
+    wide = {"access", "image"}
 
     class Meta:
         model = Seal
-        fields = ["name", "kind", "owner", "location", "access", "is_active"]
+        fields = ["name", "kind", "owner", "location", "access", "is_active", "image"]
+        widgets = {"image": forms.ClearableFileInput(attrs={"accept": "image/png,.png"})}
 
     def __init__(self, *a, **kw):
         super().__init__(*a, **kw)
         self._setup()
+
+    def save(self, commit=True):
+        from django.utils import timezone
+        obj = super().save(commit=False)
+        new_image = "image" in self.changed_data and bool(obj.image)
+        if new_image:
+            obj.image_version += 1
+            obj.image_updated_at = timezone.now()
+        if commit:
+            obj.save()
+            if new_image:
+                SealUsage.objects.create(seal=obj, action="update", purpose=f"Образец, версия {obj.image_version}")
+        return obj

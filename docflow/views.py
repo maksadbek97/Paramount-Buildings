@@ -24,7 +24,7 @@ TABS = [("home", "Обзор", "docflow_home"), ("all", "Все документ
         ("orders", "Приказы", "docflow_orders"), ("letters", "Письма", "docflow_letters"),
         ("contracts", "Договоры", "docflow_contracts"), ("tasks", "Поручения", "docflow_tasks"),
         ("cases", "Номенклатура дел", "docflow_cases"), ("journals", "Журналы", "docflow_journals"),
-        ("templates", "Шаблоны", "docflow_templates"), ("seals", "Подпись и печать", "docflow_seals"),
+        ("templates", "Шаблоны", "docflow_templates"), ("seals", "Образцы подписи и печати", "docflow_seals"),
         ("archive", "Архив", "docflow_archive")]
 
 CREATE = [("letter", "Письмо на фирменном бланке", "Генератор: текст → PDF с номером", "mail"),
@@ -257,8 +257,9 @@ def journals(request):
 @login_required
 def journal_detail(request, pk):
     j = get_object_or_404(Journal, pk=pk)
-    entries = j.documents.exclude(number="").select_related("responsible", "author", "signer",
-                                                            "construction_object").order_by("-reg_date", "-id")
+    docs = Document.objects.exclude(blank_number="") if j.kind == "blank" else j.documents.exclude(number="")
+    entries = docs.select_related("responsible", "author", "signer", "construction_object").order_by(
+        "-blank_number" if j.kind == "blank" else "-reg_date", "-id")
     return _page(request, "journals", "docflow/journal_detail.html", {"j": j, "entries": entries,
                                                                       "journals": Journal.objects.all()})
 
@@ -366,8 +367,8 @@ def action(request, pk):
             had_number = bool(d.number)
             messages.success(request, services.apply_action(d, code, request.user, request.POST.get("reason", "")))
             d.refresh_from_db()
-            if d.kind == "order" and d.number and not had_number and d.template and d.template.is_letterhead \
-                    and d.template.category == "order":
+            if d.kind == "order" and d.number and (not had_number or code == "sign") and d.template \
+                    and d.template.is_letterhead and d.template.category == "order":
                 build_order_files(d, d.template, services.employee_of(request.user), request.user)
     except services.ActionError as e:
         messages.error(request, str(e))
@@ -401,6 +402,8 @@ def new(request, kind):
 
     def done(doc):
         services.log(doc, "create", f"Создан: {doc.get_kind_display()}", request.user)
+        if kind == "order":  # каждый приказ сразу получает номер по журналу приказов
+            services.register(doc, request.user)
         blank = order_blank() if kind == "order" and not doc.file else None
         if blank:
             build_order_files(doc, blank, services.employee_of(request.user), request.user)
@@ -488,8 +491,9 @@ journal_form = _simple(forms.JournalForm, Journal, "Новый журнал ре
                        "docflow_journals", "Зарегистрированные записи нельзя удалить; исправления — с причиной.")
 template_form = _simple(forms.TemplateForm, Template, "Новый шаблон", "Шаблон", "docflow_templates",
                         "Загрузите бланк DOCX или PDF и укажите, где подпись и печать.")
-seal_form = _simple(forms.SealForm, Seal, "Новая печать или подпись", "Печать / подпись", "docflow_seals",
-                    "Каждое использование фиксируется в журнале печатей.")
+seal_form = _simple(forms.SealForm, Seal, "Новый образец подписи или печати", "Образец подписи или печати",
+                    "docflow_seals", "Загрузите PNG с прозрачным фоном — система сама поставит его на фирменный "
+                    "бланк. Каждое использование фиксируется в журнале печатей.")
 
 
 # ---------------- Генератор писем на бланке (ТЗ п. 35) ----------------
@@ -587,8 +591,18 @@ def blank_data(company, kind, user=None):
     исполнитель и подписанты. Браузер собирает документ из того, что ввёл человек, — без сервера."""
     me = services.employee_of(user) if user else None
     data = {"kind": kind, "header": pdf.letterhead_columns(company), "company": company.name,
-            "bin": company.bin or "", "executor": short_name(me), "executor_phone": (me.phone if me else "") or ""}
+            "bin": company.bin or "", "executor": short_name(me), "executor_phone": (me.phone if me else "") or "",
+            "blank_number": services.blank_journal().example}  # предварительно: номер расходуется при создании
+    # Образцы подписи и печати (PNG) — их ставит на бланк и браузер (предпросмотр, PDF, Word)
+    data["sign_images"] = [[str(s.owner_id), s.image.url] for s in Seal.objects.filter(
+        kind="signature", is_active=True, owner__isnull=False).exclude(image="").order_by("image_updated_at", "id")]
+    main_seal = services.seal_sample()
+    data["seal_images"] = [[str(s.pk), s.image.url] for s in Seal.objects.filter(kind="seal", is_active=True)
+                           .exclude(image="")]
+    data["seal_default"] = main_seal.image.url if main_seal else ""
     if kind == "order":
+        j = Journal.objects.filter(kind="order", is_active=True).first()
+        data["number"] = j.example if j else ""
         tpl = order_blank()
         data["docx"] = tpl.file.url if tpl and tpl.file and tpl.is_docx else ""
         data["director"] = order_signer(company.director)
@@ -603,7 +617,14 @@ def build_order_files(doc, template, author=None, user=None):
     position, initials = order_signer(doc.signer or company.director)
     basis, points = order_text(doc.summary)
     dt = f"{doc.doc_date:%d.%m.%Y}" if doc.doc_date else ""
-    content = pdf.order_pdf(company, doc.number, dt, doc.title, basis, points, position, initials, sign=False)
+    services.assign_blank_number(doc, user)
+    # Подпись и печать ставятся, когда приказ подписан: образцы (PNG) из «Образцов подписи и печати»
+    signed = doc.approvals.filter(role="signer", decision="signed").exists()
+    sign_s = services.signature_sample(doc.signer or company.director) if signed else None
+    seal_s = services.seal_sample() if signed else None
+    sign_png, seal_png = services.png_bytes(sign_s), services.png_bytes(seal_s)
+    content = pdf.order_pdf(company, doc.number, dt, doc.title, basis, points, position, initials, sign=signed,
+                            seal=signed, sign_img=sign_png, seal_img=seal_png, blank_number=doc.blank_number)
     doc.file.save(f"prikaz-{doc.pk}.pdf", ContentFile(content), save=False)
     doc.template = template
     doc.save(update_fields=["file", "template"])
@@ -612,10 +633,16 @@ def build_order_files(doc, template, author=None, user=None):
     blank = _blank_bytes(template)
     if blank:
         docx = blank_docx.order_docx(blank, number=doc.number, date_text=dt, title=doc.title, basis=basis,
-                                     points=points, signer_pos=position, signer_name=initials)
+                                     points=points, signer_pos=position, signer_name=initials, sign_png=sign_png,
+                                     seal_png=seal_png, blank_number=doc.blank_number)
         _attach(doc, docx, f"prikaz-{doc.pk}.docx", f"Приказ — {doc.title[:60]}.docx", author,
                 "Тот же приказ в Word на бланке — для правки и печати")
-    services.log(doc, "create", f"Приказ оформлен на бланке «{template.name}» v{template.version}", user)
+    for sample in (sign_s, seal_s):
+        if sample:
+            SealUsage.objects.create(seal=sample, document=doc, employee=author, action="use",
+                                     purpose=f"Приказ {doc.number or doc.title[:60]}")
+    services.log(doc, "create", f"Приказ оформлен на бланке «{template.name}» v{template.version}"
+                 f" (бланк № {doc.blank_number})", user)
 
 
 def build_letter(company, *, template, addressee, subject, body, signer, sign_mode, seal, obj=None, contract=None,
@@ -642,9 +669,15 @@ def build_letter(company, *, template, addressee, subject, body, signer, sign_mo
         parts = signer.full_name.split()
         short = parts[0] + (" " + " ".join(p[0] + "." for p in parts[1:3]) if len(parts) > 1 else "")
     executor, phone = (short_name(author), author.phone) if author else ("", "")
+    services.assign_blank_number(doc, user)
+    # Образцы (PNG) из «Образцов подписи и печати»; нет образца — условный рисунок
+    sign_s = services.signature_sample(signer) if use_sign else None
+    seal_s = services.seal_sample(seal) if use_seal and seal else None
+    sign_png, seal_png = services.png_bytes(sign_s), services.png_bytes(seal_s)
     content = pdf.letter_pdf(company, doc.number, f"{when:%d.%m.%Y}", addressee, subject, paras, position, short,
                              sign=use_sign, seal=use_seal and bool(seal), attachments=attachments,
-                             executor=executor, executor_phone=phone)
+                             executor=executor, executor_phone=phone, sign_img=sign_png, seal_img=seal_png,
+                             blank_number=doc.blank_number)
     doc.file.save(f"ishod-{doc.pk}.pdf", ContentFile(content), save=False)
     doc.status = status
     doc.save()
@@ -655,7 +688,8 @@ def build_letter(company, *, template, addressee, subject, body, signer, sign_mo
     if blank:
         docx = blank_docx.letter_docx(blank, number=doc.number, date_text=f"{when:%d.%m.%Y}", addressee=addressee,
                                       subject=subject, paragraphs=paras, signer_pos=position, signer_name=short,
-                                      attachments=attachments, executor=executor, executor_phone=phone)
+                                      attachments=attachments, executor=executor, executor_phone=phone,
+                                      sign_png=sign_png, seal_png=seal_png, blank_number=doc.blank_number)
         _attach(doc, docx, f"ishod-{doc.pk}.docx", f"Письмо {doc.number}.docx", author,
                 "Тот же текст в Word на бланке — для правки и печати", role="working")
     if signer:
@@ -665,12 +699,12 @@ def build_letter(company, *, template, addressee, subject, body, signer, sign_mo
     labels = dict(SIGN_CHOICES)
     services.log(doc, "sign", f"Подпись и печать: {labels.get(sign_mode, sign_mode).lower()}", user,
                  by=None if user else (author.full_name if author else ""))
-    for s, used in ((seal, use_seal),):
+    for s, used in ((seal_s or seal, use_seal), (sign_s, use_sign)):
         if s and used:
             SealUsage.objects.create(seal=s, document=doc, employee=author, action="use",
                                      purpose=f"Исходящее письмо {doc.number}")
-            services.log(doc, "seal", f"Проставлена печать «{s.name}»", user,
-                         by=None if user else (author.full_name if author else ""))
+            services.log(doc, "seal", f"Проставлен{'а печать' if s.kind == 'seal' else ' образ подписи'} «{s.name}»",
+                         user, by=None if user else (author.full_name if author else ""))
     return doc
 
 
