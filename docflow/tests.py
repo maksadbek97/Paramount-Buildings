@@ -228,3 +228,49 @@ class BlankTests(TestCase):
         self.assertIn('id="gCanvas"', html)
         self.assertIn(f'data-docx-src="{tpl.file.url}"', html)
         self.assertNotIn(sample.file.url, html)  # скачивается созданное письмо, а не пример из журнала
+
+
+class ObjectPickerTests(TestCase):
+    """Выбор объекта в шапке рядом с логотипом."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from objects.models import ConstructionObject
+        cls.user = get_user_model().objects.create_superuser("boss", password="pass12345")
+        cls.o1 = ConstructionObject.objects.create(code="AST-01", name="ЖК «Атлант»", city="Астана")
+        cls.o2 = ConstructionObject.objects.create(code="ALA-03", name="БЦ «Алатау»", city="Алматы")
+        Document.objects.create(kind="incoming", title="Письмо по Атланту", construction_object=cls.o1)
+        Document.objects.create(kind="incoming", title="Письмо по Алатау", construction_object=cls.o2)
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_picker_in_header_on_every_page(self):
+        for url in [reverse("dashboard"), reverse("docflow_home"), reverse("docflow_all"),
+                    reverse("company_profile"), reverse("object_list")]:
+            html = self.client.get(url).content.decode()
+            self.assertIn("data-objpick", html, url)
+            self.assertIn("Все объекты", html, url)
+            self.assertIn("ЖК «Атлант»", html, url)
+
+    def test_modes_and_links(self):
+        r = self.client.get(reverse("dashboard") + "?period=year")
+        self.assertEqual(r.context["obj_pick"]["mode"], "sync")
+        self.assertEqual(dict((o.pk, h) for o, h in r.context["obj_pick"]["items"])[self.o1.pk],
+                         f"?period=year&object={self.o1.pk}")
+        r = self.client.get(reverse("docflow_all"))
+        self.assertEqual(r.context["obj_pick"]["mode"], "filter")
+        r = self.client.get(reverse("object_detail", args=[self.o2.pk]))
+        self.assertIn(f'data-mode="pin" data-cur="{self.o2.pk}"', r.content.decode())
+
+    def test_documents_overview_filtered_by_object(self):
+        r = self.client.get(reverse("docflow_home") + f"?object={self.o1.pk}")
+        self.assertEqual(r.context["obj_pick"]["cur"], self.o1)
+        self.assertEqual(r.context["kpis"][0][1], 1)
+        self.assertContains(r, "Показаны документы объекта")
+        self.assertEqual(self.client.get(reverse("docflow_home")).context["kpis"][0][1], 2)
+
+    def test_static_links(self):
+        from core.management.commands.build_static import Command
+        html = Command.make_static('<a href="/documents/?object=3">x</a>', "/documents/", "/documents/")
+        self.assertIn('href="../documents/object/3/"', html)

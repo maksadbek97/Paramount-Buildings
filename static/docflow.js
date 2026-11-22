@@ -115,6 +115,18 @@
         }
       }
     }
+    // Объект, выбранный в шапке, важнее сохранённого фильтра списка
+    var objSel = $('[data-f="obj"]', box);
+    function useObj(v) {
+      if (!objSel) return;
+      if (v && !$('option[value="' + v + '"]', objSel)) {  // у объекта нет документов в этом списке
+        var o = document.createElement('option'); o.value = v; o.textContent = window.PBObj ? PBObj.name(v) : v; objSel.appendChild(o);
+      }
+      objSel.value = v;
+    }
+    if (window.PBObj) useObj(PBObj.get());
+    if (objSel) objSel.addEventListener('change', function () { if (window.PBObj) PBObj.set(objSel.value); });
+    document.addEventListener('pb:obj', function (e) { useObj(e.detail); apply(); });
     apply();
   });
 

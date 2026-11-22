@@ -1,5 +1,6 @@
 {% extends "docflow/_base.html" %}{% load ui %}
 {% block tab %}
+{% if sel_obj %}<div class="df-objnote">{% icon 'building' 16 %}<span>Показаны документы объекта <b>{{ sel_obj.name }}</b></span><a href="{% url 'docflow_home' %}" data-obj="">Все объекты</a></div>{% endif %}
 <div class="kgrid df-kpis">
   {% for label, n, hint, url, tone in kpis %}<a class="k link" href="{{ url }}"><span class="kl">{{ label }}</span><span class="kv{% if tone and n %} {{ tone }}{% endif %}">{{ n }}</span><span class="kh">{{ hint }}</span></a>{% endfor %}
 </div>

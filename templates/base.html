@@ -20,6 +20,16 @@
 <header class="appbar">
   <a class="brand" href="{% url 'dashboard' %}"><img src="{% static 'img/logo-white.png' %}" alt="Paramount Buildings"></a>
   <span class="appname">Smart Building</span>
+  {% with pick=obj_pick %}
+  <details class="picker objpick" data-objpick data-mode="{% if cur_obj %}pin{% else %}{{ pick.mode }}{% endif %}" data-cur="{% if cur_obj %}{{ cur_obj.pk }}{% elif pick.cur %}{{ pick.cur.pk }}{% endif %}"{% if pick.explicit %} data-explicit{% endif %}>
+    <summary aria-label="Выбор объекта">{% icon 'building' 18 %}<span data-objname>{% if cur_obj %}{{ cur_obj.name }}{% elif pick.cur %}{{ pick.cur.name }}{% else %}Все объекты{% endif %}</span>{% icon 'chevron' 16 %}</summary>
+    <div class="drop">
+      <div class="nh">Объект</div>
+      <a href="{{ pick.all_href }}" data-obj="" data-name="Все объекты" class="{% if not cur_obj and not pick.cur %}on{% endif %}">{% icon 'home' 18 %}Все объекты</a>
+      {% for o, link in pick.items %}<a href="{{ link }}" data-obj="{{ o.pk }}" data-name="{{ o.name }}" class="{% if cur_obj.pk == o.pk or pick.cur.pk == o.pk %}on{% endif %}"><small>{{ o.code }}</small><span class="on-name">{{ o.name }}{% if o.city %}<i>{{ o.city }}</i>{% endif %}</span></a>{% endfor %}
+    </div>
+  </details>
+  {% endwith %}
   <div class="spacer"></div>
   <details class="picker bell">
     <summary class="iconbtn" aria-label="Уведомления">{% icon 'bell' 22 %}{% if notif_items %}<span class="dotn">{{ notif_items|length }}</span>{% endif %}</summary>
@@ -70,6 +80,38 @@
 document.addEventListener('click', function (e) {
   document.querySelectorAll('details.picker[open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });
 });
+
+// Выбор объекта в шапке: запоминаем в браузере, чтобы выбор сохранялся при переходах между разделами.
+(function () {
+  var pick = document.querySelector('[data-objpick]'); if (!pick) return;
+  var KEY = 'pb:obj', mode = pick.dataset.mode, cur = pick.dataset.cur || '';
+  function get() { try { return localStorage.getItem(KEY); } catch (e) { return null; } }
+  function set(v) { try { localStorage.setItem(KEY, v); } catch (e) {} }
+  function item(v) { return pick.querySelector('a[data-obj="' + v + '"]'); }
+  function show(v) {
+    var a = item(v) || item('');
+    pick.querySelector('[data-objname]').textContent = a.dataset.name;
+    pick.querySelectorAll('a[data-obj]').forEach(function (x) { x.classList.toggle('on', x === a); });
+  }
+  window.PBObj = {get: function () { return get() || ''; }, set: function (v) { set(v); show(v); }, name: function (v) { var a = item(v); return a ? a.dataset.name : ''; }};
+  // Любая ссылка с выбором объекта (шапка, фильтр на Главной) запоминает выбор.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[data-obj]'); if (!a) return;
+    set(a.dataset.obj);
+    if (mode === 'filter' && pick.contains(a)) {  // списки документов: фильтруем на месте
+      e.preventDefault(); show(a.dataset.obj); pick.removeAttribute('open');
+      document.dispatchEvent(new CustomEvent('pb:obj', {detail: a.dataset.obj}));
+    }
+  });
+  var saved = get();
+  if (mode === 'pin' || (mode === 'sync' && (pick.hasAttribute('data-explicit') || saved === null))) { set(cur); return; }
+  if (mode === 'sync') {  // страница открыта без объекта — подставляем сохранённый выбор
+    var a = item(saved);
+    if (saved && a && saved !== cur) location.replace(a.href);
+    return;
+  }
+  if (saved && item(saved)) show(saved);
+})();
 </script>
 <script src="{% asset 'objects.js' %}" defer></script>
 <script src="{% asset 'docflow.js' %}" defer></script>

@@ -101,6 +101,8 @@ def docflow_pages():
                                           "letters/internal/", "contracts/", "tasks/", "tasks/new/", "cases/",
                                           "cases/new/", "journals/", "journals/new/", "templates/", "templates/new/",
                                           "seals/", "seals/new/", "archive/", "letter/"]}
+    for pk in ConstructionObject.objects.values_list("pk", flat=True):  # обзор по объекту из шапки
+        pages[f"{base}object/{pk}/"] = f"{base}?object={pk}"
     for kind in KIND_TITLES:
         pages[f"{base}new/{kind}/"] = f"{base}new/{kind}/"
     for d in Document.objects.all():
@@ -174,8 +176,9 @@ class Command(BaseCommand):
             k, _, v = m.group(2).partition("=")
             return f'href="{base}{k}/{v}/"'
         html = re.sub(r'href="(/?)\?([^"#]*)"', local, html)
-        # Фильтры разделов: /company/docs/?kind=x или ?kind=x на самой странице -> /company/docs/kind/x/.
-        html = re.sub(r'href="(/[^"?#]*)\?(kind|dept)=([\w-]+)"', r'href="\1\2/\3/"', html)
+        # Фильтры разделов: /company/docs/?kind=x или ?kind=x на самой странице -> /company/docs/kind/x/;
+        # объект из шапки: /documents/?object=3 -> /documents/object/3/.
+        html = re.sub(r'href="(/[^"?#]*)\?(kind|dept|object)=([\w-]+)"', r'href="\1\2/\3/"', html)
         # Прочие параметры (?contract=3) в статике не работают: ведём на общую форму.
         html = re.sub(r'href="(/(?!static/)[^"?#]*)\?[^"#]*"', r'href="\1"', html)
         # Абсолютные ссылки -> относительные, чтобы сайт работал в подпапке GitHub Pages.
