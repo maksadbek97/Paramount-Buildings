@@ -85,7 +85,9 @@ def _filters(rows):
 @login_required
 def home(request):
     today = date.today()
-    docs = list(_docs())
+    obj_id = request.GET.get("object", "")  # объект из шапки: обзор только по нему
+    obj = ConstructionObject.objects.filter(pk=obj_id).first() if obj_id.isdigit() else None
+    docs = list(_docs().filter(construction_object=obj) if obj else _docs())
     month = [d for d in docs if d.doc_date.year == today.year and d.doc_date.month == today.month]
     by_kind = {}
     for d in docs:
@@ -114,8 +116,9 @@ def home(request):
     overdue = [d for d in docs if d.overdue]
     soon = [d for d in docs if d.due_soon]
     expiring = [d for d in docs if d.contract_left is not None and d.contract_left <= 30]
-    tasks = list(DocTask.objects.select_related("assignee", "document", "construction_object").exclude(
-        status__in=["done", "cancelled"]))
+    tasks = DocTask.objects.select_related("assignee", "document", "construction_object").exclude(
+        status__in=["done", "cancelled"])
+    tasks = list(tasks.filter(construction_object=obj) if obj else tasks)
     late_tasks = [t for t in tasks if t.overdue]
     attention = ([("bad", "Просрочен ответ", d.title, d, services.due_text(d.days_left)) for d in overdue]
                  + [("bad", "Поручение просрочено", t.title, t.document, services.due_text(t.days_left))
@@ -128,8 +131,9 @@ def home(request):
         if d.status in ("approval", "signing", "approved", "rework"):
             step = next((a for a in d.approvals.all() if a.decision == "pending"), None)
             waiting.append({"d": d, "step": step})
-    events = DocEvent.objects.select_related("document")[:9]
-    return _page(request, "home", "docflow/home.html", {
+    events = DocEvent.objects.select_related("document")
+    events = (events.filter(document__construction_object=obj) if obj else events)[:9]
+    return _page(request, "home", "docflow/home.html", {"sel_obj": obj,
         "kpis": kpis, "attention": attention, "waiting": waiting,
         "incoming": [d for d in docs if d.kind == "incoming"][:5],
         "outgoing": [d for d in docs if d.kind == "outgoing"][:5],

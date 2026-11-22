@@ -26,11 +26,11 @@
     <details class="dd">
       <summary>{% icon 'building' 16 %}<span>{% if selected %}{{ selected.name }}{% else %}Все объекты{% endif %}</span>{% icon 'chevron' 14 %}</summary>
       <div class="dd-menu">
-        <a href="{{ all_objects_link }}" class="{% if not selected %}on{% endif %}">Все объекты</a>
-        {% for o, link in object_links %}<a href="{{ link }}" class="{% if selected.pk == o.pk %}on{% endif %}"><small>{{ o.code }}</small>{{ o.name }}</a>{% endfor %}
+        <a href="{{ all_objects_link }}" data-obj="" class="{% if not selected %}on{% endif %}">Все объекты</a>
+        {% for o, link in object_links %}<a href="{{ link }}" data-obj="{{ o.pk }}" class="{% if selected.pk == o.pk %}on{% endif %}"><small>{{ o.code }}</small>{{ o.name }}</a>{% endfor %}
       </div>
     </details>
-    {% if filtered %}<a class="dh-reset" href="{% url 'dashboard' %}">Сбросить</a>{% endif %}
+    {% if filtered %}<a class="dh-reset" href="{% url 'dashboard' %}" data-obj="">Сбросить</a>{% endif %}
     <a class="dh-refresh" href="{{ request.get_full_path }}" title="Обновить данные" aria-label="Обновить">{% icon 'refresh' 18 %}</a>
   </div>
 </div>
