@@ -104,7 +104,13 @@ def _executor(xml, executor, phone):
         elif t.startswith("Тел:"):
             t = f"Тел: {phone}" if phone else "Тел:"
         return m.group(1) + escape(t) + m.group(3)
-    return re.sub(r"(<w:t(?:\s[^>]*)?>)([^<]*)(</w:t>)", repl, xml)
+    xml = re.sub(r"(<w:t(?:\s[^>]*)?>)([^<]*)(</w:t>)", repl, xml)
+    return _pt12(xml) if "Исп:" in xml else xml
+
+
+def _pt12(xml):
+    """Весь текст документа — 12 pt (w:sz в полупунктах)."""
+    return re.sub(r'(<w:sz(?:Cs)? w:val=")\d+(")', r"\g<1>24\2", xml)
 
 
 def letter_docx(blank_bytes, *, number, date_text, addressee, subject, paragraphs, signer_pos="", signer_name="",
@@ -126,16 +132,13 @@ def letter_docx(blank_bytes, *, number, date_text, addressee, subject, paragraph
 
 def order_docx(blank_bytes, *, number, date_text, title, basis, points, signer_pos="", signer_name=""):
     def build(paras):
-        head = next((x for _, _, x in paras if "БҰЙРЫҚ" in _text(x) or "ПРИКАЗ" in _text(x)), "")
-        if not head:
-            head = _p("БҰЙРЫҚ\tПРИКАЗ", bold=True, size=28, tab_right=True)
-        out = [_p(), head, _number_date(number, date_text), _p()]
-        out.append(_p(title.split("\n"), bold=True, size=28, left=-142))
+        out = [_p(), _p("БҰЙРЫҚ\tПРИКАЗ", bold=True, tab_right=True), _number_date(number, date_text), _p()]
+        out.append(_p(title.split("\n"), bold=True, left=-142))
         out.append(_p())
         if basis:
-            out.append(_p(basis, size=28, jc="both", first=709))
-        out.append(_p("ПРИКАЗЫВАЮ:", bold=True, size=28, first=709))
-        out += [_p(f"{i}. {t}", size=28, jc="both", first=709) for i, t in enumerate(points, 1)]
-        out += [_p(), _p(), _p(f"{signer_pos}\t{signer_name}", bold=True, size=28, left=-142, tab_right=True)]
+            out.append(_p(basis, jc="both", first=709))
+        out.append(_p("ПРИКАЗЫВАЮ:", bold=True, first=709))
+        out += [_p(f"{i}. {t}", jc="both", first=709) for i, t in enumerate(points, 1)]
+        out += [_p(), _p(), _p(f"{signer_pos}\t{signer_name}", bold=True, left=-142, tab_right=True)]
         return "".join(out)
     return _rebuild(blank_bytes, build)

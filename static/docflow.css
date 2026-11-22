@@ -322,34 +322,12 @@ code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700;
 .df-pvh b { font-size: 14px; } .df-pvh small { color: var(--gray); font-size: 12px; }
 .df-paperwrap { background: #E4E9F1; border-radius: 14px; padding: 16px; }
 .df-a4 { background: #fff; aspect-ratio: 210 / 297; border-radius: 4px; box-shadow: 0 8px 24px rgba(11,31,77,.16); padding: 22px 26px 16px; font-size: 9.5px; color: #24324F; display: flex; flex-direction: column; position: relative; overflow: hidden; }
-.a4-bar { position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--navy); }
-.a4-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
-.a4-head img { height: 22px; }
-.a4-head div { text-align: right; display: flex; flex-direction: column; font-size: 7.5px; color: var(--gray); line-height: 1.35; }
-.a4-head b { color: var(--navy); font-size: 8.5px; }
-.a4-line { height: 1.5px; background: var(--accent); margin: 10px 0 14px; }
-.df-a4.lh-blank-guar .a4-line, .df-a4.lh-blank-guar .a4-bar { background: #0F8A5F; }
-.df-a4.lh-blank-en .a4-line { background: var(--navy); }
-.a4-meta { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 14px; color: var(--navy); }
-.a4-meta em { color: var(--gray); font-style: normal; font-size: 8px; }
-.a4-to { font-weight: 800; max-width: 52%; text-align: left; }
-.a4-subj { font-weight: 800; color: var(--navy); font-size: 10.5px; margin-bottom: 10px; }
-.a4-body { flex: 1; overflow: hidden; line-height: 1.5; }
-.a4-body p { margin: 0 0 6px; text-indent: 16px; }
-.a4-body p.ph { color: #B4BFD0; text-indent: 0; }
-.a4-att { font-size: 8.5px; margin: 6px 0; }
-.a4-sign { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; min-height: 64px; color: var(--navy); position: relative; }
-.a4-sign b { font-size: 9.5px; }
-.a4-seal { position: absolute; left: 34%; width: 64px; height: 64px; border-radius: 50%; border: 2.5px solid rgba(36,74,170,.75); display: grid; place-items: center; transform: rotate(-12deg); box-shadow: inset 0 0 0 4px #fff, inset 0 0 0 5.5px rgba(36,74,170,.55); }
-.a4-seal[hidden] { display: none; }
-.a4-seal span { font-size: 6.5px; font-weight: 800; color: rgba(36,74,170,.9); text-align: center; line-height: 1.2; }
-.a4-sign svg { position: absolute; right: 18px; top: -18px; }
-.a4-foot { font-size: 7px; color: var(--gray); margin-top: 6px; }
+.df-a4c { padding: 0; display: block; }
+.df-a4c canvas { display: block; width: 100%; height: 100%; }
+.df-blankpv { max-width: 620px; margin: 0 auto; }
 .df-pvslot .df-paperwrap { max-width: 620px; margin: 0 auto; }
 .df-gwrap.pv { grid-template-columns: minmax(0, 1fr); }
 .df-gwrap.pv .df-gside { display: none; }
-.df-pvslot .df-a4 { font-size: 12px; }
-.df-pvslot .a4-head div { font-size: 9.5px; } .df-pvslot .a4-subj { font-size: 13.5px; }
 
 @media (max-width: 1199px) {
   .df-kpis { grid-template-columns: repeat(2, 1fr); }
@@ -460,3 +438,9 @@ code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700;
 }
 
 @media (max-width: 899px) { .df-table td[data-col="cp"] { max-width: none; } .df-cp { flex: 1; text-align: right; } }
+
+/* Новый приказ: на телефоне кнопка «Предпросмотр» — только значок, чтобы «Отмена» и «Создать» не сжимались */
+@media (max-width: 899px) {
+  .form-card.wide .form-actions #pbOrderPreview { flex: 0 0 52px; padding: 0; font-size: 0; gap: 0; }
+}
+.df-gnav[hidden], .df-success[hidden] { display: none; }

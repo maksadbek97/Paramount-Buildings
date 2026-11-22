@@ -1,0 +1,14 @@
+{% load ui %}<section class="form-card wide" id="pbOrder" hidden>
+  <div class="fgroup solo"><div class="fgrid"><div class="field wide">
+    <h3>Приказ на фирменном бланке</h3>
+    <p class="muted">{% if DEMO %}Демо-версия: приказ собран из того, что вы ввели, на бланке для приказа. В журнал он не сохраняется.{% else %}Так приказ будет выглядеть в PDF и Word. Номер появится при регистрации.{% endif %}</p>
+    <div class="errors" id="pbOrderErr" hidden></div>
+    <div class="df-paperwrap df-blankpv"><div class="df-a4 df-a4c"><canvas id="pbOrderCanvas" width="1240" height="1754" role="img" aria-label="Приказ на фирменном бланке"></canvas></div></div>
+    <div class="df-done-grid">
+      <a class="btn btn-primary" id="pbOrderPdf" href="#" download>{% icon 'download' 18 %}Скачать PDF</a>
+      <a class="btn btn-ghost" id="pbOrderDocx" href="#" download>{% icon 'download' 18 %}Скачать Word</a>
+      <a class="btn btn-ghost" id="pbOrderPrint" href="#" data-print>{% icon 'print' 18 %}Печать</a>
+    </div>
+  </div></div></div>
+</section>
+{% include "docflow/_blank_assets.html" %}

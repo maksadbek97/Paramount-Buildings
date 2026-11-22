@@ -13,6 +13,8 @@ from PIL import Image, ImageDraw
 from core.demo_pdf import font
 
 W, H, M = 1240, 1754, 88
+PT = 25  # 12 pt при 150 dpi: весь текст документа — Arial 12 pt
+HEAD = 16  # реквизиты в шапке — как на утверждённом бланке
 NAVY, GRAY, INK, ACCENT, SEAL = (11, 31, 77), (110, 120, 140), (40, 48, 66), (0, 160, 230), (36, 74, 170)
 
 
@@ -69,6 +71,21 @@ def _by_commas(text, fnt, width):
     return [r for row in rows for r in (wrap(row, fnt, width) if fnt.getlength(row) > width else [row])]
 
 
+def letterhead_columns(company):
+    """Три колонки шапки бланка: [(x, [строки])]. Те же строки рисует предпросмотр в браузере (blank.js)."""
+    short = company.short_name or company.name.replace("ТОО", "").strip(" «»") or "Paramount Buildings"
+    bin_ = _bin(company.bin)
+    address = company.actual_address or company.legal_address or ""
+    cols = [
+        (M, [f"«{short}» ЖШС", *KZ_ADDRESS, f"БСН {bin_}" if bin_ else ""]),
+        (552, [f"Тел: {_phone(company.phone)}" if company.phone else "",
+               f"e-mail: {company.email}" if company.email else "",
+               f"www. {company.website}" if company.website else ""]),
+        (880, [company.name, *_by_commas(address, font(HEAD), W - 880 - 30), f"БИН {bin_}" if bin_ else ""]),
+    ]
+    return [(x, [r for r in rows if r]) for x, rows in cols]
+
+
 def _letterhead(img, d, company):
     """Шапка фирменного бланка Paramount: логотип, три колонки (ҚАЗ · контакты · РУС), линия, водяной знак."""
     mark = _static_img("blank/watermark.png")
@@ -80,21 +97,11 @@ def _letterhead(img, d, company):
     if logo:
         logo = logo.resize((590, int(590 * logo.height / logo.width)))
         img.paste(logo, (M - 8, 70), logo)
-    short = company.short_name or company.name.replace("ТОО", "").strip(" «»") or "Paramount Buildings"
-    bin_ = _bin(company.bin)
-    address = company.actual_address or company.legal_address or ""
-    cols = [
-        (M, [f"«{short}» ЖШС", *KZ_ADDRESS, f"БСН {bin_}" if bin_ else ""]),
-        (552, [f"Тел: {_phone(company.phone)}" if company.phone else "",
-               f"e-mail: {company.email}" if company.email else "",
-               f"www. {company.website}" if company.website else ""]),
-        (880, [company.name, *_by_commas(address, font(16), W - 880 - 30), f"БИН {bin_}" if bin_ else ""]),
-    ]
-    for x, rows in cols:
+    for x, rows in letterhead_columns(company):
         y = 240
-        for i, t in enumerate(r for r in rows if r):
+        for i, t in enumerate(rows):
             bold = i == 0 and x != 552
-            d.text((x, y), t, font=font(16, bold), fill=(20, 24, 36))
+            d.text((x, y), t, font=font(HEAD, bold), fill=(20, 24, 36))
             y += 25
     d.line([M, 366, W - 40, 366], fill=LINE, width=2)
     return 410
@@ -102,9 +109,9 @@ def _letterhead(img, d, company):
 
 def _executor(d, executor, phone=""):
     if executor:
-        d.text((M, H - 140), f"Исп: {executor}", font=font(17), fill=INK)
+        d.text((M, H - 150), f"Исп: {executor}", font=font(PT), fill=INK)
     if phone:
-        d.text((M, H - 114), f"Тел: {_phone(phone)}", font=font(17), fill=INK)
+        d.text((M, H - 112), f"Тел: {_phone(phone)}", font=font(PT), fill=INK)
 
 
 def _signature(d, x, y):
@@ -144,16 +151,16 @@ def _seal(img, cx, cy, company):
 
 def _footer(d, note="Образец документа · демо-версия Smart Building"):
     d.line([M, H - 150, W - M, H - 150], fill=(230, 236, 245), width=2)
-    d.text((W // 2, H - 118), note, font=font(19), fill=GRAY, anchor="mm")
+    d.text((W // 2, H - 118), note, font=font(PT), fill=GRAY, anchor="mm")
 
 
 def _blank_note(d, note):
     """Мелкая пометка внизу бланка (например, что изображение подписи — не ЭЦП)."""
     if note:
-        d.text((W - M, H - 60), note, font=font(14), fill=GRAY, anchor="ra")
+        d.text((W - M, H - 66), note, font=font(PT), fill=GRAY, anchor="ra")
 
 
-def _body(d, y, paragraphs, size=24, gap=16, indent=True, max_y=H - 470):
+def _body(d, y, paragraphs, size=PT, gap=16, indent=True, max_y=H - 470):
     f = font(size)
     for para in paragraphs:
         if not para:
@@ -185,8 +192,8 @@ def date_words(date_text):
 
 
 def _number_line(d, x, y, number, date_text):
-    d.text((x, y), f"№ {number or '___________________'}", font=font(24), fill=INK)
-    d.text((x, y + 36), date_words(date_text) if date_text else "«___» ___________ 20__ г.", font=font(24),
+    d.text((x, y), f"№ {number or '___________________'}", font=font(PT), fill=INK)
+    d.text((x, y + 38), date_words(date_text) if date_text else "«___» ___________ 20__ г.", font=font(PT),
            fill=INK)
 
 
@@ -198,25 +205,26 @@ def letter_pdf(company, number, date_text, addressee, subject, paragraphs, signe
     y = _letterhead(img, d, company)
     _number_line(d, M, y, number, date_text)
     ay = y
-    for row in wrap(addressee, font(23, True), 470):
-        d.text((W - M - 470, ay), row, font=font(23, True), fill=INK)
-        ay += 34
+    for row in wrap(addressee, font(PT, True), 470):
+        d.text((W - M - 470, ay), row, font=font(PT, True), fill=INK)
+        ay += 38
     y = max(y + 120, ay + 30)
-    for row in wrap(subject, font(25, True), W - 2 * M):
-        d.text((M, y), row, font=font(25, True), fill=INK)
+    for row in wrap(subject, font(PT, True), W - 2 * M):
+        d.text((M, y), row, font=font(PT, True), fill=INK)
         y += 38
     y += 22
     y = _body(d, y, paragraphs)
     if attachments:
         y += 6
-        d.text((M, y), "Приложения:", font=font(22, True), fill=INK)
-        y += 34
+        d.text((M, y), "Приложения:", font=font(PT, True), fill=INK)
+        y += 38
         for i, a in enumerate(attachments, 1):
-            d.text((M + 20, y), f"{i}. {a}", font=font(22), fill=INK)
-            y += 32
+            for j, row in enumerate(wrap(f"{i}. {a}", font(PT), W - 2 * M - 20)):
+                d.text((M + 20, y), row, font=font(PT), fill=INK)
+                y += 38
     y = max(y + 50, H - 450)
-    d.text((M, y), signer_pos, font=font(24, True), fill=INK)
-    d.text((W - M, y), signer_name, font=font(24, True), fill=INK, anchor="ra")
+    d.text((M, y), signer_pos, font=font(PT, True), fill=INK)
+    d.text((W - M, y), signer_name, font=font(PT, True), fill=INK, anchor="ra")
     if seal:
         _seal(img, M + 330, y + 10, company)
     if sign:
@@ -231,18 +239,18 @@ def order_pdf(company, number, date_text, title, basis, points, signer_pos, sign
     img = Image.new("RGB", (W, H), "white")
     d = ImageDraw.Draw(img)
     y = _letterhead(img, d, company) + 30
-    d.text((M, y), "БҰЙРЫҚ", font=font(30, True), fill=INK)
-    d.text((W - M, y), "ПРИКАЗ", font=font(30, True), fill=INK, anchor="ra")
+    d.text((M, y), "БҰЙРЫҚ", font=font(PT, True), fill=INK)
+    d.text((W - M, y), "ПРИКАЗ", font=font(PT, True), fill=INK, anchor="ra")
     _number_line(d, M, y + 58, number, date_text)
     y += 170
-    for row in wrap(title, font(26, True), 760):
-        d.text((M + 60, y), row, font=font(26, True), fill=INK)
+    for row in wrap(title, font(PT, True), 760):
+        d.text((M + 60, y), row, font=font(PT, True), fill=INK)
         y += 38
     y += 24
     y = _body(d, y, ([basis] if basis else []) + ["**ПРИКАЗЫВАЮ:"] + [f"{i}. {p}" for i, p in enumerate(points, 1)])
     y = max(y + 60, H - 430)
-    d.text((M + 60, y), signer_pos, font=font(24, True), fill=INK)
-    d.text((W - M, y), signer_name, font=font(24, True), fill=INK, anchor="ra")
+    d.text((M + 60, y), signer_pos, font=font(PT, True), fill=INK)
+    d.text((W - M, y), signer_name, font=font(PT, True), fill=INK, anchor="ra")
     if sign:
         _signature(d, W - M - 560, y + 6)
     if seal:
@@ -255,27 +263,27 @@ def contract_pdf(company, number, date_text, title, counterparty, subject, amoun
     img = Image.new("RGB", (W, H), "white")
     d = ImageDraw.Draw(img)
     y = _letterhead(img, d, company)
-    d.text((W // 2, y + 20), f"ДОГОВОР № {number or '—'}", font=font(32, True), fill=NAVY, anchor="mm")
-    d.text((W // 2, y + 60), title[:80], font=font(22), fill=GRAY, anchor="mm")
-    d.text((M, y + 104), "г. Астана", font=font(22), fill=INK)
-    d.text((W - M, y + 104), date_text, font=font(22), fill=INK, anchor="ra")
+    d.text((W // 2, y + 20), f"ДОГОВОР № {number or '—'}", font=font(PT, True), fill=NAVY, anchor="mm")
+    d.text((W // 2, y + 60), title[:80], font=font(PT), fill=GRAY, anchor="mm")
+    d.text((M, y + 104), "г. Астана", font=font(PT), fill=INK)
+    d.text((W - M, y + 104), date_text, font=font(PT), fill=INK, anchor="ra")
     y += 160
     paras = [f"{company.name}, в лице директора {signer_name}, действующего на основании Устава, и {counterparty}, "
              f"далее совместно «Стороны», заключили настоящий договор о нижеследующем.",
              "**1. Предмет договора", subject,
              "**2. Цена и порядок оплаты", amount_text,
              "**3. Сроки и обязательства", *terms]
-    y = _body(d, y, paras, size=22, gap=10, max_y=H - 520)
+    y = _body(d, y, paras, gap=10, max_y=H - 520)
     y = max(y + 30, H - 470)
-    d.text((M, y), "Исполнитель / Сторона 1", font=font(20, True), fill=NAVY)
-    d.text((W // 2 + 20, y), "Сторона 2", font=font(20, True), fill=NAVY)
-    for i, row in enumerate(wrap(company.name, font(20), 470)):
-        d.text((M, y + 34 + i * 28), row, font=font(20), fill=INK)
-    for i, row in enumerate(wrap(counterparty, font(20), 470)):
-        d.text((W // 2 + 20, y + 34 + i * 28), row, font=font(20), fill=INK)
+    d.text((M, y), "Исполнитель / Сторона 1", font=font(PT, True), fill=NAVY)
+    d.text((W // 2 + 20, y), "Сторона 2", font=font(PT, True), fill=NAVY)
+    for i, row in enumerate(wrap(company.name, font(PT), 470)):
+        d.text((M, y + 34 + i * 34), row, font=font(PT), fill=INK)
+    for i, row in enumerate(wrap(counterparty, font(PT), 470)):
+        d.text((W // 2 + 20, y + 34 + i * 34), row, font=font(PT), fill=INK)
     d.line([M, y + 160, M + 380, y + 160], fill=GRAY, width=2)
     d.line([W // 2 + 20, y + 160, W // 2 + 400, y + 160], fill=GRAY, width=2)
-    d.text((M, y + 168), signer_name, font=font(18), fill=GRAY)
+    d.text((M, y + 168), signer_name, font=font(PT), fill=GRAY)
     _footer(d)
     return _save(img)
 
@@ -285,24 +293,24 @@ def external_pdf(org, org_sub, number, date_text, addressee, subject, paragraphs
     img = Image.new("RGB", (W, H), "white")
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, W, 10], fill=(90, 100, 120))
-    d.text((M, 60), org, font=font(30, True), fill=(50, 58, 80))
-    d.text((M, 104), org_sub, font=font(19), fill=GRAY)
+    d.text((M, 60), org, font=font(PT, True), fill=(50, 58, 80))
+    d.text((M, 104), org_sub, font=font(PT), fill=GRAY)
     d.line([M, 150, W - M, 150], fill=(200, 206, 216), width=2)
     y = 190
-    d.text((M, y), f"Исх. № {number}", font=font(22), fill=INK)
-    d.text((M, y + 32), f"от {date_text}", font=font(22), fill=INK)
+    d.text((M, y), f"Исх. № {number}", font=font(PT), fill=INK)
+    d.text((M, y + 32), f"от {date_text}", font=font(PT), fill=INK)
     ay = y
-    for row in wrap(addressee, font(22, True), 470):
-        d.text((W - M - 470, ay), row, font=font(22, True), fill=INK)
-        ay += 32
+    for row in wrap(addressee, font(PT, True), 470):
+        d.text((W - M - 470, ay), row, font=font(PT, True), fill=INK)
+        ay += 38
     y = max(y + 110, ay + 30)
-    for row in wrap(subject, font(24, True), W - 2 * M):
-        d.text((M, y), row, font=font(24, True), fill=INK)
-        y += 36
+    for row in wrap(subject, font(PT, True), W - 2 * M):
+        d.text((M, y), row, font=font(PT, True), fill=INK)
+        y += 38
     y += 18
     y = _body(d, y, paragraphs)
     y = max(y + 60, H - 420)
-    d.text((M, y), signer, font=font(23), fill=INK)
+    d.text((M, y), signer, font=font(PT), fill=INK)
     d.line([W - M - 320, y + 28, W - M, y + 28], fill=GRAY, width=2)
     # штамп входящей регистрации
     _footer(d, "Скан входящего письма · образец, демо-версия")
