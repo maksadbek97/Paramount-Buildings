@@ -130,3 +130,69 @@ class DocflowTests(TestCase):
         self.client.post(url, {})
         t.refresh_from_db()
         self.assertEqual(t.status, "accepted")
+
+
+@override_settings(MEDIA_ROOT=MEDIA)
+class BlankTests(TestCase):
+    """Фирменные бланки Paramount: письмо и приказ в PDF и DOCX на бланке."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from pathlib import Path
+
+        from django.core.files.base import ContentFile
+        cls.user = get_user_model().objects.create_superuser("boss2", password="pass12345")
+        director = Employee.objects.create(full_name="Балтаев Нурбек Шарипжанұлы",
+                                           position=Position.objects.create(name="Директор"))
+        Company.objects.create(name="ТОО «Paramount Buildings»", short_name="Paramount Buildings",
+                               bin="210540017144", director=director, phone="+7 775 339 46 16")
+        Journal.objects.create(name="Приказы", kind="order", suffix="ОД", use_year=False, digits=1)
+        Journal.objects.create(name="Исходящие", kind="outgoing", prefix="ИСХ", digits=4)
+        blanks = Path(__file__).resolve().parent / "blanks"
+        cls.letter_blank = (blanks / "paramount-blank-pismo.docx").read_bytes()
+        cls.order_tpl = Template.objects.create(name="Бланк приказа", code="BLANK-ORD", category="order",
+                                                is_letterhead=True)
+        cls.order_tpl.file.save("b.docx", ContentFile((blanks / "paramount-blank-prikaz.docx").read_bytes()))
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_order_text(self):
+        from .views import order_text
+        basis, points = order_text("В целях организации работы.\nПРИКАЗЫВАЮ:\n1. Первое.\n2) Второе.")
+        self.assertEqual(basis, "В целях организации работы.")
+        self.assertEqual(points, ["Первое.", "Второе."])
+        self.assertEqual(order_text("Только пункт"), ("", ["Только пункт"]))
+
+    def test_letter_docx_keeps_blank_header(self):
+        import io
+        import zipfile
+
+        from .blank_docx import letter_docx
+        data = letter_docx(self.letter_blank, number="ИСХ-2026-0001", date_text="22.11.2026",
+                           addressee="Директору ТОО «Тест»", subject="О проверке", paragraphs=["Текст & письмо"],
+                           signer_pos="Директор", signer_name="Балтаев Н. Ш.", executor="Абдужаббаров М. Х.")
+        z = zipfile.ZipFile(io.BytesIO(data))
+        xml = z.read("word/document.xml").decode()
+        self.assertIn("ИСХ-2026-0001", xml)
+        self.assertIn("«22» ноября 2026 г.", xml)
+        self.assertIn("Текст &amp; письмо", xml)
+        self.assertIn("Исп: Абдужаббаров М. Х.", xml)
+        self.assertNotIn("М.Абдужабббаров", xml)
+        self.assertIn("210\xa0540\xa0017\xa0144", z.read("word/header2.xml").decode())
+
+    def test_new_order_is_made_on_blank(self):
+        r = self.client.post(reverse("docflow_new", args=["order"]), {
+            "subtype": "Организационный", "title": "О дежурстве", "doc_date": "2026-11-22",
+            "summary": "В целях порядка.\nПРИКАЗЫВАЮ:\n1. Назначить дежурного.", "priority": "normal"})
+        self.assertEqual(r.status_code, 302, getattr(r, "context", None) and r.context["form"].errors)
+        doc = Document.objects.get(kind="order", title="О дежурстве")
+        self.assertEqual(doc.template, self.order_tpl)
+        self.assertTrue(doc.file.name.endswith(".pdf"))
+        names = sorted(f.file.name.rsplit(".", 1)[1] for f in doc.files.all())
+        self.assertEqual(names, ["docx", "pdf"])
+
+    def test_templates_page_has_open_and_download(self):
+        html = self.client.get(reverse("docflow_templates")).content.decode()
+        self.assertIn("Создать приказ", html)
+        self.assertIn("Скачать DOCX", html)

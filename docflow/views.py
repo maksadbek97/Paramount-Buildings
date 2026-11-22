@@ -1,3 +1,4 @@
+import re
 from datetime import date, timedelta
 
 from django.contrib import messages
@@ -15,7 +16,7 @@ from core.views import form_page
 from objects.models import ConstructionObject
 from staff.models import Employee
 
-from . import forms, pdf, services
+from . import blank_docx, forms, pdf, services
 from .models import (Approval, ArchiveRecord, CaseFile, DocEvent, DocTask, Document, DocumentFile, Journal, Seal,
                      SealUsage, Template)
 
@@ -358,7 +359,12 @@ def action(request, pk):
                 services.log(d, "comment", text, request.user)
                 messages.success(request, "Комментарий добавлен")
         else:
+            had_number = bool(d.number)
             messages.success(request, services.apply_action(d, code, request.user, request.POST.get("reason", "")))
+            d.refresh_from_db()
+            if d.kind == "order" and d.number and not had_number and d.template and d.template.is_letterhead \
+                    and d.template.category == "order":
+                build_order_files(d, d.template, services.employee_of(request.user), request.user)
     except services.ActionError as e:
         messages.error(request, str(e))
     return redirect("docflow_detail", pk=d.pk)
@@ -391,7 +397,10 @@ def new(request, kind):
 
     def done(doc):
         services.log(doc, "create", f"Создан: {doc.get_kind_display()}", request.user)
-        if doc.file:
+        blank = order_blank() if kind == "order" and not doc.file else None
+        if blank:
+            build_order_files(doc, blank, services.employee_of(request.user), request.user)
+        elif doc.file:
             DocumentFile.objects.create(document=doc, file=doc.file.name, name=doc.file.name.rsplit("/", 1)[-1],
                                         role="original" if kind == "incoming" else "working",
                                         author=services.employee_of(request.user))
@@ -492,7 +501,8 @@ def _generator_ctx(request):
         "Директор", "Заместитель директора"]).select_related("position")]
     last = Document.objects.filter(kind="outgoing", template__isnull=False).exclude(file="").order_by("-id").first()
     return {
-        "company": company, "letterheads": Template.objects.filter(is_letterhead=True, is_active=True).order_by("-version", "name"),
+        "company": company, "letterheads": Template.objects.filter(is_letterhead=True, is_active=True, category="letter").order_by(
+            "name", "-version"),
         "signers": signers, "director": director,
         "seals": Seal.objects.filter(kind="seal", is_active=True),
         "objects": ConstructionObject.objects.exclude(status="archive").order_by("name"),
@@ -505,6 +515,81 @@ def _generator_ctx(request):
         "sample": last, "me": services.employee_of(request.user),
         "today_text": f"{date.today():%d.%m.%Y}",
     }
+
+
+def short_name(emp):
+    """Балтаев Н. Ш. — фамилия и инициалы."""
+    if not emp:
+        return ""
+    parts = emp.full_name.split()
+    return parts[0] + (" " + " ".join(p[0] + "." for p in parts[1:3]) if len(parts) > 1 else "")
+
+
+def _blank_bytes(template):
+    """Файл бланка DOCX (шапка, логотип, водяной знак) или None."""
+    if not template or not template.file or not template.is_docx:
+        return None
+    try:
+        with template.file.open("rb") as f:
+            return f.read()
+    except (OSError, ValueError):
+        return None
+
+
+def _attach(doc, content, filename, name, author, comment, role="working"):
+    f = DocumentFile(document=doc, name=name, role=role, author=author, comment=comment,
+                     version=doc.files.filter(name=name).count() + 1, size_kb=max(1, len(content) // 1024))
+    f.file.save(filename, ContentFile(content), save=False)
+    f.save()
+    return f
+
+
+def order_text(summary):
+    """Текст приказа из поля «Содержание»: преамбула (основание) и пункты «1. …»."""
+    basis, points = [], []
+    for line in (x.strip() for x in (summary or "").split("\n")):
+        if not line or line.rstrip(":").upper() in ("ПРИКАЗЫВАЮ", "БҰЙЫРАМЫН"):
+            continue
+        m = re.match(r"^\d+[.)]\s*(.+)$", line)
+        if m:
+            points.append(m.group(1))
+        elif points:
+            points.append(line)
+        else:
+            basis.append(line)
+    if not points:
+        basis, points = [], basis
+    return " ".join(basis), points
+
+
+def order_blank():
+    return Template.objects.filter(is_letterhead=True, is_active=True, category="order").order_by("-version").first()
+
+
+def build_order_files(doc, template, author=None, user=None):
+    """Приказ на фирменном бланке: PDF (основной файл) и DOCX для правки в Word."""
+    company = Company.get()
+    signer = doc.signer or company.director
+    position = signer.position.name if signer and signer.position else "Директор"
+    initials = ""
+    if signer:
+        parts = signer.full_name.split()
+        initials = " ".join(p[0] + "." for p in parts[1:2]) + parts[0] if len(parts) > 1 else parts[0]
+    basis, points = order_text(doc.summary)
+    dt = f"{doc.doc_date:%d.%m.%Y}" if doc.doc_date else ""
+    content = pdf.order_pdf(company, doc.number, dt, doc.title, basis, points, position, initials, sign=False)
+    doc.file.save(f"prikaz-{doc.pk}.pdf", ContentFile(content), save=False)
+    doc.template = template
+    doc.save(update_fields=["file", "template"])
+    _attach(doc, content, f"prikaz-{doc.pk}-v.pdf", f"Приказ — {doc.title[:60]}.pdf", author,
+            f"Сформирован на бланке «{template.name}»")
+    blank = _blank_bytes(template)
+    if blank:
+        docx = blank_docx.order_docx(blank, number=doc.number, date_text=dt, title=doc.title, basis=basis,
+                                     points=points, signer_pos=position, signer_name=initials)
+        _attach(doc, docx, f"prikaz-{doc.pk}.docx", f"Приказ — {doc.title[:60]}.docx", author,
+                "Тот же приказ в Word на бланке — для правки и печати")
+    services.log(doc, "create", f"Приказ оформлен на бланке «{template.name}» v{template.version}", user)
 
 
 def build_letter(company, *, template, addressee, subject, body, signer, sign_mode, seal, obj=None, contract=None,
@@ -530,15 +615,23 @@ def build_letter(company, *, template, addressee, subject, body, signer, sign_mo
     if signer:
         parts = signer.full_name.split()
         short = parts[0] + (" " + " ".join(p[0] + "." for p in parts[1:3]) if len(parts) > 1 else "")
+    executor, phone = (short_name(author), author.phone) if author else ("", "")
     content = pdf.letter_pdf(company, doc.number, f"{when:%d.%m.%Y}", addressee, subject, paras, position, short,
                              sign=use_sign, seal=use_seal and bool(seal), attachments=attachments,
-                             executor=author.full_name if author else "")
+                             executor=executor, executor_phone=phone)
     doc.file.save(f"ishod-{doc.pk}.pdf", ContentFile(content), save=False)
     doc.status = status
     doc.save()
     DocumentFile.objects.create(document=doc, file=doc.file.name, name=f"Письмо {doc.number}.pdf", role="original",
                                 author=author, comment="Финальный PDF, сформирован на бланке", locked=True,
                                 size_kb=len(content) // 1024)
+    blank = _blank_bytes(template)
+    if blank:
+        docx = blank_docx.letter_docx(blank, number=doc.number, date_text=f"{when:%d.%m.%Y}", addressee=addressee,
+                                      subject=subject, paragraphs=paras, signer_pos=position, signer_name=short,
+                                      attachments=attachments, executor=executor, executor_phone=phone)
+        _attach(doc, docx, f"ishod-{doc.pk}.docx", f"Письмо {doc.number}.docx", author,
+                "Тот же текст в Word на бланке — для правки и печати", role="working")
     if signer:
         Approval.objects.create(document=doc, step=1, role="signer", employee=signer, decision="signed",
                                 method="Изображение подписи на бланке" if use_sign else "Собственноручно",
@@ -561,7 +654,7 @@ def letter(request):
     if request.method == "POST":
         p = request.POST
         errors = []
-        tpl = Template.objects.filter(pk=p.get("template") or 0, is_letterhead=True).first()
+        tpl = Template.objects.filter(pk=p.get("template") or 0, is_letterhead=True, category="letter").first()
         if not tpl:
             errors.append("Выберите фирменный бланк.")
         for field, label in (("addressee", "адресата"), ("subject", "тему"), ("body", "текст письма")):

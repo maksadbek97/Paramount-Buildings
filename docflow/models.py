@@ -128,6 +128,8 @@ class Template(models.Model):
     body = models.TextField("Текст шаблона", blank=True,
                             help_text="Переменные: {компания}, {адресат}, {объект}, {договор}, {дата}, {номер}")
     file = models.FileField("Файл бланка (DOCX или PDF)", upload_to="docflow/templates/", blank=True)
+    preview = models.FileField("PDF для просмотра", upload_to="docflow/templates/", blank=True,
+                               help_text="Как выглядит бланк. Если не загружен — открывается сам файл бланка.")
 
     class Meta:
         verbose_name = "Шаблон"
@@ -136,6 +138,15 @@ class Template(models.Model):
 
     def __str__(self):
         return f"{self.name} · v{self.version}"
+
+    @property
+    def is_docx(self):
+        return self.file.name.lower().endswith(".docx")
+
+    @property
+    def view_file(self):
+        """Что открывать по кнопке «Открыть»: PDF для просмотра или сам файл."""
+        return self.preview or self.file
 
 
 class Seal(models.Model):

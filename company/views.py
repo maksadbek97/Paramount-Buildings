@@ -59,6 +59,7 @@ def profile(request):
         req += [("Банк", main.bank), ("БИК", main.bik), ("ИИК (IBAN)", main.iban)]
     if company.director:
         req.append(("Руководитель", f"{company.director.position or 'Директор'} {company.director.full_name}"))
+    req += [("Телефон", company.phone), ("Эл. почта", company.email)]
     return _page(request, "profile", "company/profile.html", {
         "accounts": BankAccount.objects.all(),
         "requisites": [(k, v) for k, v in req if v],

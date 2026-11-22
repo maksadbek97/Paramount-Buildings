@@ -171,13 +171,13 @@ class JournalForm(forms.ModelForm):
 class TemplateForm(StaffMixin, forms.ModelForm):
     fieldsets = [("Шаблон", "", ["name", "code", "category", "is_letterhead", "version", "active_from"]),
                  ("Доступ и подпись", "", ["access", "sign_rule", "author", "is_active"]),
-                 ("Содержимое", "Старые документы сохраняют версию шаблона, по которой созданы.", ["body", "file"])]
+                 ("Содержимое", "Старые документы сохраняют версию шаблона, по которой созданы.", ["body", "file", "preview"])]
     wide = {"body"}
 
     class Meta:
         model = Template
         fields = ["name", "code", "category", "is_letterhead", "version", "active_from", "access", "sign_rule",
-                  "author", "is_active", "body", "file"]
+                  "author", "is_active", "body", "file", "preview"]
         widgets = {"body": forms.Textarea(attrs={"rows": 6})}
 
     def __init__(self, *a, **kw):
