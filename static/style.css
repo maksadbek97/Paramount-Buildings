@@ -908,3 +908,29 @@ a.k.link:hover { border-color: var(--accent); box-shadow: 0 4px 14px rgba(11,31,
 }
 .field input[type=file] { padding: 8px 10px !important; min-height: 46px; }
 .field input[type=file]::file-selector-button { border: 1px solid var(--line); background: #F3F6FA; color: var(--navy); font: inherit; font-weight: 700; font-size: 13.5px; padding: 7px 14px; border-radius: 8px; margin-right: 12px; cursor: pointer; }
+
+/* ===================== Выбор объекта в шапке (рядом с логотипом) ===================== */
+.appbar .objpick summary { min-width: 240px; max-width: 320px; height: 38px; }
+.objpick .drop { min-width: 320px; }
+.objpick .drop .nh { font-size: 11.5px; font-weight: 800; color: var(--gray); text-transform: uppercase; letter-spacing: .4px; padding: 8px 12px 4px; }
+.objpick .drop a small { min-width: 54px; }
+.objpick .drop a .on-name { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.objpick .drop a .on-name i { font-style: normal; color: var(--gray); font-weight: 600; font-size: 12px; }
+.objpick .drop a .ic { color: var(--accent-ink); }
+.df-objnote { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--sky); color: var(--navy);
+  border-radius: 10px; padding: 9px 14px; margin-bottom: 14px; font-size: 14px; }
+.df-objnote .ic { color: var(--accent-ink); }
+.df-objnote > span { flex: 1; min-width: 200px; }
+.df-objnote a { margin-left: auto; font-weight: 700; }
+@media (max-width: 899px) {
+  .appbar .objpick { flex: 1; min-width: 0; }
+  .appbar .objpick summary { min-width: 0; max-width: none; height: 36px; padding: 0 10px; font-size: 13.5px; }
+  .appbar .objpick ~ .spacer { display: none; }
+  .objpick .drop { min-width: 0; }
+}
+/* Строки, скрытые фильтром, не показываются и в карточном виде таблиц на телефоне */
+tr[hidden] { display: none !important; }
+@media (max-width: 599px) {
+  .appbar { gap: 8px; }
+  .appbar .usermenu .who, .appbar .usermenu summary > .ic:last-child { display: none; }  /* имя — в меню пользователя */
+}
