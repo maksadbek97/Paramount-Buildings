@@ -2,6 +2,7 @@
 маршрутами согласования, поручениями, историей и архивом. Люди и компания — из «Моей компании»."""
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal as D
+from pathlib import Path
 
 from django.core.files.base import ContentFile
 from django.utils import timezone
@@ -103,12 +104,10 @@ def seed():
     # ---------- шаблоны и бланки ----------
     T = {}
     for code, name, cat, lh, ver, rule, access, body, days, active in [
-        ("BLANK-MAIN", "Основной фирменный бланк", "letter", True, 3, "ask", "Все сотрудники",
-         "{компания}\n{адресат}\nИсх. № {номер} от {дата}", -210, True),
-        ("BLANK-GUAR", "Бланк гарантийного письма", "letter", True, 1, "both", "Директор, заместитель",
-         "{компания} гарантирует оплату… {адресат}", -150, True),
-        ("BLANK-EN", "Бланк для иностранных партнёров (EN)", "letter", True, 1, "ask", "Директор, заместитель",
-         "{компания} · Ref. № {номер}", -90, True),
+        ("BLANK-MAIN", "Фирменный бланк для письма", "letter", True, 1, "ask", "Все сотрудники",
+         "{компания}\n{адресат}\n№ {номер} от {дата}", -9, True),
+        ("BLANK-ORD", "Фирменный бланк для приказа", "order", True, 1, "sign", "Директор, заместитель",
+         "БҰЙРЫҚ · ПРИКАЗ № {номер} от {дата}\n{компания}\nПРИКАЗЫВАЮ: …", -9, True),
         ("TPL-ORD", "Приказ по основной деятельности", "order", False, 2, "sign", "Администрация",
          "ПРИКАЗ № {номер} от {дата}\n{компания}\nПРИКАЗЫВАЮ: …", -300, True),
         ("TPL-ORD-OBJ", "Приказ о назначении ответственного за объект", "order", False, 1, "sign", "Администрация",
@@ -131,6 +130,12 @@ def seed():
         T[code] = Template.objects.create(code=code, name=name, category=cat, is_letterhead=lh, version=ver,
                                           sign_rule=rule, access=access, body=body, active_from=d(days),
                                           is_active=active, author=A)
+    # Утверждённые бланки компании (DOCX) и их вид для просмотра (PDF)
+    blanks_dir = Path(__file__).resolve().parent / "blanks"
+    for code, base in (("BLANK-MAIN", "paramount-blank-pismo"), ("BLANK-ORD", "paramount-blank-prikaz")):
+        T[code].file.save(f"{base}.docx", ContentFile((blanks_dir / f"{base}.docx").read_bytes()), save=False)
+        T[code].preview.save(f"{base}.pdf", ContentFile((blanks_dir / f"{base}.pdf").read_bytes()), save=False)
+        T[code].save()
 
     # ---------- печати и подписи ----------
     S = {
@@ -201,7 +206,7 @@ def seed():
        valid_until=d(110), status="execution", responsible=H, signer=B, author=H, department=acc, case=C["04-01"],
        template=T["TPL-SUP"], keywords="газоблок, клей",
        summary="Поставка газоблока D500 (1200 м³) и клея для газоблока по графику отгрузок на ЖК «Атлант».")
-    mk("C7", "contract", "Аренда офиса в БЦ «Нурсая», 3 этаж", -345, number="А-17", counterparty="ТОО «Нурсая Инвест»",
+    mk("C7", "contract", "Аренда офиса", -345, number="А-17", counterparty="ТОО «Нурсая Инвест»",
        contract_type="rent", amount=D("9600000"), paid=D("8800000"), valid_from=d(-345), valid_until=d(20),
        status="execution", responsible=B, signer=B, author=A, department=adm, case=C["04-01"],
        keywords="аренда, офис", summary="Аренда офиса 120 м², 800 000 ₸ в месяц. Продлить заранее — за 30 дней.")
@@ -343,7 +348,7 @@ def seed():
     outs = [
         ("X6", -42, T["BLANK-MAIN"], "АО «Народный Банк Казахстана», Астанинский региональный филиал",
          "Запрос справки об отсутствии картотеки", "Просим выдать справку об отсутствии картотеки к счетам "
-         f"ТОО «Paramount Buildings» (ИИК KZ866010111000123456) для участия в тендере.", "none", None, None,
+         f"ТОО «Paramount Buildings» (ИИК KZ27601A871002925661) для участия в тендере.", "none", None, None,
          "edo", "archived", "04-02", A),
         ("X2", -20, T["BLANK-MAIN"], "Директору ТОО «Атлант Девелопмент»",
          "О сроках возобновления работ на ЖК «Нурлы Жол»",
@@ -351,7 +356,7 @@ def seed():
          "Возобновление работ возможно в течение 5 рабочих дней после получения согласованного варианта фасада.\n"
          "Бригады и материалы для продолжения работ зарезервированы.", "both", o4, None, "email", "closed", "02-03",
          A),
-        ("X7", -18, T["BLANK-GUAR"], "Директору ТОО «КазМеталл Снаб»", "Гарантийное письмо об оплате арматуры",
+        ("X7", -18, T["BLANK-MAIN"], "Директору ТОО «КазМеталл Снаб»", "Гарантийное письмо об оплате арматуры",
          "ТОО «Paramount Buildings» гарантирует оплату поставленной арматуры Ø12 по счёту № 1520 на сумму "
          "6 900 000 тенге в срок до конца текущего месяца.\nПросим отгрузить оставшиеся 20 т без предоплаты.",
          "both", o1, "C5", "email", "closed", "04-02", H),

@@ -2,7 +2,7 @@
 {% block ptitle %}Шаблоны{% endblock %}
 {% block tab %}
 <div class="tabhead df-th">
-  <div><h2>Фирменные бланки</h2><p class="muted">По бланку генератор собирает готовое письмо: текст, адресат, номер, дата, подпись и печать. При обновлении бланка уже созданные письма не меняются — у них остаётся своя версия.</p></div>
+  <div><h2>Фирменные бланки</h2><p class="muted">По бланку система собирает готовое письмо или приказ: номер, дата, текст, подпись — в PDF и в Word (DOCX) на том же бланке. При обновлении бланка уже созданные письма не меняются — у них остаётся своя версия.</p></div>
   <div class="tabhead-act"><a class="btn btn-ghost" href="{% url 'docflow_template_new' %}">{% icon 'plus' 18 %}Загрузить бланк</a><a class="btn btn-primary" href="{% url 'docflow_letter' %}">{% icon 'mail' 18 %}Создать письмо</a></div>
 </div>
 <div class="df-tgrid">
@@ -10,8 +10,8 @@
     <div class="df-lh df-lh-{{ t.code|lower }}"><div class="lh-top"><img src="{% static 'img/logo.png' %}" alt=""><span><b>{{ company.name }}</b>{{ company.legal_address|truncatechars:42 }}</span></div><i></i><i class="s"></i><i></i><i></i><i class="s"></i><div class="lh-sign"><i></i><span class="lh-seal"></span></div></div>
     <div class="df-tb"><b>{{ t.name }}</b><small>{{ t.code }} · версия {{ t.version }} · с {{ t.active_from|date:"d.m.Y" }}</small>
       <div class="tags"><span>{{ t.get_sign_rule_display }}</span><span>{{ t.access }}</span>{% if t.is_active %}<span class="t-ok">активен</span>{% else %}<span>неактивен</span>{% endif %}</div>
-      <small class="muted">писем по бланку: {{ t.n }}</small>
-      <div class="df-ta"><a class="btn btn-primary btn-sm" href="{% url 'docflow_letter' %}">Создать письмо</a><a class="btn btn-ghost btn-sm" href="{% url 'docflow_template_edit' t.pk %}">Настроить</a></div>
+      <small class="muted">{% if t.category == "order" %}приказов{% else %}писем{% endif %} по бланку: {{ t.n }}</small>
+      <div class="df-ta">{% if t.category == "order" %}<a class="btn btn-primary btn-sm" href="{% url 'docflow_new' 'order' %}">Создать приказ</a>{% else %}<a class="btn btn-primary btn-sm" href="{% url 'docflow_letter' %}">Создать письмо</a>{% endif %}{% if t.file %}<a class="btn btn-ghost btn-sm" href="{{ t.view_file.url }}" target="_blank" rel="noopener">{% icon 'eye' 16 %}Открыть</a><a class="btn btn-ghost btn-sm" href="{{ t.file.url }}" download>{% icon 'download' 16 %}Скачать{% if t.is_docx %} DOCX{% endif %}</a>{% endif %}<a class="btn btn-ghost btn-sm" href="{% url 'docflow_template_edit' t.pk %}">Настроить</a></div>
     </div>
   </article>{% endfor %}
 </div>

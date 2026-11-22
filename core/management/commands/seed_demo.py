@@ -48,6 +48,11 @@ class Command(BaseCommand):
         ]:
             staff[key] = Employee.objects.create(full_name=full_name, position=pos[position], hired_at=hired,
                                                  salary=D(salary))
+        # Телефоны — из реквизитов и фирменного бланка («Исп.: М. Абдужаббаров, тел. …»).
+        Employee.objects.filter(pk=staff["Балтаев"].pk).update(phone="+7 775 339 46 16")
+        Employee.objects.filter(pk=staff["Абдужаббаров"].pk).update(phone="+7 707 170 07 74")
+        for k in ("Балтаев", "Абдужаббаров"):
+            staff[k].refresh_from_db()
         # Роли в демо-процессах (объекты, задачи, замечания) — на реальных людей.
         emp = {"Жумабеков": staff["Балтаев"], "Ахметова": staff["Абдужаббаров"], "Ким": staff["Абдужаббаров"],
                "Нурланова": staff["Мадениет"], "Сейтказиев": staff["Равшанов"], "Оспанов": staff["Равшанов"],
@@ -367,22 +372,18 @@ class Command(BaseCommand):
         """Раздел «Моя компания»: профиль, счета, структура, штатное расписание, документы."""
         d = self.d
         Company.objects.all().delete()
+        # Реквизиты — из файла «Реквизиты Paramount» и фирменных бланков компании.
         Company.objects.create(
-            legal_form="too", name="ТОО «Paramount Buildings»", short_name="Paramount Buildings", bin="210540033211",
-            registered_at=date(2021, 5, 14), activity="43.99 — Прочие специализированные строительные работы",
-            kbe="17", vat_payer=True, vat_certificate="серия 62001 № 0123456",
+            legal_form="too", name="ТОО «Paramount Buildings»", short_name="Paramount Buildings", bin="210540017144",
+            activity="43.99 — Прочие специализированные строительные работы", kbe="17", vat_payer=True,
             director=self.staff["Балтаев"], accountant=None,
-            legal_address="г. Астана, р-н Есиль, пр. Мангилик Ел, 55/20, офис 304",
-            actual_address="г. Астана, пр. Мангилик Ел, 55/20, БЦ «Нурсая», 3 этаж",
-            phone="+7 717 279-00-00", email="info@paramount-buildings.kz", website="paramount-buildings.kz",
+            legal_address="010000, г. Астана, р-н Сарыарка, ул. Косшыгулулы, дом 19, кв. 238",
+            actual_address="010000, РК, г. Астана, р-н Сарыарка, ул. Косшыгулулы, дом 19",
+            phone="+7 775 339 46 16", email="avangard.nbs@gmail.com", website="paramountbuild.kz",
             description="Субподрядная строительная компания: каменная кладка, штукатурные и армирующие работы "
                         "на жилых и коммерческих объектах в Астане, Алматы и Шымкенте.")
-        BankAccount.objects.create(bank="АО «Народный Банк Казахстана»", bik="HSBKKZKX", iban="KZ866010111000123456",
+        BankAccount.objects.create(bank="АО «Народный Банк Казахстана»", bik="HSBKKZKX", iban="KZ27601A871002925661",
                                    is_main=True, note="Основной расчётный счёт")
-        BankAccount.objects.create(bank="АО «Kaspi Bank»", bik="CASPKZKA", iban="KZ72722S000012345678",
-                                   note="Зарплатный проект")
-        BankAccount.objects.create(bank="АО «Банк ЦентрКредит»", bik="KCJBKZKX", iban="KZ31826A1USD00045678",
-                                   currency="USD", note="Валютные расчёты с поставщиками")
 
         # Структура и штатное расписание — из утверждённого штатного расписания ТОО (6 единиц).
         st = self.staff
@@ -426,7 +427,7 @@ class Command(BaseCommand):
              "Государственная лицензия на строительно-монтажные работы, II категория", None, "Ахметова", ""),
             (K.LICENSE, "KZ.ISO.1234", d(-300), "Сертификат системы менеджмента качества ISO 9001", d(430),
              "Ахметова", ""),
-            (K.OTHER, "А-17", d(-345), "Договор аренды офиса в БЦ «Нурсая»", d(20), "Исаева", "Продлить заранее"),
+            (K.OTHER, "А-17", d(-345), "Договор аренды офиса", d(20), "Исаева", "Продлить заранее"),
         ]:
             doc = CompanyDocument.objects.create(kind=kind, number=number, date=date_, title=title,
                                                  valid_until=valid, responsible=emp[who], note=note)

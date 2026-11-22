@@ -249,7 +249,7 @@ code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700;
 .df-lh-blank-guar .lh-top { border-bottom-color: #0F8A5F; }
 .df-tb { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .df-tb b { font-size: 15px; } .df-tb small { color: var(--gray); font-size: 12.5px; }
-.df-ta { display: flex; gap: 6px; margin-top: auto; padding-top: 6px; }
+.df-ta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 6px; }
 .df-sgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
 .df-scard { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; gap: 14px; align-items: flex-start; }
 .df-scard.dim { opacity: .6; }
