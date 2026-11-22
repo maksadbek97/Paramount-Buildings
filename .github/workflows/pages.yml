@@ -25,7 +25,7 @@ jobs:
       - name: Установить зависимости
         run: |
           pip install -r requirements.txt
-          sudo apt-get install -y -q fonts-dejavu-core || true  # шрифт с кириллицей для примерных PDF
+          sudo apt-get install -y -q fonts-liberation fonts-dejavu-core || true  # Liberation Sans = размеры Arial (шрифт документов)
       - name: Проверить тесты
         run: python manage.py test
       - name: Собрать демо-версию

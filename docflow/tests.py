@@ -197,6 +197,38 @@ class BlankTests(TestCase):
         self.assertIn("Создать приказ", html)
         self.assertIn("Скачать DOCX", html)
 
+    def test_docx_text_is_arial_12(self):
+        import io
+        import re
+        import zipfile
+
+        from .blank_docx import letter_docx, order_docx
+        for data in (letter_docx(self.letter_blank, number="1", date_text="22.11.2026", addressee="А", subject="Т",
+                                 paragraphs=["П"], executor="И. И."),
+                     order_docx(self.order_tpl.file.open("rb").read(), number="1", date_text="22.11.2026",
+                                title="О проверке", basis="Основание", points=["Пункт"])):
+            xml = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode()
+            self.assertEqual(set(re.findall(r'<w:sz w:val="(\d+)"', xml)), {"24"})
+            self.assertEqual(set(re.findall(r'w:ascii="([^"]+)"', xml)), {"Arial"})
+
+    def test_order_form_builds_preview_from_its_own_blank(self):
+        html = self.client.get(reverse("docflow_new", args=["order"])).content.decode()
+        self.assertIn('id="pbBlankData"', html)
+        self.assertIn(f'data-docx-src="{self.order_tpl.file.url}"', html)
+        self.assertIn('data-blank="order"', html)
+        self.assertIn("pbOrderCanvas", html)
+
+    def test_letter_generator_previews_real_blank_not_sample(self):
+        from django.core.files.base import ContentFile
+        tpl = Template.objects.create(name="Бланк письма", code="BLANK-MAIN", category="letter", is_letterhead=True)
+        tpl.file.save("p.docx", ContentFile(self.letter_blank))
+        sample = Document.objects.create(kind="outgoing", title="Чужое письмо", template=tpl, doc_date=date.today())
+        sample.file.save("ishod-sample.pdf", ContentFile(b"%PDF"))
+        html = self.client.get(reverse("docflow_letter")).content.decode()
+        self.assertIn('id="gCanvas"', html)
+        self.assertIn(f'data-docx-src="{tpl.file.url}"', html)
+        self.assertNotIn(sample.file.url, html)  # скачивается созданное письмо, а не пример из журнала
+
 
 class ObjectPickerTests(TestCase):
     """Выбор объекта в шапке рядом с логотипом."""

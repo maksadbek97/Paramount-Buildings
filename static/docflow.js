@@ -210,21 +210,25 @@
   function val(n) { var el = gen.elements[n]; if (!el) return ''; if (el.length && !el.tagName) { for (var i = 0; i < el.length; i++) if (el[i].checked) return el[i].value; return ''; } return el.value; }
   function esc(s) { return s.replace(/[&<>"]/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]; }); }
   function tpl() { return $('input[name=template]:checked', gen); }
+  function letterDoc() {
+    var s = $('#gSigner'), o = s && s.options[s.selectedIndex], mode = val('sign_mode'), t = tpl();
+    var d = window.PBBlank ? window.PBBlank.data() : {}, sealSel = $('#gSeal');
+    if (t && t.dataset.rule === 'none') mode = 'none';
+    return {kind: 'letter', number: paper.dataset.number, date: paper.dataset.date,
+      addressee: val('addressee').trim(), subject: val('subject').trim(),
+      paragraphs: val('body').split('\n').map(function (x) { return x.trim(); }).filter(Boolean),
+      attachments: val('attachments').split('\n').map(function (x) { return x.trim(); }).filter(Boolean),
+      signerPos: o ? (o.dataset.pos || 'Директор') : 'Директор', signerName: o && window.PBBlank ? window.PBBlank.shortName(o.dataset.name) : '',
+      sign: mode === 'sign' || mode === 'both', seal: (mode === 'seal' || mode === 'both') && !!(sealSel && sealSel.options.length),
+      executor: d.executor || '', executorPhone: d.executor_phone || ''};
+  }
+  var drawing = 0;
   function render() {
-    var to = val('addressee').trim(), subj = val('subject').trim(), body = val('body').trim();
-    $('#pTo').textContent = to || 'Адресат';
-    $('#pSubj').textContent = subj || 'Тема письма';
-    $('#pBody').innerHTML = body ? body.split(/\n+/).map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') : '<p class="ph">Здесь появится текст письма…</p>';
-    var att = val('attachments').trim().split(/\n+/).filter(Boolean);
-    $('#pAtt').hidden = !att.length;
-    $('#pAtt').innerHTML = '<b>Приложения:</b> ' + att.map(function (a, i) { return (i + 1) + '. ' + esc(a); }).join('; ');
     var s = $('#gSigner'), o = s && s.options[s.selectedIndex];
-    if (o) { $('#pPos').textContent = o.dataset.pos || 'Директор'; $('#pName').textContent = o.dataset.name; $('#gSignImg').value = o.dataset.name + ' — утверждённый образ'; }
-    var mode = val('sign_mode');
-    $('#pSig').hidden = !(mode === 'sign' || mode === 'both');
-    $('#pSeal').hidden = !(mode === 'seal' || mode === 'both');
-    $('#gSealBox').style.display = mode === 'none' ? 'none' : '';
-    var t = tpl(); paper.className = 'df-a4' + (t ? ' lh-' + t.dataset.code : '');
+    if (o) $('#gSignImg').value = o.dataset.name + ' — утверждённый образ';
+    $('#gSealBox').style.display = val('sign_mode') === 'none' ? 'none' : '';
+    if (drawing || !window.PBBlank) return;
+    drawing = requestAnimationFrame(function () { drawing = 0; window.PBBlank.draw($('#gCanvas'), letterDoc(), 1); });
   }
   function rule() {
     var t = tpl(), r = t ? t.dataset.rule : 'ask', box = $('#gRule');
@@ -295,6 +299,16 @@
     if (p.length) { e.preventDefault(); err.innerHTML = p.join('<br>'); err.hidden = false; return; }
     if (gen.dataset.demo) {
       e.preventDefault();
+      // Демо без сервера: PDF и Word собираем в браузере из того, что введено, на выбранном бланке
+      var doc = letterDoc(), t = tpl(), num = doc.number || 'b-n';
+      ['#gPdf', '#gDocx', '#gPrint'].forEach(function (id) { var a = $(id); a.removeAttribute('href'); a.hidden = false; });
+      window.PBBlank.pdfBlob(doc).then(function (b) {
+        var u = URL.createObjectURL(b); $('#gPdf').href = u; $('#gPrint').href = u;
+        $('#gPdf').setAttribute('download', 'Письмо ' + num + '.pdf');
+      });
+      window.PBBlank.docxBlob(doc, t && t.dataset.docxSrc).then(function (b) {
+        $('#gDocx').href = URL.createObjectURL(b); $('#gDocx').setAttribute('download', 'Письмо ' + num + '.docx');
+      }).catch(function () { $('#gDocx').hidden = true; });
       $$('fieldset[data-step]', gen).forEach(function (f) { f.hidden = true; });
       $('#gNav').hidden = true; $('#gDone').hidden = false;
       steps.forEach(function (li) { li.classList.remove('on'); li.classList.add('done'); });

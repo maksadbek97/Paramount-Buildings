@@ -388,9 +388,9 @@ KIND_TITLES = {"order": ("Новый приказ", "Организационн�
 
 
 def _form(request, form_class, title, back, instance=None, subtitle="", submit="Сохранить", kwargs=None,
-          success=None):
+          success=None, extra=None):
     return form_page(request, form_class, title, success or back, instance=instance, subtitle=subtitle,
-                     submit=submit, back=back, form_kwargs=kwargs, extra={"section": "docflow"})
+                     submit=submit, back=back, form_kwargs=kwargs, extra={"section": "docflow", **(extra or {})})
 
 
 @login_required
@@ -411,9 +411,10 @@ def new(request, kind):
         if doc.signer and not doc.approvals.exists():
             Approval.objects.create(document=doc, step=9, role="signer", employee=doc.signer)
         return reverse("docflow_detail", args=[doc.pk])
+    extra = {"blank_data": blank_data(Company.get(), "order", request.user)} if kind == "order" else None
     return _form(request, forms.DocumentForm, title, reverse("docflow_home"), subtitle=sub,
                  submit="Зарегистрировать" if kind == "incoming" else "Создать", kwargs={"kind": kind},
-                 success=done)
+                 success=done, extra=extra)
 
 
 @login_required
@@ -518,6 +519,7 @@ def _generator_ctx(request):
         "can_seal": request.user.is_superuser or request.user.has_perm("docflow.use_seal"),
         "sample": last, "me": services.employee_of(request.user),
         "today_text": f"{date.today():%d.%m.%Y}",
+        "blank_data": blank_data(company, "letter", request.user),
     }
 
 
@@ -570,15 +572,35 @@ def order_blank():
     return Template.objects.filter(is_letterhead=True, is_active=True, category="order").order_by("-version").first()
 
 
-def build_order_files(doc, template, author=None, user=None):
-    """Приказ на фирменном бланке: PDF (основной файл) и DOCX для правки в Word."""
-    company = Company.get()
-    signer = doc.signer or company.director
+def order_signer(signer):
+    """Подпись под приказом: (должность, «Н.Балтаев»)."""
     position = signer.position.name if signer and signer.position else "Директор"
     initials = ""
     if signer:
         parts = signer.full_name.split()
         initials = " ".join(p[0] + "." for p in parts[1:2]) + parts[0] if len(parts) > 1 else parts[0]
+    return position, initials
+
+
+def blank_data(company, kind, user=None):
+    """Данные для предпросмотра, PDF и DOCX в браузере (static/blank.js): шапка бланка, файл бланка,
+    исполнитель и подписанты. Браузер собирает документ из того, что ввёл человек, — без сервера."""
+    me = services.employee_of(user) if user else None
+    data = {"kind": kind, "header": pdf.letterhead_columns(company), "company": company.name,
+            "bin": company.bin or "", "executor": short_name(me), "executor_phone": (me.phone if me else "") or ""}
+    if kind == "order":
+        tpl = order_blank()
+        data["docx"] = tpl.file.url if tpl and tpl.file and tpl.is_docx else ""
+        data["director"] = order_signer(company.director)
+        data["signers"] = {str(e.pk): order_signer(e) for e in Employee.objects.filter(is_active=True)
+                           .select_related("position")}
+    return data
+
+
+def build_order_files(doc, template, author=None, user=None):
+    """Приказ на фирменном бланке: PDF (основной файл) и DOCX для правки в Word."""
+    company = Company.get()
+    position, initials = order_signer(doc.signer or company.director)
     basis, points = order_text(doc.summary)
     dt = f"{doc.doc_date:%d.%m.%Y}" if doc.doc_date else ""
     content = pdf.order_pdf(company, doc.number, dt, doc.title, basis, points, position, initials, sign=False)

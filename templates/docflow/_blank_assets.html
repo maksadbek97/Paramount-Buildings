@@ -1,0 +1,4 @@
+{% load static ui %}{{ blank_data|json_script:"pbBlankData" }}
+<div hidden id="pbAssets" data-docx-src="{{ blank_data.docx|default:'' }}"><img id="pbLogo" src="{% static 'img/blank/header-logo.png' %}" alt=""><img id="pbMark" src="{% static 'img/blank/watermark.png' %}" alt=""></div>
+<script src="{% static 'vendor/jszip.min.js' %}" defer></script>
+<script src="{% asset 'blank.js' %}" defer></script>

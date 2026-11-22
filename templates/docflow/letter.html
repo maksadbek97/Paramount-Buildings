@@ -17,7 +17,7 @@
       <legend>Шаг 1. Тип документа и бланк</legend>
       <div class="fgrid">
         <div class="field wide"><span class="lbl">Фирменный бланк<span class="req">*</span></span>
-          <div class="df-lhs">{% for t in letterheads %}<label class="df-lhopt"><input type="radio" name="template" value="{{ t.pk }}" data-rule="{{ t.sign_rule }}" data-code="{{ t.code|lower }}" data-name="{{ t.name }}" {% if forloop.first %}checked{% endif %}><span class="df-lhmini df-lh-{{ t.code|lower }}"><i></i><i></i><i></i></span><span><b>{{ t.name }}</b><small>v{{ t.version }} · {{ t.get_sign_rule_display|lower }}</small></span></label>{% endfor %}</div></div>
+          <div class="df-lhs">{% for t in letterheads %}<label class="df-lhopt"><input type="radio" name="template" value="{{ t.pk }}" data-rule="{{ t.sign_rule }}" data-code="{{ t.code|lower }}" data-name="{{ t.name }}" data-docx-src="{% if t.file and t.is_docx %}{{ t.file.url }}{% endif %}" {% if forloop.first %}checked{% endif %}><span class="df-lhmini df-lh-{{ t.code|lower }}"><i></i><i></i><i></i></span><span><b>{{ t.name }}</b><small>v{{ t.version }} · {{ t.get_sign_rule_display|lower }}</small></span></label>{% endfor %}</div></div>
         <div class="field"><label for="gType">Тип письма</label><select id="gType" name="letter_type"><option>Деловое письмо</option><option>Ответ на входящее</option><option>Гарантийное письмо</option><option>Уведомление</option><option>Претензия</option><option>Запрос</option></select></div>
         <div class="field"><label>Компания</label><input value="{{ company.name }}" readonly></div>
       </div>
@@ -83,14 +83,14 @@
       <div class="df-done-ic big">{% icon 'check' 34 %}</div>
       <h2>Письмо сформировано и зарегистрировано</h2>
       <p class="df-dn">№ <b id="gDoneNum">{{ next_number }}</b> от {{ today_text }}</p>
-      <p class="muted" id="gDoneNote">Демо-версия: показываем пример готового письма из журнала. В рабочей системе PDF собирается из вашего текста.</p>
+      <p class="muted" id="gDoneNote">Демо-версия: письмо собрано из вашего текста на выбранном бланке. В журнал оно не сохраняется.</p>
       <div class="df-done-grid">
-        <a class="btn btn-primary" href="{% if sample %}{{ sample.file.url }}{% else %}#{% endif %}" download="Письмо {{ next_number }}.pdf">{% icon 'download' 18 %}Скачать PDF</a>
+        <a class="btn btn-primary" id="gPdf" href="#" download="Письмо {{ next_number }}.pdf">{% icon 'download' 18 %}Скачать PDF</a>
+        <a class="btn btn-ghost" id="gDocx" href="#" download="Письмо {{ next_number }}.docx">{% icon 'download' 18 %}Скачать Word</a>
         <a class="btn btn-ghost" id="gWa" href="https://wa.me/?text=" target="_blank" rel="noopener">{% icon 'chat' 18 %}WhatsApp</a>
-        <a class="btn btn-ghost" href="{% if sample %}{{ sample.file.url }}{% else %}#{% endif %}" data-print>{% icon 'print' 18 %}Печать</a>
-        <a class="btn btn-ghost" href="{% if sample %}{% url 'docflow_journal' sample.journal_id %}{% else %}{% url 'docflow_journals' %}{% endif %}">{% icon 'table' 18 %}Открыть в журнале</a>
-        {% if sample %}<a class="btn btn-ghost" href="{% url 'docflow_detail' sample.pk %}">{% icon 'eye' 18 %}Открыть карточку</a>{% endif %}
-        <a class="btn btn-ghost" href="{% url 'docflow_letter' %}">{% icon 'layers' 18 %}Создать копию</a>
+        <a class="btn btn-ghost" id="gPrint" href="#" data-print>{% icon 'print' 18 %}Печать</a>
+        <a class="btn btn-ghost" href="{% if sample.journal_id %}{% url 'docflow_journal' sample.journal_id %}{% else %}{% url 'docflow_journals' %}{% endif %}">{% icon 'table' 18 %}Открыть журнал</a>
+        <a class="btn btn-ghost" href="{% url 'docflow_letter' %}">{% icon 'layers' 18 %}Создать ещё</a>
       </div>
     </div>
 
@@ -103,18 +103,9 @@
   <aside class="df-gside">
     <div class="df-pvh"><b>Предпросмотр</b><small>обновляется по мере ввода</small></div>
     <div class="df-paperwrap" id="gPvHome">
-    <div class="df-a4" id="gPaper">
-      <div class="a4-bar"></div>
-      <div class="a4-head"><img src="{% static 'img/logo.png' %}" alt=""><div><b>{{ company.name }}</b><span>{{ company.legal_address }}</span><span>БИН {{ company.bin }} · {{ company.phone }}</span><span>{{ company.email }}</span></div></div>
-      <div class="a4-line"></div>
-      <div class="a4-meta"><div>Исх. № <b>{{ next_number }}</b> <em>(предв.)</em><br>от {{ today_text }}</div><div class="a4-to" id="pTo">Адресат</div></div>
-      <div class="a4-subj" id="pSubj">Тема письма</div>
-      <div class="a4-body" id="pBody"><p class="ph">Здесь появится текст письма…</p></div>
-      <div class="a4-att" id="pAtt" hidden></div>
-      <div class="a4-sign"><span id="pPos">{{ director.position|default:"Директор" }}</span><span class="a4-seal" id="pSeal" hidden><span>PARAMOUNT<br>BUILDINGS</span></span><svg id="pSig" hidden viewBox="0 0 120 50" width="110" height="46"><path d="M5 35 C20 5, 30 45, 45 25 S70 10, 80 30 S100 40, 115 12" fill="none" stroke="#244AAA" stroke-width="3" stroke-linecap="round"/></svg><b id="pName">{{ director.full_name }}</b></div>
-      <div class="a4-foot">{% if me %}Исп.: {{ me.full_name }}{% endif %}</div>
-    </div></div>
+    <div class="df-a4 df-a4c" id="gPaper" data-number="{{ next_number }}" data-date="{{ today_text }}"><canvas id="gCanvas" width="1240" height="1754" role="img" aria-label="Письмо на фирменном бланке"></canvas>    </div></div>
   </aside>
 </div>
 </form>
+{% include "docflow/_blank_assets.html" %}
 {% endblock %}

@@ -3,7 +3,7 @@
 <div class="fpage">
 <a class="back" href="{{ back }}">{% icon 'back' 18 %}Назад</a>
 <div class="page-head"><div class="titles"><h1>{{ title }}</h1>{% if subtitle %}<div class="sub">{{ subtitle }}</div>{% endif %}</div></div>
-<form method="post" class="form-card wide" enctype="multipart/form-data" novalidate>{% csrf_token %}
+<form method="post" class="form-card wide" enctype="multipart/form-data" novalidate{% if blank_data %} data-local data-blank="{{ blank_data.kind }}"{% if DEMO %} data-demo="1"{% endif %}{% endif %}>{% csrf_token %}
   {% if form.non_field_errors %}<div class="errors">{% for e in form.non_field_errors %}{{ e }}<br>{% endfor %}</div>{% endif %}
   {% for f in form.hidden_fields %}{{ f }}{% endfor %}
   {% for gtitle, ghint, fields in form|groups %}
@@ -33,9 +33,11 @@
   {% endfor %}
   <div class="form-actions">
     <a class="btn btn-ghost btn-lg" href="{{ back }}">Отмена</a>
+    {% if blank_data %}<button class="btn btn-ghost btn-lg" type="button" id="pbOrderPreview" title="Предпросмотр" aria-label="Предпросмотр">{% icon 'eye' 18 %}Предпросмотр</button>{% endif %}
     <button class="btn btn-primary btn-lg" type="submit">{{ submit }}</button>
   </div>
 </form>
+{% if blank_data %}{% include "docflow/_order_preview.html" %}{% endif %}
 </div>
 <script>
 // Поле «Кому» показываем только для выплаты рабочим.
