@@ -44,6 +44,10 @@ def object_picker(request, objects):
         def href(pk):
             return f"{base}?object={pk}" if pk else base
         mode = "sync" if name == "docflow_home" else ("filter" if name in DOC_LISTS else "link")
+    elif name.startswith("finance") or name == "transaction_create":
+        def href(pk):  # «Финансы»: объект из шапки открывает его финплан
+            return reverse("finance_object", args=[pk]) if pk else reverse("finance_home")
+        mode = "link"
     else:
         def href(pk):
             return reverse("object_detail", args=[pk]) if pk else reverse("object_list")

@@ -259,8 +259,11 @@ class DemoBuildTests(TestCase):
             # в демо пока только раздел «Главная»: периоды, объекты и их сочетания
             for page in ("period/year", "object/1", "period/year/object/1"):
                 self.assertTrue((Path(tmp) / page / "index.html").exists(), page)
-            for page in ("finance", "add", "pto"):
+            for page in ("add", "pto"):
                 self.assertFalse((Path(tmp) / page).exists(), page)
+            # раздел «Финансы»: сводная, финплан объекта, долги, календарь
+            for page in ("finance", "finance/object/1", "finance/debts", "finance/calendar", "finance/cash/kind/income"):
+                self.assertTrue((Path(tmp) / page / "index.html").exists(), page)
             # раздел «Объекты»: список, создание, карточка со всеми вкладками и формы внутри объекта
             for page in ("objects", "objects/new", "objects/1", "objects/1/budget", "objects/1/closing",
                          "objects/1/history", "objects/1/new/purchase", "objects/1/edit"):
@@ -269,7 +272,8 @@ class DemoBuildTests(TestCase):
             self.assertIn('href="../../period/year/object/1/"', year)
             self.assertNotIn('href="?', year)
             self.assertIn("Объекты</a>", home)
-            self.assertNotIn("Финансы</a>", home)  # остальных разделов в меню пока нет
+            self.assertIn("Финансы</a>", home)
+            self.assertNotIn("Склад</a>", home)  # остальных разделов в меню пока нет
             self.assertIn("Моя компания", home)
             self.assertIn("Балтаев Нурбек", home)
             for page in ("company", "company/docs/kind/certificate", "company/structure", "company/staff",

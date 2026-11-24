@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% load ui %}
+{% block title %}{% block ptitle %}Финансы{% endblock %} · Paramount Buildings{% endblock %}
+{% block content %}
+<div class="dh df-head fn-head">
+  <div class="dh-title">
+    <div class="df-crumb">Финансы</div>
+    <h1>{% block h1 %}Финансовый план{% endblock %}</h1>
+    <div class="sub">{% block sub %}План и факт по объектам: поступления, оплата работ, материалы, накладные, долги и остаток{% endblock %}</div>
+  </div>
+  <div class="dh-tools">
+    {% block tools %}{% endblock %}
+    <button type="button" class="btn btn-primary" data-fn-add data-section="{% block add_section %}income{% endblock %}" data-object="{% block add_object %}{% endblock %}">{% icon 'plus' 18 %}<span>Добавить запись</span></button>
+  </div>
+</div>
+<nav class="df-tabs fn-tabs" aria-label="Финплан">
+  <a href="{% url 'finance_home' %}" class="{% if tab == 'home' %}active{% endif %}">{% icon 'table' 16 %}Сводная</a>
+  {% for o in plan_objs %}<a href="{% url 'finance_object' o.pk %}" class="{% if obj.pk == o.pk %}active{% endif %}">{{ o.name }}</a>{% endfor %}
+  {% if obj and obj not in plan_objs %}<a href="{% url 'finance_object' obj.pk %}" class="active">{{ obj.name }}</a>{% endif %}
+  {% if other_objs %}<details class="dd fn-addobj"><summary title="Добавить объект в финплан">{% icon 'plus' 16 %}Объект</summary>
+    <div class="dd-menu">{% for o in other_objs %}<a href="{% url 'finance_object' o.pk %}"><small>{{ o.code }}</small> {{ o.name }}</a>{% endfor %}</div>
+  </details>{% endif %}
+  <a href="{% url 'finance_debts' %}" class="fn-tab-sep {% if tab == 'debts' %}active{% endif %}">Долги компании</a>
+  <a href="{% url 'finance_calendar' %}" class="{% if tab == 'calendar' %}active{% endif %}">Календарь платежей</a>
+  <a href="{% url 'finance_list' %}" class="{% if tab == 'cash' %}active{% endif %}">Движение денег</a>
+</nav>
+{% block tab %}{% endblock %}
+{% include "finance/_dialogs.html" %}
+{% endblock %}

@@ -1,0 +1,44 @@
+{% load ui %}
+{# Добавить / изменить строку — одно окно на всё; открывается кнопками в таблицах (static/finance.js). #}
+<dialog class="ob-dialog fn-dialog" id="fnLine" aria-labelledby="fnLineT">
+  <form method="post" action="{% url 'finance_line_new' %}" data-new="{% url 'finance_line_new' %}" data-edit="{% url 'finance_line_edit' 0 %}" novalidate>{% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div class="fn-dlg-h"><h3 id="fnLineT" data-title>Новая запись</h3><button type="button" class="fn-x" data-close aria-label="Закрыть">{% icon 'x' 20 %}</button></div>
+    <div class="fn-fields">
+      <label class="wide">Блок
+        <select name="section" required>{% for k, l in sections %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></label>
+      <label class="wide" data-objfield>Объект
+        <select name="construction_object"><option value="">— выберите —</option>{% for o in all_objs %}<option value="{{ o.pk }}">{{ o.name }}</option>{% endfor %}</select></label>
+      <label class="wide"><span data-name-l>Наименование / получатель</span>
+        <input name="name" required maxlength="250" placeholder="Например: Бригада — оплата за работу" autocomplete="off"></label>
+      <label><span data-plan-l>План, ₸</span><input name="plan_amount" inputmode="decimal" autocomplete="off" data-money placeholder="0"></label>
+      <label><span data-pdate-l>Плановая дата</span><input type="date" name="plan_date"></label>
+      <label><span data-fact-l>Факт, ₸</span><input name="fact_amount" inputmode="decimal" autocomplete="off" data-money placeholder="0"></label>
+      <label>Дата факта<input type="date" name="fact_date"></label>
+      <label class="wide">Статус / примечание<input name="note" maxlength="300" placeholder="Например: аванс, объём не подтверждён" autocomplete="off"></label>
+    </div>
+    <p class="fn-left" data-left></p>
+    <div class="ob-dialog-act fn-act">
+      <button type="submit" class="btn btn-ghost fn-del" form="fnDel" data-del hidden>{% icon 'x' 16 %}Удалить</button>
+      <span class="fn-sp"></span>
+      <button type="button" class="btn btn-ghost" data-close>Отмена</button>
+      <button type="submit" class="btn btn-primary" data-submit>Сохранить</button>
+    </div>
+  </form>
+  <form method="post" id="fnDel" action="" data-url="{% url 'finance_line_delete' 0 %}" data-confirm>{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"></form>
+</dialog>
+
+{# Внести оплату / поступление: факт растёт, остаток считается сам #}
+<dialog class="ob-dialog fn-dialog" id="fnPay" aria-labelledby="fnPayT">
+  <form method="post" action="" data-url="{% url 'finance_line_pay' 0 %}" novalidate>{% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div class="fn-dlg-h"><h3 id="fnPayT" data-title>Внести оплату</h3><button type="button" class="fn-x" data-close aria-label="Закрыть">{% icon 'x' 20 %}</button></div>
+    <p class="muted" data-what></p>
+    <div class="fn-fields">
+      <label>Сумма, ₸<input name="amount" inputmode="decimal" autocomplete="off" data-money required></label>
+      <label>Дата<input type="date" name="date" value="{{ today|date:'Y-m-d' }}"></label>
+    </div>
+    <p class="fn-left" data-left></p>
+    <div class="ob-dialog-act"><button type="button" class="btn btn-ghost" data-close>Отмена</button><button type="submit" class="btn btn-primary" data-submit>Записать</button></div>
+  </form>
+</dialog>

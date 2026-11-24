@@ -1,11 +1,10 @@
-{% extends "base.html" %}{% load ui %}
-{% block content %}
-<a class="back" href="{% url 'dashboard' %}">{% icon 'back' 18 %}Главная</a>
-<div class="page-head">
-  <div class="titles"><h1>Финансы компании</h1><div class="sub">Все поступления и расходы по объектам · {{ period_label }}</div></div>
-  <div class="actions"><a class="btn btn-primary" href="{% url 'add_for' 'payment' %}">{% icon 'plus' 18 %}Операция по объекту</a>
-    <a class="btn btn-ghost" href="{% url 'transaction_create' %}">Общий доход / расход</a></div>
-</div>
+{% extends "finance/_base.html" %}{% load ui %}
+{% block ptitle %}Движение денег{% endblock %}
+{% block h1 %}Движение денег{% endblock %}
+{% block sub %}Фактические платежи из объектов (по объёмам работ) и прочие доходы и расходы · {{ period_label }}{% endblock %}
+{% block tools %}<a class="btn btn-ghost" href="{% url 'add_for' 'payment' %}">{% icon 'plus' 18 %}<span>Платёж по объекту</span></a>
+<a class="btn btn-ghost" href="{% url 'transaction_create' %}"><span>Прочий доход / расход</span></a>{% endblock %}
+{% block tab %}
 <div class="stats">
   <a class="stat" href="?kind=income"><div class="label">Поступления</div><div class="value ok">{{ income|short }}</div></a>
   <a class="stat" href="?kind=expense"><div class="label">Расходы</div><div class="value">{{ expense|short }}</div></a>
@@ -13,7 +12,7 @@
   <a class="stat" href="?kind=debtors"><div class="label">Дебиторка</div><div class="value">{{ receivable|short }}</div><div class="hint">нам должны</div></a>
   <a class="stat" href="?kind=creditors"><div class="label">Кредиторка</div><div class="value {% if payable > 0 %}bad{% endif %}">{{ payable|short }}</div><div class="hint">мы должны рабочим</div></a>
 </div>
-<nav class="utabs" style="margin-top:18px">{% for k, label in views %}<a href="{% if k == 'all' %}{% url 'finance_list' %}{% else %}?kind={{ k }}{% endif %}" class="{% if kind == k %}active{% endif %}">{{ label }}</a>{% endfor %}</nav>
+<nav class="utabs" style="margin-top:18px;overflow-x:auto">{% for k, label in views %}<a href="{% if k == 'all' %}{% url 'finance_list' %}{% else %}?kind={{ k }}{% endif %}" class="{% if kind == k %}active{% endif %}">{{ label }}</a>{% endfor %}</nav>
 
 {% if kind == 'debtors' %}
   {% if rec_rows %}<div class="list">{% for c in rec_rows %}

@@ -36,6 +36,7 @@ def page_list():
     pages.update(company_pages())
     pages.update(object_pages())
     pages.update(docflow_pages())
+    pages.update(finance_pages())
     pages["/profile/"] = "/profile/"
     return pages
 
@@ -114,6 +115,17 @@ def docflow_pages():
     for prefix, model in [("cases", CaseFile), ("templates", Template), ("seals", Seal)]:
         for pk in model.objects.values_list("pk", flat=True):
             pages[f"{base}{prefix}/{pk}/"] = f"{base}{prefix}/{pk}/"
+    return pages
+
+
+def finance_pages():
+    """Раздел «Финансы»: сводная, финплан каждого объекта, долги, календарь, движение денег."""
+    base = "/finance/"
+    pages = {base + u: base + u for u in ["", "debts/", "calendar/", "cash/", "cash/new/", "lines/new/"]}
+    for kind in ("income", "expense", "debtors", "creditors"):
+        pages[f"{base}cash/kind/{kind}/"] = f"{base}cash/?kind={kind}"
+    for pk in ConstructionObject.objects.exclude(status="archive").values_list("pk", flat=True):
+        pages[f"{base}object/{pk}/"] = f"{base}object/{pk}/"
     return pages
 
 

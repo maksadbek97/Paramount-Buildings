@@ -1,0 +1,20 @@
+{% extends "finance/_base.html" %}{% load ui %}
+{% block ptitle %}{{ obj.name }} — финплан{% endblock %}
+{% block h1 %}{{ obj.name }}{% endblock %}
+{% block sub %}Детализация план / факт{% if obj.code %} · {{ obj.code }}{% endif %} · <a href="{% url 'object_detail' obj.pk %}">карточка объекта</a>{% endblock %}
+{% block add_object %}{{ obj.pk }}{% endblock %}
+{% block tools %}<a class="btn btn-ghost" href="{% url 'object_tab' obj.pk 'money' %}" title="Платежи по объёмам работ и прочие операции объекта">{% icon 'wallet' 18 %}<span>Деньги объекта</span></a>{% endblock %}
+{% block tab %}
+<div class="kgrid fn-kpis">
+  {% include "finance/_kpi.html" with label="Поступления" fact=p.income.fact plan=p.income.plan pct=p.income.pct fact_l="получено" plan_l="по плану" %}
+  {% include "finance/_kpi.html" with label="Итого расходы" fact=p.expense.fact plan=p.expense.plan pct=p.expense.pct fact_l="оплачено" plan_l="по плану" %}
+  <div class="k fn-k"><span class="kl">Остаток по плану</span><b class="kv {% if p.balance.plan < 0 %}bad{% endif %}">{{ p.balance.plan|short }}</b><span class="kh">поступления − расходы</span></div>
+  <div class="k fn-k"><span class="kl">Остаток по факту</span><b class="kv {% if p.balance.fact < 0 %}bad{% else %}ok{% endif %}">{{ p.balance.fact|short }}</b><span class="kh">получено − оплачено</span></div>
+</div>
+<nav class="fn-jump" aria-label="Блоки">{% for sec in p.sections %}<a href="#s-{{ sec.key }}">{{ sec.short }} <span>{{ sec.lines|length }}</span></a>{% endfor %}</nav>
+{% for sec in p.sections %}{% include "finance/_section.html" %}{% endfor %}
+<section class="card fn-total">
+  <div class="fn-total-r"><span>Итого расходы</span><span><small>план</small><b>{{ p.expense.plan|money }} ₸</b></span><span><small>факт</small><b>{{ p.expense.fact|money }} ₸</b></span><span><small>остаток</small><b>{{ p.expense.left|money }} ₸</b></span></div>
+  <div class="fn-total-r main"><span>Остаток: поступления − расходы</span><span><small>план</small><b class="{% if p.balance.plan < 0 %}bad{% endif %}">{{ p.balance.plan|money }} ₸</b></span><span><small>факт</small><b class="{% if p.balance.fact < 0 %}bad{% else %}ok{% endif %}">{{ p.balance.fact|money }} ₸</b></span><span></span></div>
+</section>
+{% endblock %}

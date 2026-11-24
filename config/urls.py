@@ -10,5 +10,6 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("company/", include("company.urls")),
     path("documents/", include("docflow.urls")),
+    path("finance/", include("finance.urls")),
     path("", include("core.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
