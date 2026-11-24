@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="{% asset 'style.css' %}">
   <link rel="stylesheet" href="{% asset 'objects.css' %}">
   <link rel="stylesheet" href="{% asset 'docflow.css' %}">
+  <link rel="stylesheet" href="{% asset 'finance.css' %}">
 </head>
 {% with n=request.resolver_match.url_name|default:"" %}
 <body class="{% if user.is_authenticated %}app{% else %}guest{% endif %}">
@@ -56,6 +57,7 @@
     <a href="{% url 'object_list' %}" class="{% if n|slice:':6' == 'object' %}active{% endif %}">{% icon 'building' %}Объекты</a>
     <a href="{% url 'company_profile' %}" class="{% if n|slice:':7' == 'company' %}active{% endif %}">{% icon 'company' %}Моя компания</a>
     <a href="{% url 'docflow_home' %}" class="{% if n|slice:':7' == 'docflow' %}active{% endif %}">{% icon 'file' %}Документы</a>
+    <a href="{% url 'finance_home' %}" class="{% if n|slice:':7' == 'finance' or n == 'transaction_create' %}active{% endif %}">{% icon 'wallet' %}Финансы</a>
   </nav>
   <div class="side-note">Остальные разделы подключаются по очереди, по мере готовности.</div>
 </aside>
@@ -64,6 +66,7 @@
   <a href="{% url 'object_list' %}" class="{% if n|slice:':6' == 'object' %}active{% endif %}">{% icon 'building' 22 %}<span>Объекты</span></a>
   <a href="{% url 'company_profile' %}" class="{% if n|slice:':7' == 'company' %}active{% endif %}">{% icon 'company' 22 %}<span>Компания</span></a>
   <a href="{% url 'docflow_home' %}" class="{% if n|slice:':7' == 'docflow' %}active{% endif %}">{% icon 'file' 22 %}<span>Документы</span></a>
+  <a href="{% url 'finance_home' %}" class="{% if n|slice:':7' == 'finance' %}active{% endif %}">{% icon 'wallet' 22 %}<span>Финансы</span></a>
 </nav>
 <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
 {% endif %}
@@ -115,6 +118,7 @@ document.addEventListener('click', function (e) {
 </script>
 <script src="{% asset 'objects.js' %}" defer></script>
 <script src="{% asset 'docflow.js' %}" defer></script>
+<script src="{% asset 'finance.js' %}" defer></script>
 {% if DEMO %}<script>
 document.querySelectorAll('form[method=post]:not([data-local])').forEach(function (f) {
   f.addEventListener('submit', function (e) {

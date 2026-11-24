@@ -1,0 +1,67 @@
+{% extends "finance/_base.html" %}{% load ui %}
+{% block ptitle %}Сводная{% endblock %}
+{% block tools %}<button type="button" class="btn btn-ghost" data-export="finplan-svodnaya" data-target="#fnSummary" title="Скачать сводную в Excel (CSV)">{% icon 'download' 18 %}<span>Экспорт</span></button>{% endblock %}
+{% block tab %}
+<div class="kgrid fn-kpis">
+  {% include "finance/_kpi.html" with label="Поступления" fact=s.income.fact plan=s.income.plan pct=s.income.pct fact_l="получено" plan_l="по плану" %}
+  {% include "finance/_kpi.html" with label="Расходы по объектам" fact=s.expense.fact plan=s.expense.plan pct=s.expense.pct fact_l="оплачено" plan_l="по плану" %}
+  {% include "finance/_kpi.html" with label="Общий долг компании" fact=s.debt.fact plan=s.debt.plan pct=s.debt.pct fact_l="оплачено" plan_l="всего" vtone="bad" %}
+  <div class="k fn-k">
+    <span class="kl">Итог остаток</span>
+    <b class="kv {% if s.balance.plan < 0 %}bad{% else %}ok{% endif %}">{{ s.balance.plan|short }}</b>
+    <span class="kh">по плану · по факту <b class="{% if s.balance.fact < 0 %}bad{% endif %}">{{ s.balance.fact|short }}</b></span>
+    <span class="kh">поступления − расходы − долг</span>
+  </div>
+</div>
+
+<section class="card flat">
+  <header><h3>Сводная по объектам</h3><span class="muted">крупно — план, ниже — факт · нажмите на объект, чтобы открыть детализацию</span></header>
+  {% if s.rows %}
+  <div class="tscroll"><table class="otable fn-sum" id="fnSummary">
+    <thead><tr><th>Объект</th><th class="r">Поступления</th><th class="r">Оплата работ</th><th class="r">Материалы</th><th class="r">Накладные</th><th class="r">Итого расходы</th><th class="r">Остаток</th></tr></thead>
+    <tbody>
+    {% for r in s.rows %}
+    <tr class="fn-link" data-href="{% url 'finance_object' r.o.pk %}">
+      <td data-label="Объект"><div class="on"><img src="{{ r.o.cover }}" alt=""><div><a href="{% url 'finance_object' r.o.pk %}"><b>{{ r.o.name }}</b></a><small>{{ r.count }} строк{% if r.late %} · <span class="bad">просрочено {{ r.late }}</span>{% endif %}</small></div></div></td>
+      {% for sec in r.sections %}<td data-label="{{ sec.short }}" class="r"><div class="fn-pf"><b>{{ sec.plan|money }}</b><small class="{% if sec.is_income and sec.fact %}ok{% endif %}">факт {{ sec.fact|money }}</small></div></td>{% endfor %}
+      <td data-label="Итого расходы" class="r"><div class="fn-pf"><b>{{ r.expense.plan|money }}</b><small>факт {{ r.expense.fact|money }}</small></div></td>
+      <td data-label="Остаток" class="r"><div class="fn-pf"><b class="{% if r.balance.plan < 0 %}bad{% endif %}">{{ r.balance.plan|money }}</b><small class="{% if r.balance.fact < 0 %}bad{% endif %}">факт {{ r.balance.fact|money }}</small></div></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr class="fn-debtrow">
+        <td data-label=""><a href="{% url 'finance_debts' %}"><b>Общий долг компании</b></a><small class="block muted">не распределяется по объектам</small></td>
+        <td class="fn-hide-m"></td><td class="fn-hide-m"></td><td class="fn-hide-m"></td><td class="fn-hide-m"></td>
+        <td data-label="Долг" class="r"><div class="fn-pf"><b>{{ s.debt.plan|money }}</b><small>оплачено {{ s.debt.fact|money }}</small></div></td>
+        <td data-label="Остаток долга" class="r"><div class="fn-pf"><b class="{% if s.debt.left > 0 %}bad{% endif %}">{{ s.debt.left|money }}</b><small>осталось вернуть</small></div></td>
+      </tr>
+      <tr class="fn-totrow">
+        <td><b>Все объекты</b></td>
+        <td data-label="Поступления" class="r"><div class="fn-pf"><b>{{ s.income.plan|money }}</b><small class="ok">факт {{ s.income.fact|money }}</small></div></td>
+        {% for k, sec in s.total.items %}{% if k != 'income' %}<td data-label="{% if k == 'labor' %}Оплата работ{% elif k == 'material' %}Материалы{% else %}Накладные{% endif %}" class="r"><div class="fn-pf"><b>{{ sec.plan|money }}</b><small>факт {{ sec.fact|money }}</small></div></td>{% endif %}{% endfor %}
+        <td data-label="Итого расходы с долгом" class="r"><div class="fn-pf"><b>{{ s.expense_all.plan|money }}</b><small>факт {{ s.expense_all.fact|money }}</small></div></td>
+        <td data-label="Итог остаток" class="r"><div class="fn-pf"><b class="{% if s.balance.plan < 0 %}bad{% endif %}">{{ s.balance.plan|money }}</b><small class="{% if s.balance.fact < 0 %}bad{% endif %}">факт {{ s.balance.fact|money }}</small></div></td>
+      </tr>
+    </tfoot>
+  </table></div>
+  {% else %}
+  <div class="empty-s fn-empty">В финплане пока нет объектов. <button type="button" class="linkbtn" data-fn-add data-section="income">Добавить первую запись</button></div>
+  {% endif %}
+</section>
+
+<div class="row2">
+  <section class="card">
+    <header><h3>Ближайшие платежи</h3><span class="muted">просрочено и на 7 дней</span><a class="hlink" href="{% url 'finance_calendar' %}">Календарь {% icon 'chevron' 14 %}</a></header>
+    {% if cal.week %}<ul class="fn-cal-mini">{% for ln in cal.week|slice:":7" %}
+      <li><span class="fn-d {% if ln.overdue %}bad{% endif %}">{{ ln.plan_date|date:"d.m" }}</span><span class="dt"><b>{{ ln.name }}</b><small>{% if ln.construction_object %}{{ ln.construction_object.name }}{% else %}Долг компании{% endif %} · {{ ln.get_section_display }}</small></span><b class="nowrap {% if ln.is_income %}ok{% endif %}">{% if ln.is_income %}+{% else %}−{% endif %}{{ ln.left|money }} ₸</b></li>
+    {% endfor %}</ul>{% else %}<div class="empty-s">На ближайшую неделю платежей с датой нет. Поставьте плановые даты в строках — они появятся здесь и в календаре.</div>{% endif %}
+  </section>
+  <section class="card">
+    <header><h3>Требует внимания</h3>{% if attention %}<span class="pill">{{ attention|length }}</span>{% endif %}</header>
+    {% if attention %}<ul class="att">{% for level, why, ln, where in attention %}
+      <li class="{{ level }}"><span class="mk"></span><span class="df-att"><small>{{ where }} · {{ why }}</small><a href="{% if ln.construction_object_id %}{% url 'finance_object' ln.construction_object_id %}{% else %}{% url 'finance_debts' %}{% endif %}">{{ ln.name }} — {{ ln.left|money }} ₸</a></span></li>
+    {% endfor %}</ul>{% else %}<div class="empty-s">Просрочек нет.</div>{% endif %}
+  </section>
+</div>
+{% endblock %}

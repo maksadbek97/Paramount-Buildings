@@ -1,0 +1,6 @@
+{% load ui %}<div class="k fn-k">
+  <span class="kl">{{ label }}</span>
+  <b class="kv{% if vtone %} {{ vtone }}{% endif %}">{{ plan|short }}</b>
+  <span class="kh">{{ plan_l }} · {{ fact_l }} <b>{{ fact|short }}</b></span>
+  <div class="pb fn-pb"><div class="bar"><span style="width:{{ pct }}%"></span></div><b>{{ pct }}%</b></div>
+</div>

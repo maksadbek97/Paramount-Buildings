@@ -1,0 +1,30 @@
+{% extends "finance/_base.html" %}{% load ui %}
+{% block ptitle %}Платёжный календарь{% endblock %}
+{% block h1 %}Платёжный календарь{% endblock %}
+{% block sub %}Всё, что ещё не получено и не оплачено, по плановым датам. Даты и суммы берутся из финплана{% endblock %}
+{% block tab %}
+<div class="kgrid fn-kpis">
+  <div class="k fn-k"><span class="kl">Ожидаем поступлений</span><b class="kv ok">{{ cal.in|short }}</b><span class="kh">от заказчиков</span></div>
+  <div class="k fn-k"><span class="kl">Предстоит оплатить</span><b class="kv">{{ cal.out|short }}</b><span class="kh">работы, материалы, накладные, долги</span></div>
+  <div class="k fn-k"><span class="kl">Разница</span><b class="kv {% if cal.net < 0 %}bad{% else %}ok{% endif %}">{{ cal.net|short }}</b><span class="kh">поступления − оплаты</span></div>
+  <div class="k fn-k"><span class="kl">Открытых строк</span><b class="kv">{{ cal.count }}</b><span class="kh">с остатком</span></div>
+</div>
+{% for g in cal.groups %}
+<section class="card flat fn-cal{% if g.key == '0000' %} late{% endif %}">
+  <header><h3>{{ g.title }}</h3><span class="fn-cal-sum">{% if g.in %}<span class="ok">+{{ g.in|money }}</span>{% endif %}{% if g.out %}<span>−{{ g.out|money }}</span>{% endif %}</span></header>
+  <div class="tscroll"><table class="otable fn-table">
+    <thead><tr><th>Дата</th><th>Что</th><th>Объект и блок</th><th class="r">Остаток</th><th class="r"></th></tr></thead>
+    <tbody>{% for ln in g.lines %}
+    <tr class="fn-row" data-id="{{ ln.pk }}" data-section="{{ ln.section }}" data-object="{{ ln.construction_object_id|default:'' }}" data-name="{{ ln.name }}" data-plan="{{ ln.plan_amount|stringformat:'s' }}" data-pdate="{{ ln.plan_date|date:'Y-m-d' }}" data-fact="{{ ln.fact_amount|stringformat:'s' }}" data-fdate="{{ ln.fact_date|date:'Y-m-d' }}" data-note="{{ ln.note }}" data-left="{{ ln.left|stringformat:'s' }}" data-income="{% if ln.is_income %}1{% endif %}">
+      <td data-label="Дата" class="nowrap"><span class="{% if ln.overdue %}bad{% endif %}">{{ ln.plan_date|date:"d.m.Y"|default:"—" }}</span></td>
+      <td data-label="Что" class="fn-name"><button type="button" class="fn-edit-link" data-fn-edit>{{ ln.name }}</button>{% if ln.note %}<small class="block muted">{{ ln.note }}</small>{% endif %}</td>
+      <td data-label="Объект">{% if ln.construction_object %}<a href="{% url 'finance_object' ln.construction_object_id %}">{{ ln.construction_object.name }}</a>{% else %}<a href="{% url 'finance_debts' %}">Долг компании</a>{% endif %}<small class="block muted">{{ ln.get_section_display }}</small></td>
+      <td data-label="Остаток" class="r nowrap"><b class="{% if ln.is_income %}ok{% endif %}">{% if ln.is_income %}+{% else %}−{% endif %}{{ ln.left|money }} ₸</b>{% if ln.fact_amount %}<small class="block muted">из {{ ln.plan_amount|money }}</small>{% endif %}</td>
+      <td class="r fn-acts"><button type="button" class="btn btn-ghost btn-sm fn-pay" data-fn-pay>{% icon 'check' 16 %}<span>{% if ln.is_income %}Получено{% else %}Оплатить{% endif %}</span></button></td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% empty %}
+<div class="card"><div class="empty-s">Всё получено и оплачено — открытых платежей нет.</div></div>
+{% endfor %}
+{% endblock %}

@@ -299,8 +299,9 @@ def finance_list(request):
         ops = [o for o in ops if o["income"]]
     elif kind == "expense":
         ops = [o for o in ops if not o["income"]]
+    from finance.views import base_ctx
     return render(request, "finance_list.html", {
-        "kind": kind, "views": FIN_VIEWS, "period_label": period_label, "period": period,
+        **base_ctx("cash"), "kind": kind, "views": FIN_VIEWS, "period_label": period_label, "period": period,
         "ops": ops[:100], "income": income, "expense": expense, "balance": income - expense,
         "receivable": receivable, "payable": payable, "rec_rows": rec_rows, "pay_rows": pay_rows,
         "estimates": Estimate.objects.select_related("construction_object").prefetch_related("items"),

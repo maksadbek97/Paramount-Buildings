@@ -67,6 +67,4 @@ urlpatterns = [
     path("purchases/<int:pk>/", wv.purchase_detail, name="purchase_detail"),
     path("purchases/<int:pk>/edit/", wv.purchase_edit, name="purchase_edit"),
     path("purchases/<int:pk>/act/", wv.purchase_act, name="purchase_act"),
-    path("finance/", views.finance_list, name="finance_list"),
-    path("finance/new/", views.transaction_create, name="transaction_create"),
 ]

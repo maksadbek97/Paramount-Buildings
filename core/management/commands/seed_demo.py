@@ -326,6 +326,8 @@ class Command(BaseCommand):
                                 reason="Подписан договор субподряда")
         from docflow.demo import seed as seed_docflow
         seed_docflow()  # раздел «Документы»
+        from finance.demo import seed as seed_finance
+        seed_finance({"Atlant": o1})  # раздел «Финансы»: финплан из таблицы компании
         self._activity_feed()
         self.stdout.write(self.style.SUCCESS("Демо-данные созданы."))
 

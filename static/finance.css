@@ -1,0 +1,140 @@
+/* ---------- Раздел «Финансы»: финплан план / факт ---------- */
+.fn-tabs { align-items: center; }
+.fn-tabs a { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.fn-tabs a.fn-tab-sep { margin-left: 10px; position: relative; }
+.fn-tabs a.fn-tab-sep::before { content: ""; position: absolute; left: -7px; top: 12px; bottom: 12px; width: 1px; background: var(--line); }
+.fn-addobj { flex: none; }
+.fn-addobj summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 7px 10px;
+  font-weight: 800; font-size: 13px; color: var(--accent-ink); border: 1px dashed #B9D9EE; border-radius: 9px; margin: 0 4px; white-space: nowrap; }
+.fn-addobj summary::-webkit-details-marker { display: none; }
+.fn-addobj .dd-menu { max-height: 320px; overflow: auto; }
+.fn-addobj .dd-menu small { color: var(--gray); }
+
+.fn-kpis .k { gap: 3px; }
+.fn-k .kh b { font-weight: 800; }
+.fn-pb { min-width: 0; margin-top: 4px; }
+.fn-pb .bar { height: 6px; }
+.fn-pb b { font-size: 12px; color: var(--gray); min-width: 34px; text-align: right; }
+
+/* Сводная */
+.fn-sum th.r, .fn-sum td.r { white-space: nowrap; }
+.fn-pf { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.25; }
+.fn-pf b { font-size: 14px; }
+.fn-pf small { color: var(--gray); font-size: 12px; }
+.fn-pf small.bad { color: var(--bad); }
+.fn-link { cursor: pointer; }
+.fn-link:hover td { background: #F7FAFE; }
+.fn-sum tfoot td { background: #FAFBFD; }
+.fn-sum tfoot .fn-totrow td { border-top: 2px solid var(--line); }
+.fn-sum tfoot .fn-totrow td b { font-weight: 800; }
+.fn-debtrow small.block { display: block; font-size: 12px; }
+.fn-cal-mini { list-style: none; margin: 0; padding: 0; }
+.fn-cal-mini li { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid #F0F3F8; }
+.fn-cal-mini li:first-child { border-top: 0; }
+.fn-cal-mini .dt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.fn-cal-mini .dt b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fn-cal-mini .dt small { color: var(--gray); font-size: 12px; }
+.fn-d { flex: none; min-width: 48px; text-align: center; font-weight: 800; font-size: 13px; background: var(--sky); color: var(--accent-ink);
+  border-radius: 8px; padding: 4px 6px; }
+.fn-d.bad { background: var(--bad-bg); color: var(--bad); }
+
+/* Блоки объекта */
+.fn-jump { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; }
+.fn-jump a { background: #fff; border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; font-weight: 700; font-size: 13px; color: var(--navy); }
+.fn-jump a span { color: var(--gray); margin-left: 4px; }
+.fn-jump a:hover { border-color: var(--accent); text-decoration: none; }
+.fn-sec { scroll-margin-top: 80px; margin-bottom: 14px; }
+.card.flat.fn-sec > header.fn-sec-h { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 0 18px 14px; }
+.fn-sec-t { display: flex; align-items: baseline; gap: 10px; min-width: 180px; }
+.fn-sec-t h3 { margin: 0; font-size: 16px; }
+.fn-sec-t .muted { font-size: 12.5px; }
+.fn-sec-sum { display: flex; align-items: center; gap: 18px; flex: 1; flex-wrap: wrap; justify-content: flex-end; }
+.fn-sec-sum > span { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.fn-sec-sum small { color: var(--gray); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.fn-sec-sum b { font-size: 15px; white-space: nowrap; }
+.fn-sec-sum .fn-pb { width: 130px; margin: 0; }
+.fn-sec.fn-income { border-top: 3px solid var(--ok); }
+.fn-sec.fn-labor { border-top: 3px solid var(--accent); }
+.fn-sec.fn-material { border-top: 3px solid #7C5CFF; }
+.fn-sec.fn-overhead { border-top: 3px solid #F2A100; }
+.fn-sec.fn-debt { border-top: 3px solid var(--bad); }
+.fn-addrow { flex: none; }
+.fn-table th { white-space: nowrap; }
+.fn-table th.fn-n, .fn-table td.fn-n { width: 36px; text-align: center; padding-left: 14px; padding-right: 0; }
+.fn-table td.fn-name { min-width: 220px; }
+.fn-edit-link { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--navy); cursor: pointer; text-align: left; }
+.fn-edit-link:hover { color: var(--accent-ink); text-decoration: underline; }
+.fn-st { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.fn-st small { color: var(--gray); font-size: 12px; line-height: 1.3; max-width: 260px; }
+.fn-badge { display: inline-block; font-size: 12px; font-weight: 800; border-radius: 99px; padding: 2px 9px; white-space: nowrap; }
+.fn-badge.done { background: var(--ok-bg); color: var(--ok); }
+.fn-badge.part { background: var(--sky); color: var(--accent-ink); }
+.fn-badge.wait { background: #EEF1F6; color: #4B5563; }
+.fn-badge.late { background: var(--bad-bg); color: var(--bad); }
+.fn-acts { white-space: nowrap; }
+.fn-acts > * { vertical-align: middle; }
+.fn-acts .btn-sm { min-height: 32px; padding: 0 10px; font-size: 13px; gap: 4px; }
+.fn-table .iconbtn { color: var(--gray); display: inline-flex; background: none; border: 0; cursor: pointer; }
+.fn-table .iconbtn:hover { color: var(--accent-ink); background: var(--sky); }
+.fn-table tfoot td { background: #FAFBFD; }
+.fn-empty { padding: 4px 18px 18px; }
+.fn-total { display: flex; flex-direction: column; gap: 6px; }
+.fn-total-r { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 12px; align-items: center; padding: 6px 0; }
+.fn-total-r > span:first-child { font-weight: 800; }
+.fn-total-r > span:not(:first-child) { display: flex; flex-direction: column; align-items: flex-end; }
+.fn-total-r small { color: var(--gray); font-size: 11.5px; font-weight: 700; text-transform: uppercase; }
+.fn-total-r.main { border-top: 1px solid var(--line); padding-top: 12px; font-size: 16px; }
+.fn-total-r.main b { font-size: 18px; }
+
+/* Календарь */
+.fn-cal { margin-bottom: 14px; }
+.fn-cal.late { border-top: 3px solid var(--bad); }
+.fn-cal-sum { margin-left: auto; display: flex; gap: 14px; font-weight: 800; }
+
+/* Окна */
+.fn-dialog { width: min(560px, calc(100vw - 24px)); }
+.fn-dlg-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.fn-dlg-h h3 { margin: 0; }
+.fn-x { background: none; border: 0; color: var(--gray); cursor: pointer; padding: 6px; border-radius: 8px; display: flex; }
+.fn-x:hover { background: #F0F3F8; }
+.fn-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+.fn-fields label { display: flex; flex-direction: column; gap: 5px; font-weight: 700; font-size: 13px; color: #374151; min-width: 0; }
+.fn-fields label.wide { grid-column: 1 / -1; }
+.fn-fields label[hidden] { display: none; }
+.fn-fields input, .fn-fields select { font: inherit; font-weight: 500; font-size: 15px; height: 44px; border: 1px solid #D5DCE6; border-radius: 10px;
+  padding: 0 12px; background: #fff; color: var(--text); width: 100%; }
+.fn-fields input:focus, .fn-fields select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.fn-fields input[data-money] { font-weight: 700; text-align: right; }
+.fn-left { margin: 12px 0 4px; min-height: 20px; font-size: 14px; color: var(--gray); }
+.fn-left b { color: var(--navy); }
+.fn-act { align-items: center; margin-top: 8px; }
+.fn-sp { flex: 1; }
+.fn-del { color: var(--bad); }
+.fn-del.sure { background: var(--bad); color: #fff; border-color: var(--bad); }
+
+@media (max-width: 899px) {
+  .fn-head .dh-tools { display: flex; gap: 8px; }
+  .fn-head .dh-tools .btn { flex: 1; justify-content: center; }
+  .fn-tabs a.fn-tab-sep { margin-left: 8px; }
+  .card.flat.fn-sec > header.fn-sec-h { padding: 0 14px 12px; gap: 10px; }
+  .fn-sec-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; flex: none; order: 3; }
+  .fn-sec-sum > span { align-items: flex-start; }
+  .fn-sec-sum b { font-size: 14px; }
+  .fn-sec-sum .fn-pb { width: 100%; grid-column: 1 / -1; }
+  .fn-table tfoot { display: none !important; }
+  .fn-table td.fn-m-empty { display: none; }
+  .fn-sec-t { min-width: 0; flex: 1; }
+  .fn-table td.fn-n, .fn-table th.fn-n, .fn-hide-m { display: none !important; }
+  .fn-table td.fn-name { min-width: 0; font-size: 15px; padding-top: 10px; }
+  .fn-table td.fn-name::before { content: none; }
+  .fn-table td.fn-acts { position: static !important; display: flex; justify-content: flex-end; gap: 6px; padding: 6px 14px 4px !important; width: 100% !important; }
+  .fn-table td.fn-acts .btn-sm { flex: 1; justify-content: center; min-height: 38px; }
+  .fn-st { align-items: flex-end; text-align: right; }
+  .fn-sum .fn-pf { align-items: flex-end; }
+  .fn-sum tfoot td:first-child { justify-content: flex-start; }
+  .fn-total-r { grid-template-columns: 1fr 1fr 1fr; }
+  .fn-total-r > span:first-child { grid-column: 1 / -1; }
+  .fn-total-r > span:not(:first-child) { align-items: flex-start; }
+  .fn-fields { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .fn-dialog { padding: 18px 16px; max-height: calc(100vh - 24px); overflow: auto; }
+}
