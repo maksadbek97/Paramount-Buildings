@@ -382,6 +382,11 @@ def notifications_for(user):
     for mv in StockMovement.objects.filter(kind="transfer", received=False).select_related("material", "to_warehouse"):
         items.append(("info", "Материал ждёт приёмки", f"{mv.material} {mv.quantity.normalize():f} → {mv.to_warehouse}",
                       reverse("warehouse_detail", args=[mv.to_warehouse_id])))
+    from finance.models import PlanLine
+    from finance.services import overruns
+    for level, where, text, oid in overruns(PlanLine.objects.select_related("construction_object")):
+        items.append((level, "Финансы: факт больше плана", f"{where} · {text}",
+                      reverse("finance_object", args=[oid]) if oid else reverse("finance_debts")))
     if user.is_superuser:
         for level, text, url in alerts.collect():
             items.append((level, "Контроль", text, url))

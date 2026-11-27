@@ -76,28 +76,18 @@ class Command(BaseCommand):
         c2 = Client.objects.create(name="ТОО «Алатау Строй Инвест»", bin="170840054321", phone="+7 727 330-30-30")
         c3 = Client.objects.create(name="ГУ «Управление образования г. Шымкент»", bin="990140011122")
 
-        o1 = ConstructionObject.objects.create(
-            code="AST-01", name="ЖК «Атлант», блок B", city="Астана", address="пр. Туран, 55",
-            client=c1, general_contractor=gc1, contract_number="СП-14/2026", contract_amount=D("812000000"),
-            budget=D("560000000"), manager=emp["Ким"], foreman=emp["Сейтказиев"], pto=emp["Нурланова"],
-            status="in_progress", start_date=d(-60), end_date=d(150),
-            description="12-этажный жилой дом. Субподряд: кладка, штукатурка, армирование.")
-        o2 = ConstructionObject.objects.create(
-            code="ALA-03", name="Бизнес-центр «Алатау»", city="Алматы", address="пр. Аль-Фараби, 120",
-            client=c2, general_contractor=c2, contract_number="СП-09/2026", contract_amount=D("96000000"),
-            budget=D("60000000"), manager=emp["Ким"], foreman=emp["Оспанов"], pto=emp["Нурланова"],
-            status="finishing", start_date=d(-90), end_date=d(15))
-        o3 = ConstructionObject.objects.create(
-            code="SHM-02", name="Школа на 600 мест", city="Шымкент", address="мкр. Нурсат",
-            client=c3, status="preparing", start_date=d(20), end_date=d(300), contract_amount=D("240000000"),
-            manager=emp["Ким"])
-        o4 = ConstructionObject.objects.create(
-            code="AST-02", name="ЖК «Нурлы Жол»", city="Астана", address="ул. Сарайшык, 7", client=c1,
-            general_contractor=gc1, status="paused", start_date=d(-200), end_date=d(90), budget=D("40000000"),
-            description="Работы приостановлены до согласования фасада.")
-        o5 = ConstructionObject.objects.create(
-            code="KRG-01", name="Логистический склад", city="Караганда", address="ул. Складская, 3", client=c2,
-            status="done", start_date=d(-400), end_date=d(-120), contract_amount=D("63000000"))
+        # Объекты компании — 6 объектов из таблицы «Фин план до 2026 года». Реквизиты, адреса и суммы договоров
+        # вносятся в карточке объекта; деньги по объекту ведутся в «Финансах».
+        def obj(code, name, **kw):
+            return ConstructionObject.objects.create(code=code, name=name, status="in_progress", manager=emp["Ким"],
+                                                     **kw)
+        o1 = obj("ATL-01", "Atlant", foreman=emp["Сейтказиев"], pto=emp["Нурланова"], start_date=d(-60))
+        o2 = obj("DAR-01", "Daryn", foreman=emp["Оспанов"], pto=emp["Нурланова"], start_date=d(-90))
+        o3 = obj("ARN-01", "Arna", start_date=d(-30))
+        o4 = obj("NEX-01", "Nexpo Global", start_date=d(-20))
+        o5 = obj("NAK-01", "NAK", start_date=d(-45))
+        o6 = obj("ZER-01", "Zerde", start_date=d(-40))
+        self.real_objects = {"Atlant": o1, "Daryn": o2, "Arna": o3, "Nexpo Global": o4, "NAK": o5, "Zerde": o6}
 
         self._object_module(emp, workers, [o1, o2, o3, o4, o5])
 
@@ -191,9 +181,9 @@ class Command(BaseCommand):
         # Склады: центральный и склады объектов.
         central = Warehouse.objects.create(name="Центральный склад (Астана)", kind="central", keeper=emp["Тулегенов"])
         obj_wh = {
-            o1.pk: Warehouse.objects.create(name="Склад ЖК «Атлант»", kind="object", construction_object=o1,
+            o1.pk: Warehouse.objects.create(name="Склад Atlant", kind="object", construction_object=o1,
                                             keeper=emp["Сейтказиев"]),
-            o2.pk: Warehouse.objects.create(name="Склад БЦ «Алатау»", kind="object", construction_object=o2,
+            o2.pk: Warehouse.objects.create(name="Склад Daryn", kind="object", construction_object=o2,
                                             keeper=emp["Оспанов"]),
         }
         Warehouse.objects.create(name="Склад инструментов", kind="tools", keeper=emp["Тулегенов"])
@@ -327,7 +317,7 @@ class Command(BaseCommand):
         from docflow.demo import seed as seed_docflow
         seed_docflow()  # раздел «Документы»
         from finance.demo import seed as seed_finance
-        seed_finance({"Atlant": o1})  # раздел «Финансы»: финплан из таблицы компании
+        seed_finance(self.real_objects)  # раздел «Финансы»: финплан из таблицы компании
         self._activity_feed()
         self.stdout.write(self.style.SUCCESS("Демо-данные созданы."))
 
@@ -419,7 +409,7 @@ class Command(BaseCommand):
             (K.ORDER, "12-ОД", d(-320), "Об утверждении штатного расписания", None, "Жумабеков", ""),
             (K.ORDER, "15-ОД", d(-200), "О назначении ответственного за охрану труда и технику безопасности", None,
              "Ахметова", "Ответственный: Абдужаббаров М. Х."),
-            (K.ORDER, "21-ЛС", d(-150), "О приёме на работу рабочих на объект ЖК «Атлант»", None, "Исаева", "9 человек"),
+            (K.ORDER, "21-ЛС", d(-150), "О приёме на работу рабочих на объект Atlant", None, "Исаева", "9 человек"),
             (K.ORDER, "24-ОД", d(-30), "О закреплении объектов за руководителями проектов", None, "Жумабеков", ""),
             (K.CERTIFICATE, "", d(-25), "Справка об отсутствии налоговой задолженности", d(5), "Исаева",
              "Нужна для тендеров"),
@@ -462,20 +452,12 @@ class Command(BaseCommand):
         from objects.models import SafetyRecord, TransportRequest
         d = self.d
         o1, o2, o3, o4, o5 = objs
-        for o, kind, coords, resp in [
-            (o1, "residential", "51.1290, 71.4305", emp["Ахметова"]),
-            (o2, "commercial", "43.2185, 76.9270", emp["Ахметова"]),
-            (o3, "social", "42.3417, 69.5901", None),
-            (o4, "residential", "51.1605, 71.4704", None),
-            (o5, "industrial", "49.8047, 73.1094", None),
-        ]:
-            o.kind, o.coordinates, o.responsible = kind, coords, resp
-            if o.status == "paused":
-                o.status_before_pause = "in_progress"
+        for o, resp in [(o1, emp["Ахметова"]), (o2, emp["Ахметова"])]:
+            o.responsible = resp
             o.save()
         for o, kind, task, route, days, hh, driver, status, hours, cost in [
             (o1, "crane", "Подача газоблока на 7–9 этажи", "Склад объекта → секция 2", 1, 8, "Ержанов К.", "approved", None, 0),
-            (o1, "dump", "Вывоз строительного мусора", "пр. Туран, 55 → полигон", 2, 9, "", "new", None, 0),
+            (o1, "dump", "Вывоз строительного мусора", "Объект → полигон", 2, 9, "", "new", None, 0),
             (o1, "manipulator", "Доставка арматуры с центрального склада", "Центральный склад → объект", -3, 10,
              "Сапаров Е.", "done", D("6"), D("90000")),
             (o1, "crane", "Монтаж перемычек, 5 этаж", "", -8, 8, "Ержанов К.", "done", D("8"), D("176000")),

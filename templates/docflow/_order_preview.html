@@ -1,7 +1,7 @@
 {% load ui %}<section class="form-card wide" id="pbOrder" hidden>
   <div class="fgroup solo"><div class="fgrid"><div class="field wide">
     <h3>Приказ на фирменном бланке</h3>
-    <p class="muted">{% if DEMO %}Демо-версия: приказ собран из того, что вы ввели, на бланке для приказа. В журнал он не сохраняется.{% else %}Так приказ будет выглядеть в PDF и Word.{% endif %} Номер приказа <b>{{ blank_data.number|default:"—" }}</b> и номер бланка <b>{{ blank_data.blank_number }}</b> присваиваются автоматически при создании (сейчас — предварительно). Подпись и печать встанут из «Образцов подписи и печати», когда приказ подпишут.</p>
+    <p class="muted">{% if DEMO %}Приказ собран из того, что вы ввели, на бланке для приказа.{% else %}Так приказ будет выглядеть в PDF и Word.{% endif %} Номер приказа <b>{{ blank_data.number|default:"—" }}</b> и номер бланка <b>{{ blank_data.blank_number }}</b> присваиваются автоматически при создании (сейчас — предварительно). Подпись и печать встанут из «Образцов подписи и печати», когда приказ подпишут.</p>
     <div class="errors" id="pbOrderErr" hidden></div>
     <div class="df-paperwrap df-blankpv"><div class="df-a4 df-a4c"><canvas id="pbOrderCanvas" width="1240" height="1754" role="img" aria-label="Приказ на фирменном бланке"></canvas></div></div>
     <div class="df-done-grid">

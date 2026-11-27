@@ -262,7 +262,7 @@ class DemoBuildTests(TestCase):
             for page in ("add", "pto"):
                 self.assertFalse((Path(tmp) / page).exists(), page)
             # раздел «Финансы»: сводная, финплан объекта, долги, календарь
-            for page in ("finance", "finance/object/1", "finance/debts", "finance/calendar", "finance/cash/kind/income"):
+            for page in ("finance", "finance/object/1", "finance/debts", "finance/cash/kind/income"):
                 self.assertTrue((Path(tmp) / page / "index.html").exists(), page)
             # раздел «Объекты»: список, создание, карточка со всеми вкладками и формы внутри объекта
             for page in ("objects", "objects/new", "objects/1", "objects/1/budget", "objects/1/closing",

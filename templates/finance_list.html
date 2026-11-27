@@ -5,6 +5,7 @@
 {% block tools %}<a class="btn btn-ghost" href="{% url 'add_for' 'payment' %}">{% icon 'plus' 18 %}<span>Платёж по объекту</span></a>
 <a class="btn btn-ghost" href="{% url 'transaction_create' %}"><span>Прочий доход / расход</span></a>{% endblock %}
 {% block tab %}
+{% include "finance/_app.html" %}
 <div class="stats">
   <a class="stat" href="?kind=income"><div class="label">Поступления</div><div class="value ok">{{ income|short }}</div></a>
   <a class="stat" href="?kind=expense"><div class="label">Расходы</div><div class="value">{{ expense|short }}</div></a>

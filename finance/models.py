@@ -87,7 +87,7 @@ class PlanLine(models.Model):
         help_text="Не указывается для общих долгов компании",
     )
     section = models.CharField("Блок", max_length=10, choices=Section.choices)
-    name = models.CharField("Наименование / получатель", max_length=250)
+    name = models.CharField("Наименование / получатель", max_length=250, blank=True)
     plan_amount = models.DecimalField("План, ₸", max_digits=16, decimal_places=2, default=0)
     plan_date = models.DateField("Плановая дата", null=True, blank=True)
     fact_amount = models.DecimalField("Факт, ₸", max_digits=16, decimal_places=2, default=0,
@@ -149,3 +149,49 @@ class PlanLine(models.Model):
         if self.fact_amount:
             return "part", "Частично"
         return "wait", "Ожидается" if self.is_income else "К оплате"
+
+
+class ObjectContract(models.Model):
+    """Договор с заказчиком по объекту и доп. договоры (доп. соглашения) к нему."""
+
+    class Kind(models.TextChoices):
+        MAIN = "main", "Договор"
+        EXTRA = "extra", "Доп. договор"
+
+    construction_object = models.ForeignKey("objects.ConstructionObject", verbose_name="Объект",
+                                            on_delete=models.CASCADE, related_name="fin_contracts")
+    kind = models.CharField("Вид", max_length=10, choices=Kind.choices, default=Kind.MAIN)
+    number = models.CharField("Номер", max_length=60, blank=True)
+    date = models.DateField("Дата", null=True, blank=True)
+    subject = models.CharField("Предмет / вид работ", max_length=250, blank=True)
+    amount = models.DecimalField("Сумма, ₸", max_digits=16, decimal_places=2, default=0)
+    note = models.CharField("Примечание", max_length=300, blank=True)
+    position = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "Договор по объекту"
+        verbose_name_plural = "Договоры и доп. договоры по объектам"
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} {self.number or ''} {self.subject}".strip()
+
+
+class WorkAct(models.Model):
+    """АВР — акт выполненных работ: сколько работ сдали заказчику (основание для оплаты)."""
+
+    construction_object = models.ForeignKey("objects.ConstructionObject", verbose_name="Объект", null=True,
+                                            blank=True, on_delete=models.CASCADE, related_name="work_acts")
+    work = models.CharField("Вид работ / договор", max_length=250, blank=True)
+    amount = models.DecimalField("Сумма, ₸", max_digits=16, decimal_places=2, default=0)
+    date = models.DateField("Дата", null=True, blank=True)
+    note = models.CharField("Примечание", max_length=300, blank=True)
+    position = models.PositiveIntegerField("Порядок", default=0)
+
+    class Meta:
+        verbose_name = "АВР"
+        verbose_name_plural = "АВР — акты выполненных работ"
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return f"АВР {self.work} {self.amount}"

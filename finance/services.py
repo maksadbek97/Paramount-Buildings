@@ -122,3 +122,29 @@ def calendar(lines, today=None):
 
 def month_end(d):
     return d.replace(day=monthrange(d.year, d.month)[1])
+
+
+def overruns(lines):
+    """Где факт больше плана: по строке (если план задан) и по блоку объекта. [(level, где, текст, object_id)]."""
+
+    def m(x):
+        return f"{int(x):,}".replace(",", " ") + " ₸"
+    items, blocks = [], {}
+    for ln in lines:
+        if ln.section == S.INCOME:
+            continue
+        key = (ln.construction_object_id, ln.section)
+        b = blocks.setdefault(key, [ZERO, ZERO, ln])
+        b[0] += ln.plan_amount or ZERO
+        b[1] += ln.fact_amount or ZERO
+        if ln.plan_amount and ln.fact_amount > ln.plan_amount:
+            where = ln.construction_object.name if ln.construction_object else "Долг компании"
+            items.append(("warn", where, f"{ln.name or S(ln.section).label}: факт {m(ln.fact_amount)} больше плана "
+                                         f"{m(ln.plan_amount)} на {m(ln.fact_amount - ln.plan_amount)}",
+                          ln.construction_object_id))
+    for (oid, sec), (plan, fact, ln) in blocks.items():
+        if fact > plan:
+            where = ln.construction_object.name if ln.construction_object else "Долг компании"
+            items.insert(0, ("bad", where, f"{S(sec).label}: факт {m(fact)} больше плана {m(plan)} на {m(fact - plan)}",
+                             oid))
+    return items

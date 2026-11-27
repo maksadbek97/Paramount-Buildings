@@ -1,15 +1,5 @@
-{% extends "finance/_base.html" %}{% load ui %}
+{% extends "finance/_base.html" %}
 {% block ptitle %}Долги компании{% endblock %}
 {% block h1 %}Общий долг компании{% endblock %}
-{% block sub %}Реестр кредиторов. Долги не распределяются по объектам; остаток считается автоматически{% endblock %}
-{% block add_section %}debt{% endblock %}
-{% block tools %}<button type="button" class="btn btn-ghost" data-export="dolgi-kompanii" data-target="#t-debt">{% icon 'download' 18 %}<span>Экспорт</span></button>{% endblock %}
-{% block tab %}
-<div class="kgrid fn-kpis">
-  <div class="k fn-k"><span class="kl">Всего долг</span><b class="kv">{{ total.plan|short }}</b><span class="kh">кредиторов: {{ lines|length }}</span></div>
-  <div class="k fn-k"><span class="kl">Оплачено</span><b class="kv ok">{{ total.fact|short }}</b><span class="kh">вернули из {{ total.plan|short }}</span><div class="pb fn-pb"><div class="bar"><span style="width:{{ total.pct }}%"></span></div><b>{{ total.pct }}%</b></div></div>
-  <div class="k fn-k"><span class="kl">Остаток долга</span><b class="kv {% if total.left > 0 %}bad{% endif %}">{{ total.left|short }}</b><span class="kh">осталось вернуть</span></div>
-  <div class="k fn-k"><span class="kl">Просрочено</span><b class="kv {% if late %}bad{% endif %}">{{ late|length }}</b><span class="kh">срок оплаты прошёл</span></div>
-</div>
-{% include "finance/_section.html" %}
-{% endblock %}
+{% block sub %}Реестр кредиторов: сумма долга, факт оплаты и остаток{% endblock %}
+{% block tab %}{% include "finance/_app.html" with view="debts" %}{% endblock %}
