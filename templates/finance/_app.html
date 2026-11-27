@@ -1,0 +1,35 @@
+{% load ui %}{# Таблица финплана: данные + скрипты. view: summary | object | debts #}
+<div class="fg-app" data-fin-app data-api="{% url 'finance_api' %}" data-csrf="{{ csrf_token }}" data-mode="{% if DEMO %}local{% else %}server{% endif %}">
+  {% if view %}<div class="fg-bar">
+    <span class="fg-status" data-fin-status data-state="ok"></span>
+    {% if DEMO %}<button type="button" class="linkbtn fg-reset" data-fin-reset>Вернуть данные из таблицы</button>{% endif %}
+  </div>
+  <div data-fin-view="{{ view }}"{% if view_obj %} data-object="{{ view_obj.pk }}"{% endif %}></div>{% endif %}
+</div>
+<script type="application/json" id="finState">{{ fin_state|safe }}</script>
+<dialog class="fg-dialog" id="finQuick" aria-label="Доход / Расход">
+  <form method="dialog" data-local>
+    <div class="fg-dlg-h"><h3>Доход / Расход</h3><button type="button" class="fg-x" data-close aria-label="Закрыть">{% icon 'x' 20 %}</button></div>
+    <label class="fg-f">Объект<select name="object"></select></label>
+    <div class="fg-secs" data-q-secs role="radiogroup" aria-label="Категория">
+      <label class="in"><input type="radio" name="section" value="income"><span>Поступление</span></label>
+      <label><input type="radio" name="section" value="labor" checked><span>Оплата работ</span></label>
+      <label><input type="radio" name="section" value="material"><span>Материалы</span></label>
+      <label><input type="radio" name="section" value="overhead"><span>Накладные</span></label>
+    </div>
+    <label class="fg-f fg-amount">Сумма, ₸<input name="amount" inputmode="decimal" autocomplete="off" placeholder="0" required></label>
+    <label class="fg-f"><span data-q-name-l>Кому / за что</span><input name="name" list="finQuickNames" autocomplete="off" placeholder="Например: Гулом — оплата за работу"></label>
+    <datalist id="finQuickNames"></datalist>
+    <div class="fg-two">
+      <label class="fg-f">Дата<input type="date" name="date"></label>
+      <label class="fg-f">Примечание<input name="note" autocomplete="off"></label>
+    </div>
+    <p class="fg-hint" data-q-hint></p>
+    <button type="submit" class="btn btn-primary fg-submit" data-q-submit>Записать расход</button>
+  </form>
+</dialog>
+<button type="button" class="fg-fab" data-fin-quick aria-label="Доход / Расход">{% icon 'plus' 26 %}</button>
+<script src="{% asset 'vendor/jszip.min.js' %}" defer></script>
+<script src="{% asset 'finance-xlsx-base.js' %}" defer></script>
+<script src="{% asset 'finxlsx.js' %}" defer></script>
+<script src="{% asset 'fingrid.js' %}" defer></script>

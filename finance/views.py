@@ -1,136 +1,134 @@
-"""Раздел «Финансы»: финплан «план / факт» по шаблону компании.
+"""Раздел «Финансы»: финплан «план / факт» по шаблону компании, в виде таблицы как в Excel.
 
-Сводная → объект (четыре блока) → долги компании → платёжный календарь.
-Любую строку можно добавить, изменить, отметить оплаченной или удалить прямо в списке.
+Страницы отдают данные (finance/state.py), таблицу рисует и пересчитывает static/fingrid.js.
+Каждая правка ячейки сохраняется сразу: на сервере — через /finance/api/, на сайте по ссылке — в браузере.
 """
+import json
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
-from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
+from django.core.exceptions import ValidationError
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_POST
 
 from core import audit
 from core.models import AuditLog
-from core.views import form_page
 from objects.models import ConstructionObject
 
-from . import services
-from .forms import PayForm, PlanLineForm
-from .models import PlanLine
+from . import state as st
+from .models import ObjectContract, PlanLine, WorkAct
 
 S = PlanLine.Section
 
 
 def base_ctx(tab, **extra):
-    objs = services.plan_objects()
-    others = [o for o in ConstructionObject.objects.exclude(status="archive") if o not in objs]
-    return {"tab": tab, "plan_objs": objs, "other_objs": others, "sections": S.choices,
-            "object_sections": [(k, S(k).label) for k in services.OBJECT_SECTIONS],
-            "all_objs": objs + others, "today": date.today(), **extra}
-
-
-def _next(request, default):
-    nxt = request.POST.get("next") or request.GET.get("next") or ""
-    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}):
-        return nxt
-    return default
-
-
-def _back_url(line):
-    if line.section == S.DEBT:
-        return reverse("finance_debts")
-    return reverse("finance_object", args=[line.construction_object_id]) + f"#s-{line.section}"
+    return {"tab": tab, "fin_objects": st.objects(), "fin_state": st.state_json(), "today": date.today(), **extra}
 
 
 @login_required
 def home(request):
-    s = services.summary()
-    cal = services.calendar(s["lines"])
-    return render(request, "finance/home.html", base_ctx(
-        "home", s=s, cal=cal, attention=services.attention(s["lines"])[:8]))
+    return render(request, "finance/home.html", base_ctx("home"))
 
 
 @login_required
 def object_plan(request, pk):
     obj = get_object_or_404(ConstructionObject, pk=pk)
-    lines = list(obj.plan_lines.all())
-    return render(request, "finance/object.html", base_ctx(
-        f"o{obj.pk}", p=services.object_plan(obj, lines), cur_obj=obj, obj=obj))
+    return render(request, "finance/object.html", base_ctx(f"o{obj.pk}", obj=obj, cur_obj=obj))
 
 
 @login_required
 def debts(request):
-    lines = list(PlanLine.objects.filter(section=S.DEBT))
-    total = services.sums(lines)
-    return render(request, "finance/debts.html", base_ctx(
-        "debts", lines=lines, total=total, late=[ln for ln in lines if ln.overdue],
-        sec={"key": S.DEBT, "label": S.DEBT.label, "lines": lines, "is_debt": True, **total}))
+    return render(request, "finance/debts.html", base_ctx("debts"))
 
 
-@login_required
-def calendar(request):
-    lines = list(PlanLine.objects.select_related("construction_object"))
-    return render(request, "finance/calendar.html", base_ctx("calendar", cal=services.calendar(lines)))
+# ---------------- Сохранение правок из таблицы ----------------
+
+MODELS = {"line": PlanLine, "contract": ObjectContract, "act": WorkAct}
+TEXT = {"line": {"name": 250, "note": 300}, "contract": {"number": 60, "subject": 250, "note": 300},
+        "act": {"work": 250, "note": 300}}
+MONEY = {"line": ("plan_amount", "fact_amount"), "contract": ("amount",), "act": ("amount",)}
+DATES = {"line": ("plan_date", "fact_date"), "contract": ("date",), "act": ("date",)}
+# Имена полей в таблице → поля модели
+ALIAS = {"plan": "plan_amount", "fact": "fact_amount", "pdate": "plan_date", "fdate": "fact_date", "pos": "position"}
 
 
-# ---------------- Изменения ----------------
-
-@login_required
-def line_new(request):
-    initial_section = request.GET.get("section") or request.POST.get("section")
-    obj_id = request.GET.get("construction_object") or request.POST.get("construction_object")
-
-    def done(line):
-        return _next(request, _back_url(line))
-    back = reverse("finance_debts") if initial_section == S.DEBT else (
-        reverse("finance_object", args=[obj_id]) if obj_id and str(obj_id).isdigit() else reverse("finance_home"))
-    return form_page(request, PlanLineForm, "Новая строка финплана", done, back=back,
-                     subtitle="План, факт и остаток по шаблону «Фин план»", submit="Добавить")
+def _money(v):
+    if v in (None, ""):
+        return Decimal(0)
+    try:
+        return Decimal("".join(str(v).split()).replace(",", ".").replace("−", "-"))
+    except InvalidOperation:
+        raise ValidationError("Сумма указана неверно.")
 
 
-@login_required
-def line_edit(request, pk):
-    line = get_object_or_404(PlanLine, pk=pk)
-    return form_page(request, PlanLineForm, "Изменить строку финплана", lambda ln: _next(request, _back_url(ln)),
-                     instance=line, back=_back_url(line), subtitle=str(line))
+def _date(v):
+    if not v:
+        return None
+    try:
+        return date.fromisoformat(str(v)[:10])
+    except ValueError:
+        raise ValidationError("Дата указана неверно.")
+
+
+def _apply(kind, obj, data):
+    data = {ALIAS.get(k, k): v for k, v in data.items()}
+    for f, limit in TEXT[kind].items():
+        if f in data:
+            setattr(obj, f, str(data[f] or "").strip()[:limit])
+    for f in MONEY[kind]:
+        if f in data:
+            setattr(obj, f, _money(data[f]))
+    for f in DATES[kind]:
+        if f in data:
+            setattr(obj, f, _date(data[f]))
+    if "object" in data:
+        oid = data["object"]
+        obj.construction_object = ConstructionObject.objects.filter(pk=oid).first() if oid not in (None, "") else None
+    if "position" in data:
+        try:
+            obj.position = max(int(data["position"]), 0)
+        except (TypeError, ValueError):
+            pass
+    if kind == "line" and "section" in data:
+        if data["section"] not in S.values:
+            raise ValidationError("Неизвестный блок.")
+        obj.section = data["section"]
+    if kind == "contract" and "kind" in data:
+        obj.kind = data["kind"] if data["kind"] in ObjectContract.Kind.values else ObjectContract.Kind.MAIN
+    if kind == "line" and obj.fact_amount and not obj.fact_date:
+        obj.fact_date = date.today()
+    if kind == "contract" and not obj.construction_object_id:
+        raise ValidationError("Укажите объект.")
 
 
 @login_required
 @require_POST
-def line_pay(request, pk):
-    """Внести оплату (поступление): факт увеличивается, остаток пересчитывается. Без суммы — весь остаток."""
-    line = get_object_or_404(PlanLine, pk=pk)
-    form = PayForm(request.POST)
-    if not form.is_valid():
-        messages.error(request, "Проверьте сумму и дату.")
-        return redirect(_next(request, _back_url(line)))
-    before = audit.snapshot(line)
-    amount = form.cleaned_data.get("amount")
-    if amount is None:
-        amount = max(line.left, Decimal(0))
-    if amount <= 0:
-        messages.error(request, "Сумма должна быть больше нуля.")
-        return redirect(_next(request, _back_url(line)))
-    line.fact_amount = (line.fact_amount or 0) + amount
-    line.fact_date = form.cleaned_data.get("date") or date.today()
-    line.save()
-    audit.log(request, line, AuditLog.Action.UPDATE, before=before,
-              reason=("Получено " if line.is_income else "Оплачено ") + f"{amount.normalize():f} ₸")
-    messages.success(request, ("Поступление записано" if line.is_income else "Оплата записана") +
-                     (" — строка закрыта" if line.is_done else f", остаток {line.left.normalize():f} ₸"))
-    return redirect(_next(request, _back_url(line)))
-
-
-@login_required
-@require_POST
-def line_delete(request, pk):
-    line = get_object_or_404(PlanLine, pk=pk)
-    back = _back_url(line).split("#")[0]
-    audit.log(request, line, AuditLog.Action.DELETE, before=audit.snapshot(line), reason="Удалена строка финплана")
-    line.delete()
-    messages.success(request, "Строка удалена")
-    return redirect(_next(request, back))
+def api(request):
+    """{kind: line|contract|act, op: save|delete, id?, data: {...}} → {ok, row}."""
+    try:
+        body = json.loads(request.body or b"{}")
+        kind, op = body.get("kind"), body.get("op", "save")
+        model = MODELS[kind]
+    except (ValueError, KeyError, TypeError):
+        return JsonResponse({"ok": False, "error": "Неверный запрос."}, status=400)
+    pk = body.get("id")
+    obj = model.objects.filter(pk=pk).first() if pk and int(pk) > 0 else None
+    if op == "delete":
+        if obj:
+            audit.log(request, obj, AuditLog.Action.DELETE, before=audit.snapshot(obj), reason="Удалено в «Финансах»")
+            obj.delete()
+        return JsonResponse({"ok": True})
+    editing = obj is not None
+    obj = obj or model()
+    before = audit.snapshot(obj) if editing else None
+    try:
+        _apply(kind, obj, body.get("data") or {})
+        obj.full_clean()
+    except ValidationError as e:
+        msg = "; ".join(m for ms in getattr(e, "message_dict", {"": e.messages}).values() for m in ms)
+        return JsonResponse({"ok": False, "error": msg}, status=400)
+    obj.save()
+    audit.log(request, obj, AuditLog.Action.UPDATE if editing else AuditLog.Action.CREATE, before=before)
+    return JsonResponse({"ok": True, "row": st.ROW[kind](obj)})

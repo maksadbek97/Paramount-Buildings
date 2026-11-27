@@ -119,9 +119,9 @@ def docflow_pages():
 
 
 def finance_pages():
-    """Раздел «Финансы»: сводная, финплан каждого объекта, долги, календарь, движение денег."""
+    """Раздел «Финансы»: сводная, финплан каждого объекта, долги, движение денег."""
     base = "/finance/"
-    pages = {base + u: base + u for u in ["", "debts/", "calendar/", "cash/", "cash/new/", "lines/new/"]}
+    pages = {base + u: base + u for u in ["", "debts/", "cash/", "cash/new/"]}
     for kind in ("income", "expense", "debtors", "creditors"):
         pages[f"{base}cash/kind/{kind}/"] = f"{base}cash/?kind={kind}"
     for pk in ConstructionObject.objects.exclude(status="archive").values_list("pk", flat=True):

@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-head"><div class="titles"><h1>Поиск</h1><div class="sub">Объекты, сотрудники, контрагенты, договоры, документы, материалы</div></div></div>
 <form method="get" class="searchbig"><input name="q" value="{{ q }}" placeholder="Название, код, ФИО, телефон, БИН…" autofocus><button class="btn btn-primary">Найти</button></form>
-{% if DEMO %}<div class="empty">В демо-версии поиск не работает — в полной версии результаты появятся здесь, сгруппированные по типу.</div>
+{% if DEMO %}<div class="empty">Поиск на сайте по ссылке не работает — на сервере результаты появятся здесь, сгруппированные по типу.</div>
 {% elif q and groups %}
   {% for title, items in groups %}<h2>{{ title }} <span class="count">{{ items|length }}</span></h2>
   <div class="list">{% for name, meta, url in items %}<a class="row" href="{{ url }}"><div class="body"><div class="title">{{ name }}</div>{% if meta %}<div class="meta">{{ meta }}</div>{% endif %}</div><span class="chev">{% icon 'chevron' 18 %}</span></a>{% endfor %}</div>

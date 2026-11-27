@@ -281,8 +281,9 @@ def _tab_money(request, obj, contracts):
                   for t in tx], key=lambda x: x["date"], reverse=True)
     other_in = sum((t.amount for t in tx if t.kind == "income"), ZERO)
     m = _money(obj, s)
+    from finance.state import state_json
     return {"ops": ops[:60], "m": m, "income": s["received"] + other_in,
-            "result": s["received"] + other_in - m["paid"]}
+            "result": s["received"] + other_in - m["paid"], "fin_state": state_json()}
 
 
 def _tab_people(request, obj, contracts):

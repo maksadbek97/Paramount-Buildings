@@ -72,7 +72,6 @@
 {% endif %}
 
 <main>
-  {% if DEMO %}<div class="demo-bar">Демо-версия · примерные данные · кнопки не сохраняют изменения</div>{% endif %}
   {% for m in messages %}<div class="toast">{{ m }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>
@@ -118,13 +117,12 @@ document.addEventListener('click', function (e) {
 </script>
 <script src="{% asset 'objects.js' %}" defer></script>
 <script src="{% asset 'docflow.js' %}" defer></script>
-<script src="{% asset 'finance.js' %}" defer></script>
 {% if DEMO %}<script>
 document.querySelectorAll('form[method=post]:not([data-local])').forEach(function (f) {
   f.addEventListener('submit', function (e) {
     e.preventDefault();
     var t = document.createElement('div'); t.className = 'toast';
-    t.textContent = /logout/.test(f.getAttribute('action')) ? 'Это демо: выход отключён. В рабочей версии здесь вы выйдете из системы.' : 'Это демо: данные не сохраняются. В полной версии запись появится сразу.';
+    t.textContent = /logout/.test(f.getAttribute('action')) ? 'На сайте по ссылке вход и выход не нужны.' : 'На сайте по ссылке эта форма не сохраняет запись. В «Финансах» все правки сохраняются.';
     document.querySelector('main').prepend(t); window.scrollTo({top: 0, behavior: 'smooth'});
   });
 });
